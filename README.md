@@ -8,7 +8,10 @@ Live demo (once GitHub Pages is enabled for this repo): https://marioskiv.github
 
 Open [`index.html`](./index.html) directly in any modern browser — no build step, no server required.
 
----
+> [!WARNING]
+> **Project Status & Disclaimer:** This software is currently in the **experimental/development** phase. The conversion algorithms and mathematical models have been validated via the built-in 3D simulator and dry-run code analysis, but **the generated G-code has not yet been physically tested on a live CNC machine**. 
+> 
+> If you decide to test this on your hardware, always perform a **dry run** (air cut) first with no stock or tooling installed, and keep your hand close to the E-stop! Use at your own risk.
 
 ## Why this exists
 
