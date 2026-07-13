@@ -4,7 +4,7 @@ A browser-based tool that converts standard Cartesian XY G-code (from Fusion 360
 slicer) into **Polar XCZ G-code** for a 2-linear + 1-rotary-axis CNC machine (X = radius, C = rotary table
 angle, Z = depth), running on **LinuxCNC** with `trivkins` and **G93 inverse-time** feed.
 
-Live demo (once GitHub Pages is enabled for this repo): `https://<your-username>.github.io/polar-cnc-converter/`
+Live demo (once GitHub Pages is enabled for this repo): https://marioskiv.github.io/polar-cnc-converter/
 
 Open [`index.html`](./index.html) directly in any modern browser — no build step, no server required.
 
