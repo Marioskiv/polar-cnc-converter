@@ -2,7 +2,7 @@
 
 A browser-based tool that converts standard Cartesian XY G-code (from Fusion 360, any CAM package, or a
 slicer) into **Polar XCZ G-code** for a 2-linear + 1-rotary-axis CNC machine (X = radius, C = rotary table
-angle, Z = depth), running on **LinuxCNC** with `trivkins` and **G93 inverse-time** feed.
+angle, Z = depth), ...running on LinuxCNC configured as a native XCZ machine (using trivkins) with G93 inverse-time feed.
 
 Live demo (once GitHub Pages is enabled for this repo): https://marioskiv.github.io/polar-cnc-converter/
 
@@ -42,7 +42,7 @@ This project solves both, specifically for **LinuxCNC**:
 - **Adaptive chordal segmentation** — subdivides lines/arcs based on distance-to-centre and a chord-tolerance
   setting, denser near the centre where curvature (in polar space) is highest.
 - **3D toolpath simulator** (Three.js) with continuous, feedrate-accurate playback (not just point-to-point
-  jumps), Rotary-Mill and Static-3D view modes, and live telemetry (X/C/Z/F, max radius/角速度 warnings, X
+  jumps), Rotary-Mill and Static-3D view modes, and live telemetry (X/C/Z/F, max radius/angular velocity warnings, X
   travel-limit warnings).
 
 ## Quick start
