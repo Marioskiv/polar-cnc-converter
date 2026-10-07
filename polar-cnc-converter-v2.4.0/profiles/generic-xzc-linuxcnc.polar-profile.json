@@ -1,0 +1,21 @@
+{
+  "format": "polar-cnc-profile",
+  "version": 1,
+  "name": "Generic XZC lathe \u2014 LinuxCNC",
+  "description": "Rotary C, X as radius. Fill in X travel and Safe retract Z for your machine.",
+  "options": {
+    "chordTol": 0.025,
+    "centerMode": "auto",
+    "xMin": -1000,
+    "xMax": 1000,
+    "toolDia": 6,
+    "autoStepover": true,
+    "centerStep": 1,
+    "centerRetract": 2,
+    "retractZMachine": null,
+    "rotaryAxis": "C",
+    "invertC": false,
+    "invertX": false,
+    "xDiameter": false
+  }
+}

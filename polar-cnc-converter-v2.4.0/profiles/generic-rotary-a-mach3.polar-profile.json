@@ -1,0 +1,21 @@
+{
+  "format": "polar-cnc-profile",
+  "version": 1,
+  "name": "Generic \u2014 rotary axis on A (e.g. Mach3)",
+  "description": "Same as generic, with the rotary axis named A. Check X travel, Safe retract Z and the rotation direction with a test cut.",
+  "options": {
+    "chordTol": 0.025,
+    "centerMode": "auto",
+    "xMin": -1000,
+    "xMax": 1000,
+    "toolDia": 6,
+    "autoStepover": true,
+    "centerStep": 1,
+    "centerRetract": 2,
+    "retractZMachine": null,
+    "rotaryAxis": "A",
+    "invertC": false,
+    "invertX": false,
+    "xDiameter": false
+  }
+}

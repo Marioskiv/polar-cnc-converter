@@ -1,0 +1,21 @@
+{
+  "format": "polar-cnc-profile",
+  "version": 1,
+  "name": "Example: Holzmann lathe conversion (Marioskiv)",
+  "description": "The author's machine (layout of 2026-10-04): router in the former lathe tool-post position, cutter on the chuck centreline 20 mm from the X switch; X = -20 at the switch, 0 at the centre, soft limit +113. Machining on ONE side only (X Min 0), the rigid side of the cross-slide; parts up to about 220 mm diameter. Machine Z is numbered like a mill: Z0 is the home park, 10 mm from the switch at the tailstock end, so the safe retract is machine Z 0. Aluminium: chord tolerance 0.025 mm.",
+  "options": {
+    "chordTol": 0.025,
+    "centerMode": "auto",
+    "xMin": 0,
+    "xMax": 113,
+    "toolDia": 6,
+    "autoStepover": true,
+    "centerStep": 1,
+    "centerRetract": 2,
+    "retractZMachine": 0,
+    "rotaryAxis": "C",
+    "invertC": false,
+    "invertX": false,
+    "xDiameter": false
+  }
+}

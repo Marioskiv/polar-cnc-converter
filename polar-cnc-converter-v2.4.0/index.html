@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<!--
+  Polar CNC — Cartesian to Polar (XCZ) G-code Converter & Simulator, targeting LinuxCNC (trivkins, G93 inverse-time).
+
+  Conceptual origin / credit:
+  This project was inspired by kadirilkimen's PolarBear CNC ecosystem, which first explored
+  Cartesian-to-Polar G-code postprocessing for a 2-linear + 1-rotary-axis machine:
+    - https://github.com/kadirilkimen/Polar-Bear-Cnc-Machine  (the physical machine concept)
+    - https://github.com/kadirilkimen/polarToolsJS              (web UI g-code converter)
+    - https://github.com/kadirilkimen/gCodePolarizerJS          (core Cartesian->Polar JS library)
+  None of their original code is reused verbatim here — this project is an independent
+  implementation written specifically for LinuxCNC's G93 inverse-time feed mode, with its own
+  physics-based feed model (C-axis angular velocity limiting), adaptive chordal segmentation,
+  center-singularity handling (freeze threshold, concentric pocket fill, Signed-X pass-through
+  with Auto crossing detection), and a Three.js based 3D toolpath simulator.
+  Credit goes to the original author for pioneering the underlying idea for this class of machine.
+
+  Copyright (c) 2026 Marioskiv — https://github.com/Marioskiv/polar-cnc-converter
+  License: MIT (see LICENSE in this repository).
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Polar CNC - Convert &amp; Simulate</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='110' fill='%23141519'/><circle cx='256' cy='256' r='160' fill='none' stroke='%2300b0ff' stroke-width='26'/><rect x='234' y='66' width='44' height='60' rx='6' fill='%2300b0ff'/><rect x='234' y='66' width='44' height='60' rx='6' fill='%2300b0ff' transform='rotate(45 256 256)'/><rect x='234' y='66' width='44' height='60' rx='6' fill='%2300b0ff' transform='rotate(90 256 256)'/><rect x='234' y='66' width='44' height='60' rx='6' fill='%2300b0ff' transform='rotate(135 256 256)'/><circle cx='256' cy='256' r='95' fill='%23141519' stroke='%23ff6d00' stroke-width='6'/><circle cx='256' cy='256' r='20' fill='%23ff6d00'/></svg>">
+  <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/controls/OrbitControls.js"></script>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<div id="app">
+
+  <header>
+    <div>
+      <h1>&#x2699;&#xFE0F; Polar CNC &mdash; Cartesian Converter &amp; Face-Mill Simulator</h1>
+      <p>XY Cartesian &#x2192; Polar XZC &nbsp;&middot;&nbsp; G93 Inverse-Time &nbsp;&middot;&nbsp; LinuxCNC &nbsp;&middot;&nbsp; Three.js 3D</p>
+    </div>
+  </header>
+
+  <div class="workspace">
+
+    <aside class="sidebar">
+
+      <!-- Step 1: Cartesian input -->
+      <div class="step-block">
+        <div class="step-label">1 &mdash; Cartesian Input (XY)</div>
+        <textarea id="cartInput" class="code-area" spellcheck="false"
+          placeholder="Paste Cartesian XY G-code here&#10;(Fusion 360, Slicer, CAM output...)&#10;&#10;Supports: G0 G1 G2 G3, X Y Z F&#10;&#10;Drag-and-drop .nc / .gcode files also works."></textarea>
+      </div>
+
+      <button class="btn-convert" id="btnConvert">Convert &amp; Simulate &#x1F680;</button>
+
+      <!-- Step 2: Polar output -->
+      <div class="step-block">
+        <div class="step-label">2 &mdash; Polar Output (XZC &mdash; G93 Inverse-Time)</div>
+        <textarea id="polarOutput" class="code-area" readonly spellcheck="false"
+          placeholder="Converted Polar G-code will appear here..."></textarea>
+      </div>
+
+      <button class="btn-export" id="btnExport" disabled>&#x1F4BE; Export Polar G-code (.nc)</button>
+
+      <div id="parseInfo">Enter Cartesian G-code in Step 1, then click Convert &amp; Simulate.</div>
+
+      <div class="ovr-wrap">
+        <label class="ovr-label">Feedrate Override: <span id="overrideVal">100</span>%</label>
+        <input type="range" id="feedrateSlider" min="10" max="300" value="100" step="10">
+      </div>
+
+    </aside>
+
+    <div class="viewport-wrap">
+      <canvas id="c3d"></canvas>
+
+      <div class="telemetry">
+        <span class="tl">Line:&nbsp;</span><span class="tv" id="tLine">&mdash;</span><br>
+        <span class="tl">Mode:&nbsp;</span><span id="tMode" style="color:var(--g1)">&mdash;</span><br>
+        <span class="tl">View:&nbsp;</span><span id="tView" style="color:var(--purple)">Rotary Mill</span><br>
+        <span class="tl">X&thinsp;(R):&nbsp;</span><span class="tv" id="tX">&mdash;</span>&thinsp;mm<br>
+        <span class="tl">C&thinsp;(&theta;):&nbsp;</span><span class="tv" id="tC">&mdash;</span>&thinsp;&deg;<br>
+        <span class="tl">Z (depth):&nbsp;</span><span class="tv" id="tZ">&mdash;</span>&thinsp;mm<br>
+        <span class="tl">F&thinsp;(G93):&nbsp;</span><span class="tv" id="tF">&mdash;</span><br>
+        <span class="tl">MaxR:&nbsp;</span><span id="tMaxR" style="color:var(--dim)">&mdash;</span>&thinsp;mm
+      </div>
+
+      <div class="legend">
+        <div class="lg1">&#x25A0; G1 Cut path</div>
+        <div class="lg0">&#x25A0; G0 Rapid</div>
+        <div class="lhint">Drag &middot; Scroll &middot; Right-drag to pan</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="cvt-bar-wrap">
+    <details class="cvt-settings" open>
+      <summary class="step-label" style="padding-top:4px;display:flex;align-items:center;justify-content:space-between;gap:6px;">
+        <span><span class="cvt-chevron">&#9656;</span>&nbsp;Converter Settings</span>
+      </summary>
+
+      <div class="cvt-bar-body">
+        <!-- SIMPLIFIED 2026-10-04: only what a user must set for his machine.
+             Centre-crossing strategy is automatic (the X Min value decides the
+             machining side); pocket-fill details use their defaults. Profiles
+             may still set those options - see profileExtras in settings.js. -->
+        <div class="cvt-card">
+          <div class="cvt-subhead">&#128207; Machine</div>
+          <div class="cvt-grid">
+            <div class="cvt-field" title="Minimum X the machine may go to (in its own X units, as written to the file). This also chooses the MACHINING SIDE: 0 = one side of the centre only (X never negative; cuts through the centre turn the chuck 180 deg at the centre instead). A negative value = both sides: the tool may cross the centre by up to that many mm, but only on cuts that pass exactly through the centre (Signed X). Set it to your machine's real limit, never beyond it.">
+              <label class="cvt-lbl">X Axis Min <span class="cvt-unit">mm &middot; 0 = one side</span></label>
+              <input type="number" id="inpXMin" class="cvt-inp" value="-1000" step="1">
+            </div>
+            <div class="cvt-field" title="Maximum X (largest radius) the machine can reach, in its own X units (as written to the file). Set it to your machine's soft limit.">
+              <label class="cvt-lbl">X Axis Max <span class="cvt-unit">mm</span></label>
+              <input type="number" id="inpXMax" class="cvt-inp" value="1000" step="1">
+            </div>
+            <div class="cvt-field" title="Machine-coordinate Z (G53) used whenever the CAM program contains a G53 / G28 / G30 Z retract. There is deliberately NO default: a CAM post written for a mill assumes machine Z0 is the top of Z, but on many lathe conversions machine Z0 is at the CHUCK end, so passing G53 Z0 through could drive the tool into the work. Enter a machine Z that is safely away from the work on YOUR machine (for example your Z home position). Leave empty to have such programs rejected — or set the post's safe-retract method to clearance height.">
+              <label class="cvt-lbl">Safe retract Z <span class="cvt-unit">machine mm</span></label>
+              <input type="number" id="inpRetractZ" class="cvt-inp" value="" placeholder="your safe machine Z" step="1">
+            </div>
+            <div class="cvt-field" title="Diameter of the cutter actually in the spindle (mm). Used by the center pocket fill: a plunge at the centre already clears a disk of this diameter, so the innermost circle starts at radius D/2 instead of at the stepover, and with Auto Stepover ticked the radial step becomes 50% of D.">
+              <label class="cvt-lbl">Tool Diameter <span class="cvt-unit">mm</span></label>
+              <input type="number" id="inpToolDia" class="cvt-inp" value="6.0" min="0.1" step="0.5">
+            </div>
+          </div>
+        </div>
+
+        <div class="cvt-card">
+          <div class="cvt-subhead">&#9881; Machine Output Profile</div>
+          <div class="cvt-grid">
+            <div class="cvt-field" title="Letter your controller uses for the rotary (chuck) axis.">
+              <label class="cvt-lbl">Rotary axis</label>
+              <select id="selRotaryAxis" class="cvt-inp">
+                <option value="C" selected>C</option>
+                <option value="A">A</option>
+                <option value="B">B</option>
+              </select>
+            </div>
+            <div class="cvt-field" title="How your controller expects X: as the radius (distance from the centre) or as a diameter (lathe diameter mode, e.g. LinuxCNC LATHE with G7). The X travel limits above are in the same units as the output.">
+              <label class="cvt-lbl">X output</label>
+              <select id="selXMode" class="cvt-inp">
+                <option value="radius" selected>radius</option>
+                <option value="diameter">diameter</option>
+              </select>
+            </div>
+          </div>
+          <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:14px;">
+            <label class="cvt-lbl" style="display:flex;align-items:center;gap:6px;cursor:pointer;"
+                   title="Tick if your rotary axis turns the other way for a positive move. Getting this wrong mirrors every part, and no simulator can show it: check with an asymmetric test cut (e.g. a letter F).">
+              <input type="checkbox" id="chkInvertC"> Invert rotary direction
+            </label>
+            <label class="cvt-lbl" style="display:flex;align-items:center;gap:6px;cursor:pointer;"
+                   title="Tick if X counts the other way on your machine (for example the tool sits on the negative-X side of the centre). The X travel limits stay in your machine's own terms.">
+              <input type="checkbox" id="chkInvertX"> Invert X direction
+            </label>
+          </div>
+          <div class="cvt-note" style="margin-top:6px;font-size:11px;opacity:.75;">
+            Axis velocities and accelerations are not set here: your controller enforces its own limits on every move.
+          </div>
+          <!-- Machine profiles: every setting on this panel as one JSON file, so each
+               machine keeps its own and they can be shared (see profiles/ in the repo). -->
+          <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;">
+            <button id="btnSaveProfile" class="feed-tok" type="button"
+              title="Download every converter setting as a machine profile (JSON).">&#128190; Save profile</button>
+            <button id="btnLoadProfile" class="feed-tok" type="button"
+              title="Load a machine profile (JSON) saved earlier or shared by someone with the same machine.">&#128194; Load profile</button>
+            <input type="file" id="fileProfile" accept=".json,application/json" style="display:none">
+          </div>
+        </div>
+
+        <details class="cvt-card">
+          <summary class="cvt-subhead" style="cursor:pointer;">&#128295; Advanced &mdash; change only if needed</summary>
+          <div class="cvt-grid" style="margin-top:6px;">
+            <div class="cvt-field" title="Chordal deviation tolerance (mm). Smaller = denser, more accurate segments near curves.">
+              <label class="cvt-lbl">Chord Tolerance <span class="cvt-unit">mm</span></label>
+              <input type="number" id="inpChordTol" class="cvt-inp" value="0.025" min="0.001" step="0.005">
+            </div>
+            <div class="cvt-field" title="Radius (mm) of the zone around the pole where special handling is used. Leave EMPTY for automatic (half the chord tolerance, recommended): only lines passing practically through the centre get Signed-X or Index at Pole, every other line is converted exactly and the controller slows down near the centre. A larger value (old default 2) clears a disk around the centre with Pocket Fill instead - faster near the centre, but it cuts beyond the programmed path.">
+              <label class="cvt-lbl">Center Zone <span class="cvt-unit">mm &middot; empty = auto</span></label>
+              <input type="number" id="inpThreshold" class="cvt-inp" value="" min="0.001" step="0.001" placeholder="auto">
+            </div>
+          </div>
+        </details>
+      </div>
+    </details>
+  </div>
+
+  <div class="ctrl-bar">
+    <button class="btn-c" id="btnPlayPause" disabled>&#9654;&thinsp;Play</button>
+    <button class="btn-c" id="btnReset"     disabled>&#8635;&thinsp;Reset</button>
+    <div class="sep"></div>
+    <button class="btn-c" id="btnViewMode">&#128065;&thinsp;Mode: Rotary Mill</button>
+    <div class="sep"></div>
+    <div class="sg">
+      <label>Speed:</label>
+      <button class="spd-btn" id="btnSpdDn">&minus;</button>
+      <input type="range" id="speedSlider" min="1" max="200" value="3" style="width:90px">
+      <button class="spd-btn" id="btnSpdUp">+</button>
+      <span id="lblSpeed">3&times;</span>
+    </div>
+    <div class="sep"></div>
+    <div class="sg" id="tlGroup">
+      <label id="lblProg" style="min-width:80px">0 / 0</label>
+      <input type="range" id="tlSlider" min="0" max="0" value="0" disabled>
+    </div>
+  </div>
+
+</div>
+<!-- Core (pure, testable in Node): -->
+<script src="src/core/geometry.js" charset="utf-8"></script>
+<script src="src/core/converter.js" charset="utf-8"></script>
+<script src="src/core/polar-parser.js" charset="utf-8"></script>
+<script src="src/core/material.js" charset="utf-8"></script>
+<!-- UI + simulator (browser only): -->
+<script src="src/ui/state.js" charset="utf-8"></script>
+<script src="src/ui/settings.js" charset="utf-8"></script>
+<script src="src/sim/simulator.js" charset="utf-8"></script>
+<script src="src/ui/app.js" charset="utf-8"></script>
+</body>
+</html>

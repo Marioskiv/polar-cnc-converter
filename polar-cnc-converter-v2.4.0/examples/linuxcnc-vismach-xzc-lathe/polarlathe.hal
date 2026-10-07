@@ -1,0 +1,8 @@
+# Polar CNC — connects LinuxCNC's joint positions to the vismach model.
+# Loaded after LIB:basic_sim.tcl, which simulates the joints (no hardware).
+# joint 0 = X (radius), joint 1 = Z (axial), joint 2 = C (chuck), as on the machine.
+# SPDX-License-Identifier: MIT
+loadusr -W ./polarlathe.py
+net px <= joint.0.pos-fb => polarlathe.jointX
+net pz <= joint.1.pos-fb => polarlathe.jointZ
+net pc <= joint.2.pos-fb => polarlathe.jointC
