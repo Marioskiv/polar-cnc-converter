@@ -6,6 +6,7 @@ One file per project, so a new session knows what was already read without readi
 | Project | File | Licence | What it is for us |
 |---|---|---|---|
 | Kiri:Moto (GridSpace/grid-apps) `d138275` | [kirimoto.md](kirimoto.md) | MIT (file headers say "All Rights Reserved") | CAM in the browser; candidate home for the converter (post-processor hook `gcodeProc`); its 4th-axis code |
+| Tilt axis research: LinuxCNC source/docs `46a388f`, industry B-axis mill-turns, cylindrical interpolation | [tilt-axis-research.md](tilt-axis-research.md) | — (docs; one GitHub project without licence → method only) | Why the tilt axis is **B**, joint renumbering, tool length at B = 90, face vs periphery inputs |
 | Joshua Bird — Core R-Theta printer `107e2c1`, S4 slicer `bc4b8d9` (+ radial slicer, first pass) | [bird-4axis.md](bird-4axis.md) | GPL-3 (+ no-sell clause on the printer) — **method only** | Model for Marios's tilting router (B in the radial plane): pivot compensation, max tilt per block, G93, firmware limits; what does NOT carry over to milling |
 
 ## How to add a project (when Marios gives a URL or files)

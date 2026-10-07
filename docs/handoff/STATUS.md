@@ -71,6 +71,9 @@ trust the computer and tell Marios about the difference.
   Marios must answer:** indexed (0°/90° fixed per cut) or simultaneous tilt? axis letter, travel, motor/drive/
   reduction, homing, BOB output, pivot-to-tip L per tool and pivot offset, router clearance at 90°.
   Machine config first: adding the axis moves C from joint 2 to joint 3 (canonical order X Z B C).
+  **2026-10-07 Marios: the axis is not built, the router stays fixed → NO `.ini`/`.hal` changes now; only a
+  converter layout selector "XZC / XZC + tilt (B, A as rename)".** Letter researched: **B**
+  (`references/tilt-axis-research.md`). Selector design proposed, waiting for his answers (see LOG.md).
 - Marios's goal (2026-10-07): "behave like Fusion 360 CAM for polar / multi-axis machines — a universal CAM for
   all machine types". Agreed direction proposed: the CAM (Fusion, Kiri:Moto, …) makes the toolpaths, the
   converter is the universal **machine-layout** stage (like Fusion's machine definition + post).

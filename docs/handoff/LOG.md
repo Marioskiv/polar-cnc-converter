@@ -5,6 +5,26 @@ Short and factual. Current state lives in `STATUS.md`, permanent decisions in `D
 
 ---
 
+## 2026-10-07 (night) — tilt axis: letter B, research, selector design proposed
+
+**Asked:** the 4th axis is not ready (router fixed for now) → no `.ini`/`.hal` changes, converter only; make sure
+which letter LinuxCNC needs (A or B); a selector "XZC or XZC + A/B" must go in; search the web, GitHub and
+LinuxCNC for such layouts.
+
+**Done:** LinuxCNC source/docs (master `46a388f`) and web searched; notes in `references/tilt-axis-research.md`.
+Result: **B** (A about X, B about Y, C about Z — LinuxCNC docs, ISO 841; LinuxCNC's own tilting-head kins and
+industry B-axis mill-turns use B). With trivkins the letter has no geometry (A would run too); direction must be
+an invert option + test cut. Big consequence: at B = 90 `G43` adds tool length to the wrong axis → the converter
+needs per-tool lengths in the tilted layout. Face = polar interpolation (today); periphery = cylindrical
+interpolation (G7.1 style): inputs either a mill 4th-axis XYZA program (Fusion rotary, Kiri lathe op) or an
+unrolled 2-D program + radius. Forums of LinuxCNC/Autodesk are blocked in this sandbox (titles only).
+
+**Not done — waiting for Marios** (proposal in the chat): first version indexed only (B fixed per section: 0 face,
+90 periphery) or simultaneous; which periphery input first (XYZA program or unrolled 2-D); tool lengths from a
+list in the settings + `G49` in periphery sections. No converter code written for the selector yet (rule 1).
+
+---
+
 ## 2026-10-07 (evening) — converter 2.5.0, Bird repos in detail
 
 **Asked:** (1) "it should behave like a Fusion 360 CAM for polar / multi-axis machines — a universal CAM for all

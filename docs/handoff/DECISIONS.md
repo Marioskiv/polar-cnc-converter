@@ -47,6 +47,9 @@
 - The distance pivot → tool tip changes with every tool; it must be a per-tool value.
 - Stay on trivkins (offline transform). Custom kinematics would move the pole problem into the controller.
 - Bird's code is GPL: method only. See `references/bird-4axis.md`.
+- Tilt axis letter: **B** (rotation about a line parallel to Y — LinuxCNC docs, ISO 841, LinuxCNC's own tilting-head
+  example, industry B-axis mill-turns); A only as a rename option. Direction needs an invert option + test cut.
+  Research: `references/tilt-axis-research.md` (2026-10-07). Hardware not built: no `.ini`/`.hal` change now.
 - Adding the tilt axis renumbers the joints (canonical order X Y Z A B C): XZBC → C becomes joint 3.
 - For milling the tilt comes from the CAM's tool orientation (or a fixed 0°/90°), not from a printing-style
   optimiser; G93 time and the error checks use the **tool-tip** path, not the pivot path.
