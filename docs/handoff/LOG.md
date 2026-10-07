@@ -5,6 +5,27 @@ Short and factual. Current state lives in `STATUS.md`, permanent decisions in `D
 
 ---
 
+## 2026-10-07 (late night) — Marios's answers on the tilt axis
+
+**Marios said:** (1) the tilt must **change while cutting** (simultaneous), not fixed 0/90 positions;
+(2) on tool lengths in a settings list + cancelling G43: "I don't know which is more correct — what do you
+believe?"; (3) "the router will turn *kata ton axona X*, i.e. while it does face machining, when asked to tilt,
+to make **propellers** and difficult spots".
+
+**Open — must be clarified before any code:** "kata ton axona X" is ambiguous: *about* X (tool leans sideways,
+tangential = **A**) or *along/toward* X (tool leans toward/away from the centre, radial plane = **B**, as in
+Bird's printer and as assumed so far). It matters: B reaches the periphery (B 90 points at the chuck axis) and
+keeps the pole logic; A leans into the gaps between propeller blades but leaves an unreachable disk of radius
+L·|sin a| around the centre and cannot point radially at the periphery (except at X = 0). Asked him to describe
+which way the tool tip moves. Also open: which CAM will produce simultaneous tool orientations (Fusion
+multi-axis may need a paid extension — not verified).
+
+**Claude's recommendation given:** the converter must know each tool's length when tilting (trivkins `G43` adds
+it to Z only); best source = LinuxCNC's own `tool.tbl` (same numbers the machine uses) + one measured pivot
+length; `G43` then not used in tilted output. Not implemented — waiting for his OK.
+
+---
+
 ## 2026-10-07 (night) — tilt axis: letter B, research, selector design proposed
 
 **Asked:** the 4th axis is not ready (router fixed for now) → no `.ini`/`.hal` changes, converter only; make sure
