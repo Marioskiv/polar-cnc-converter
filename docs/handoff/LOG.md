@@ -5,6 +5,19 @@ Short and factual. Current state lives in `STATUS.md`, permanent decisions in `D
 
 ---
 
+## 2026-10-07 (end, 2) — FreeCAD program refused: no feed rate
+
+**Marios** converted a FreeCAD program (post `linuxcnc_post`, tool "TC: 5mm Endmill") and got "Line 25 … cutting
+move without a feed rate". **Cause:** the program has no F word anywhere: the FreeCAD Tool Controller feeds are 0
+(the default), so the post writes no F. The refusal is correct (2.4.1 rule; LinuxCNC itself refuses a G1 without F).
+Checked: the same program with `F600` on the first G1 converts cleanly (no warnings, radius up to ~70.6 mm, fits X).
+**Told him:** set Horizontal/Vertical Feed (and spindle speed) in the Tool Controller and post again.
+**Noticed, not changed:** FreeCAD tool comments `(TC: 5mm Endmill)` / `(Compensated Tool Path. Diameter: 5.0)` are
+not read (the page's Tool diameter, default 6, is used — set it to 5); FreeCAD Z0 is the stock bottom (Z positive,
+clearance Z40) → touch off accordingly. **Offered (waiting for his yes):** read the FreeCAD diameter comment.
+
+---
+
 ## 2026-10-07 (end) — PR #2 merged
 
 **Marios** pressed the PR button in the app and asked what it is and to update the repository in his account.
