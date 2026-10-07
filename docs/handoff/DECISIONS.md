@@ -47,6 +47,8 @@
 - The distance pivot → tool tip changes with every tool; it must be a per-tool value.
 - Stay on trivkins (offline transform). Custom kinematics would move the pole problem into the controller.
 - Bird's code is GPL: method only. See `references/bird-4axis.md`.
+- **Marios confirmed (2026-10-07): the router tilts like Bird's printer (toward/away from the centre, radial plane),
+  simultaneously while cutting.**
 - Tilt axis letter: **B** (rotation about a line parallel to Y — LinuxCNC docs, ISO 841, LinuxCNC's own tilting-head
   example, industry B-axis mill-turns); A only as a rename option. Direction needs an invert option + test cut.
   Research: `references/tilt-axis-research.md` (2026-10-07). Hardware not built: no `.ini`/`.hal` change now.

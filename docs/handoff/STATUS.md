@@ -74,8 +74,9 @@ trust the computer and tell Marios about the difference.
   **2026-10-07 Marios: the axis is not built, the router stays fixed → NO `.ini`/`.hal` changes now; only a
   converter layout selector "XZC / XZC + tilt (B, A as rename)".** Letter researched: **B**
   (`references/tilt-axis-research.md`). Marios: tilt must change **while cutting** (simultaneous), for propellers
-  and hard-to-reach spots. **Open:** is the tilt about X (sideways, A) or toward the centre (radial plane, B)? —
-  his wording "kata ton axona X" is ambiguous; asked. Tool length: proposed reading LinuxCNC `tool.tbl`.
+  and hard-to-reach spots. **Confirmed 2026-10-07: it tilts "like Bird's printer" → radial plane → B.**
+  Tool length: proposed reading LinuxCNC `tool.tbl`. Open: which CAM gives tool orientations; go-ahead for
+  step 2 (restructure) + selector.
 - Marios's goal (2026-10-07): "behave like Fusion 360 CAM for polar / multi-axis machines — a universal CAM for
   all machine types". Agreed direction proposed: the CAM (Fusion, Kiri:Moto, …) makes the toolpaths, the
   converter is the universal **machine-layout** stage (like Fusion's machine definition + post).

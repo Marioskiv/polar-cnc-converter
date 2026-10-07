@@ -5,6 +5,13 @@ Short and factual. Current state lives in `STATUS.md`, permanent decisions in `D
 
 ---
 
+## 2026-10-07 (late night, 2) — tilt direction confirmed: like Bird's printer → B
+
+**Marios said:** "it will rotate the way Bird's 3D printer rotates, something like that." → radial plane, **B**
+(DECISIONS.md). Proposed next steps and asked for go-ahead + which CAM will provide tool orientations.
+
+---
+
 ## 2026-10-07 (late night) — Marios's answers on the tilt axis
 
 **Marios said:** (1) the tilt must **change while cutting** (simultaneous), not fixed 0/90 positions;
