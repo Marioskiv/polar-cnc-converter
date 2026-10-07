@@ -78,7 +78,10 @@ trust the computer and tell Marios about the difference.
   Tool length: proposed reading LinuxCNC `tool.tbl`. Open: which CAM gives tool orientations; go-ahead for
   step 2 (restructure) + selector.
 - Marios's goal (2026-10-07): "behave like Fusion 360 CAM for polar / multi-axis machines — a universal CAM for
-  all machine types". Agreed direction proposed: the CAM (Fusion, Kiri:Moto, …) makes the toolpaths, the
+  all machine types". Clarified later the same night: **the converter is to be merged into Kiri:Moto** (if its
+  author agrees) → a professional-style CAM where one chooses the machine layout and all parameters, all
+  operations inside the CAM, no post-editing. Consequence: step 2 (restructure) must make the converter a clean
+  machine-layout **library** usable both by our page and inside Kiri (see `references/kirimoto.md` §6, §10). Agreed direction proposed: the CAM (Fusion, Kiri:Moto, …) makes the toolpaths, the
   converter is the universal **machine-layout** stage (like Fusion's machine definition + post).
 - Ideas not built: overcut difference map, polar-native operations (spiral facing, bolt circles, radial and concentric
   grooves), a "pole governor" warning (feed near the centre is limited by C speed: v = ω·d), acceleration in simulator timing.

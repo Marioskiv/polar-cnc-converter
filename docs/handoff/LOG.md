@@ -5,6 +5,20 @@ Short and factual. Current state lives in `STATUS.md`, permanent decisions in `D
 
 ---
 
+## 2026-10-07 (late night, 3) — goal: converter merged into Kiri:Moto
+
+**Marios said:** later the converter must be adapted to Kiri:Moto; if its author allows, merge them into a CAM
+for polar (and multi-axis) machining where everything is computed inside the CAM, like a professional CAM:
+choose the machine layout, set all parameters in the CAM, do all operations there.
+
+**Claude's answer:** agreed, it is the right direction (already in `references/kirimoto.md` §6/§10). Kiri is public
+and MIT (headers say "All Rights Reserved" → ask Stewart); merging into his main code needs his agreement, a
+fork is legal but costly to maintain. Phases: gcodeProc proof → converter as a clean machine-layout library
+(= step 2, serves both) → Kiri device option "machine layout" + export/preview/animation → tilt ops in Kiri
+(needs tool orientation per point there; biggest part). Recommended to start step 2 now; asked for go-ahead.
+
+---
+
 ## 2026-10-07 (late night, 2) — tilt direction confirmed: like Bird's printer → B
 
 **Marios said:** "it will rotate the way Bird's 3D printer rotates, something like that." → radial plane, **B**
