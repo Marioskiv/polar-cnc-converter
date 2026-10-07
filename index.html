@@ -10,13 +10,14 @@
     - https://github.com/kadirilkimen/gCodePolarizerJS          (core Cartesian->Polar JS library)
   None of their original code is reused verbatim here — this project is an independent
   implementation written specifically for LinuxCNC's G93 inverse-time feed mode, with its own
-  physics-based feed model (C-axis angular velocity limiting), adaptive chordal segmentation,
+  per-block inverse-time feed (axis limits are left to the controller), adaptive chordal segmentation,
   center-singularity handling (freeze threshold, concentric pocket fill, Signed-X pass-through
   with Auto crossing detection), and a Three.js based 3D toolpath simulator.
   Credit goes to the original author for pioneering the underlying idea for this class of machine.
 
   Copyright (c) 2026 Marioskiv — https://github.com/Marioskiv/polar-cnc-converter
   License: MIT (see LICENSE in this repository).
+  SPDX-License-Identifier: MIT
 -->
 <html lang="en">
 <head>

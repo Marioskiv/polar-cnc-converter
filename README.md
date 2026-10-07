@@ -117,7 +117,8 @@ and use inverse-time feed mode to tell the motion controller how long each move 
 
 ```bash
 npm install     # one time — installs jsdom, used only by the UI test
-npm test        # options, golden, geometry and UI tests
+npm test        # all tests below
+node tools/sweeps.js   # heavy random validation (several minutes) - run after any converter change
 ```
 
 The suite runs automatically on every push via GitHub Actions (`.github/workflows/test.yml`).
@@ -125,8 +126,11 @@ The suite runs automatically on every push via GitHub Actions (`.github/workflow
 | Test | What it guards |
 |---|---|
 | `options.test.js` | option parsing, including "0 is a real value" (X Min, fill step, retract) |
-| `golden.test.js` | byte-for-byte output of 156 program/mode/settings combinations — any unintended change fails |
-| `geometry.test.js` | 11 cases x 3 centre modes replayed with rosekins kinematics against the CAM path |
+| `input.test.js` | real CAM post output (Fusion LinuxCNC / grbl), G91, G20, `%`, retracts, and everything that must be rejected with its line number |
+| `lint.test.js` | every output line of 147 programs is valid LinuxCNC: no nested comments, one motion code per line, F on every G93 move |
+| `words.test.js` | non-motion words (T, M6, S, M3, G43 H, coolant…) and expanded drilling cycles keep their order |
+| `golden.test.js` | byte-for-byte output of 144 program/mode/settings combinations — any unintended change fails |
+| `geometry.test.js` | 80 cases (lines and ramps near the pole, arcs, R arcs, with X Min 0) replayed with rosekins kinematics against the CAM path |
 | `sim.test.js` | the simulator shows retracts going up, realistic block times, joint-space curves |
 | `material.test.js` | material is removed only under the cutter path; rapids into material are reported |
 | `ui.test.js` | the page loads without errors, form defaults equal `DEFAULT_OPTIONS`, buttons are wired, warnings shown |
@@ -141,7 +145,7 @@ Every output block is replayed the way LinuxCNC executes it under
 **forward kinematics of LinuxCNC's own `rosekins`** (`x = r·cos C`, `y = r·sin C`). The distance from each
 replayed point to the path the CAM asked for is measured.
 
-With the machine's real X travel (−10 … +125 mm), in Auto, Index and Signed modes:
+With an X travel of −10 … +125 mm, in Auto, Index and Signed modes:
 
 | Case | Cutting (G1) | Rapids (G0) |
 |---|---|---|
@@ -220,14 +224,20 @@ The converter reads ordinary 3-axis milling G-code. Use a LinuxCNC (or grbl) pos
 | `G54`–`G59` | Passed through. **Your work offset must have X = 0 at the chuck centre** |
 
 **Rejected with a message naming the line** (so nothing is ever converted wrongly):
-cutter compensation `G41/G42` (use compensation *in computer*), canned cycles `G73/G76/G81–G89`
-(enable *expand cycles*), offsets set with coordinates `G92/G52/G10`, probing `G31/G38.x`,
-rotation `G68`, absolute arc centres `G90.1`, `G53` or `G28` with an X/Y point, and any cut before
-the tool position is known.
+cutter compensation `G41/G42` (use compensation *in computer*), tapping, threading and boring cycles
+`G74/G76/G84/G86–G88` (enable *expand cycles*; drilling cycles are expanded by the converter itself),
+offsets set with coordinates `G92/G52/G10`, probing `G31/G38.x`, rotation `G68`, absolute arc centres
+`G90.1`, `G53` or `G28` with an X/Y point, a cut before the tool position is known, a cut without a
+feed rate, and arcs LinuxCNC itself would refuse (no I/J/R, R too small, R full circle, end radius
+too far from the start radius — same tolerances as LinuxCNC 2.9).
+
+A dwell `G4 P` of 60 or more is kept but flagged with a warning: in LinuxCNC P is **seconds**, while
+Fanuc-style posts write milliseconds.
 
 **Machine-coordinate retracts are machine-specific.** A mill's post emits `G53 G0 Z0` because on a
-mill machine Z0 is the top of Z. On this lathe conversion the Z home switch is at the tailstock end,
-so machine Z0 is at the **chuck** end — passing `G53 G0 Z0` through would rapid the carriage toward
+mill machine Z0 is the top of Z. On many lathe conversions the Z home switch is at the tailstock end
+and machine Z0 is at the **chuck** end (the author's machine too, until its mill-style Z numbering is
+installed) — passing `G53 G0 Z0` through would rapid the carriage toward
 the chuck. `G28` is no safer: its stored position is machine 0,0,0 unless set with `G28.1`. So the
 converter never passes these through. Either set the post's safe-retract method to **clearance
 height** (then no machine-coordinate moves appear at all), or enter **Safe retract Z (machine)** —
@@ -313,7 +323,7 @@ Every one of these was read directly, not cited second-hand. None is reused verb
 | **LinuxCNC** | `interp_find.cc`, `interp_inverse.cc`, `tc.c`, `emccanon.cc` | Established that G94 ignores rotary distance, that G93 carries time directly, and that `getStraightVelocity()` reduces linear velocity until the C axis can keep up (NIST IR6556 §2.1.2.5(A)) |
 | **Klipper** | `klippy/kinematics/polar.py` | `check_move()` limits speed near the pole using the **perpendicular distance from the origin to the segment**, not the endpoint radius — the same quantity Fanuc calls `L` |
 | **Marlin** | `src/module/polar.cpp` | Same >180° delta unwrap. `POLAR_CENTER_OFFSET` avoids the singularity *mechanically* by mounting the tool off-centre |
-| **RepRapFirmware** | `src/Movement/Kinematics/PolarKinematics.cpp` | `LimitSpeedAndAcceleration()` is mathematically the same guarantee as this converter's `T_crot`. Also has `minRadius`/`maxRadius` and a continuous-rotation shortcut |
+| **RepRapFirmware** | `src/Movement/Kinematics/PolarKinematics.cpp` | `LimitSpeedAndAcceleration()` is the same guarantee that LinuxCNC's own axis limits give this converter's output (the converter's former `T_crot` was removed in favour of the controller's limits). Also has `minRadius`/`maxRadius` and a continuous-rotation shortcut |
 | **grblHAL** | `kinematics/polar.c` | Identical unwrap; feed corrected by the ratio of polar to Cartesian distance, clamped at 0.5× |
 | **Grbl_Esp32** | `Custom/polar_coaster.cpp` | The original that grblHAL's version was lifted from — nothing additional |
 | **FreeCAD CAM** | `Path/Base/Generator/rotary_spiral.py`, `rotary_wrap.py` | `_FeedClamp` inspired the original feed-clamp diagnostics (since replaced by the simulator's peak chuck speed). `apply_wrap_strategy()` supplied the UNWOUND / MODULO / REZERO vocabulary for the C-unwind problem |

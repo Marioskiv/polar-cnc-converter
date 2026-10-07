@@ -9,7 +9,7 @@
 (function (root, factory) {
   'use strict';
   var isNode = typeof module === 'object' && module.exports;
-  var api = isNode ? factory() : factory();
+  var api = factory();
   if (isNode) module.exports = api;
   else { root.PolarCNC = root.PolarCNC || {}; root.PolarCNC.parser = api; }
 })(typeof self !== 'undefined' ? self : this, function () {

@@ -1,5 +1,35 @@
 # Changelog
 
+## 2.4.1 — arcs, feed and dwell checked like LinuxCNC checks them
+
+Found in a full code review (2026-10-07). Output of every existing test program is unchanged
+(golden 144/144); only programs that were converted wrongly before now behave differently.
+
+### Fixed
+- **A half circle in R format could become a straight line.** If the CAM rounded the end points so
+  they were a hair more than 2R apart (0.0001 mm is enough), the arc was cut as a straight chord —
+  10 mm off on an R10 half circle. It is now a half circle, as in LinuxCNC (`interp_arc.cc`, "allow a
+  small error for semicircle").
+- **An I/J arc whose end radius differs slightly from its start radius** (rounded I/J) ended next to
+  its end point instead of on it. It is now a spiral that ends exactly on the end point — what
+  LinuxCNC does.
+- **No more invented feed rate.** A program without an F word was cut at 500 mm/min that nobody chose.
+  A cut (G1/G2/G3 or drilling cycle) with no feed rate is now rejected with its line number, as
+  LinuxCNC rejects it.
+
+### Added
+- Arcs LinuxCNC 2.9 would refuse are refused here too, with the line number and LinuxCNC's default
+  tolerances: no I/J/R, R too small to reach the end point, R-format full circle, zero radius, end
+  radius too far from the start radius. Before, the first three became straight lines.
+- A dwell `G4 P` of 60 or more gets a warning comment (and a count at the end of the file): in
+  LinuxCNC P is seconds, while Fanuc-style posts write milliseconds (`G04 P2000` = 33 minutes).
+
+### Docs
+- README: test table brought up to date (144 golden outputs, 80 geometry cases, the input/lint/words
+  tests), drilling cycles are expanded (not rejected), the chuck-end note depends on the installed
+  `.ini`, the removed `T_crot` no longer mentioned. `index.html` header: SPDX line, no "C velocity
+  limiting" (removed in 2.3).
+
 ## 2.4.0 — exact near the centre, every line and arc within tolerance
 
 Found while checking the converter against the Core R-Theta 4-axis printer research (bug list B1-B9).

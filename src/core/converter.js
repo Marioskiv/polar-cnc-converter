@@ -178,6 +178,7 @@
     // reported to the user at the end of conversion (see xLimitViolations below).
     var xLimitViolations = 0;
     var passThroughWarnings = 0;   // illegal-in-polar G-codes copied through verbatim
+    var dwellWarnings = 0;         // G4 dwells of a minute or more (seconds vs milliseconds)
 
 
     // Effective C-axis velocity limit: minimum of programmed limit and physical motor limit
@@ -530,12 +531,50 @@
       var no = (srcNo && srcNo[lineIdx]) ? srcNo[lineIdx] : lineIdx + 1;
       throw new Error('Line ' + no + ' "' + String(raw).trim() + '": ' + msg);
     }
+    // ADDED 2.4.1: arcs are checked the way LinuxCNC 2.9 checks them
+    // (interp_arc.cc arc_data_r / arc_data_ijk, default INI tolerances), so a
+    // program LinuxCNC would refuse is refused here too, with the line number,
+    // instead of being converted into something else. Before, an R arc whose
+    // radius could not reach the end point became a straight line, an arc with
+    // no I/J/R became a straight line, and an I/J arc whose end radius was far
+    // off was cut on the start radius and ended somewhere else.
+    // All values are in mm here (inch input is already scaled).
+    function checkArc(lineIdx, raw, x0, y0, x1, y1, I, J, R) {
+      var RADIUS_TOL = 0.00127;                                  // RADIUS_TOLERANCE_MM (= 0.00005 in)
+      var SPIRAL_ABS = unitScale === 1 ? 0.02 * Math.SQRT2       // CENTER_ARC_RADIUS_TOLERANCE_MM
+                                       : 0.002 * Math.SQRT2 * 25.4;  // ..._INCH, in mm
+      var SPIRAL_REL = 0.001;                                    // SPIRAL_RELATIVE_TOLERANCE
+      if (R === null && I === null && J === null)
+        inputError(lineIdx, raw, 'arc without I/J or R.');
+      if (R !== null) {
+        if (x0 === x1 && y0 === y1)
+          inputError(lineIdx, raw, 'R-format arc whose start and end are the same point (a full circle needs I/J).');
+        var half = Math.hypot(x1 - x0, y1 - y0) / 2;
+        if (half - Math.abs(R) > RADIUS_TOL)
+          inputError(lineIdx, raw, 'arc radius R' + Math.abs(R).toFixed(4) + ' is too small to reach the end point (half the distance is ' + half.toFixed(4) + ' mm).');
+        return;
+      }
+      var cx = x0 + (I || 0), cy = y0 + (J || 0);
+      var r1 = Math.hypot(x0 - cx, y0 - cy), r2 = Math.hypot(x1 - cx, y1 - cy);
+      if (r1 < RADIUS_TOL || r2 < RADIUS_TOL)
+        inputError(lineIdx, raw, 'zero-radius arc (the centre is on the start or end point).');
+      var absErr = Math.abs(r1 - r2), relErr = absErr / Math.max(r1, r2);
+      if (absErr > SPIRAL_ABS * 100 || (relErr > SPIRAL_REL && absErr > SPIRAL_ABS))
+        inputError(lineIdx, raw, 'radius to the end of the arc (' + r2.toFixed(4) + ') differs from the radius to the start (' + r1.toFixed(4) + ').');
+    }
     var modalMove    = null;
     var cumC = 0, cInit = false;
 
     // Polar tracking state — updated after every emitted G1 or G0 rapid
     var prevR = 0, prevC = 0, prevZ = 0;  // polar coords of last emitted point
-    var camFeed      = 500;               // last feedrate seen in CAM input (mm/min, G94 units)
+    // FIX 2.4.1: no invented feed. It used to start at 500 mm/min, so a
+    // program without an F word was cut at a speed nobody chose. LinuxCNC
+    // refuses a G1 with no feed rate; the converter now does the same.
+    var camFeed      = 0;                 // last feedrate seen in CAM input (mm/min, G94 units); 0 = none yet
+    function requireFeed(lineIdx, raw) {
+      if (!(camFeed > 0))
+        inputError(lineIdx, raw, 'cutting move without a feed rate. The CAM must state F (units/min) before or on the first G1/G2/G3.');
+    }
 
     // Look-ahead cornering: unit vector of the last emitted segment (Cartesian XY).
     // Reset after G0 rapids so the first G1 after a rapid is never corner-penalised.
@@ -865,6 +904,7 @@
         if ('Q' in words) activeCycle.Q = words['Q'];
         if ('P' in words) activeCycle.P = words['P'];
         if ('F' in words) camFeed = words['F'] * sc;
+        requireFeed(li, rawLine);
         activeCycle.F = camFeed / sc;
         if (activeCycle.R === null || activeCycle.Z === null)
           inputError(li, rawLine, 'drilling cycle without R and Z.');
@@ -1016,6 +1056,13 @@
           passThroughWarnings++;
           out.push('( !! WARNING: G' + riskyG + ' passed through UNCONVERTED \u2014 illegal in polar mode )');
           out.push('( !! its X/Y are raw Cartesian and will be misread. Verify before running. )');
+        }
+        // ADDED 2.4.1: in LinuxCNC (and Mach3) G4 P is in SECONDS, but Fanuc
+        // style posts write milliseconds: "G4 P2000" meant 2 s and waits 33
+        // minutes. Kept as written (the converter cannot know), but flagged.
+        if (gSet[4] && ('P' in words) && words['P'] >= 60) {
+          dwellWarnings++;
+          out.push('( !! WARNING: dwell of ' + words['P'] + ' SECONDS - G4 P is seconds in LinuxCNC. Milliseconds? )');
         }
         // FIX (2026-09-12): the CAM's own M2/M30 used to pass through first, and
         // the converter then appended its "G94 restore" and a second M30 AFTER
@@ -1187,6 +1234,7 @@
       else if (type === 'G1') {
         if (!xyKnown || !zKnown)
           inputError(li, rawLine, 'cutting move before the tool position is known (program start, or after G28/G53/tool change). The CAM must position X/Y and Z with G0 first.');
+        requireFeed(li, rawLine);
         var dXY = Math.hypot(dx, dy);
         if (dXY < 1e-9) {
           // Pure Z plunge - no XY motion
@@ -1365,8 +1413,8 @@
             emitG1Forced(idxR, cIn, zPole);
 
             // Phase 2: rotate C to the exit angle with X and Z effectively still.
-            // Subdivided by MAX_DEG_PER_SEG (45 deg) so LinuxCNC can blend;
-            // T_crot inside _doEmitG1 bounds the actual C velocity.
+            // Subdivided by MAX_DEG_PER_SEG (45 deg). The C speed is limited by
+            // the controller ([AXIS_C] MAX_VELOCITY), not by the converter.
             // Forced emission: at r ~ 0 these blocks measure ~0 mm of travel and
             // would otherwise all be deferred and merged into the exit move.
             var idxSweep = angdiff(idxAngEntry, idxAngExit);
@@ -1487,10 +1535,12 @@
           inputError(li, rawLine, 'arcs in the XZ/YZ plane (G18/G19) are not supported. Set the post to output those as straight lines.');
         if (!xyKnown || !zKnown)
           inputError(li, rawLine, 'arc before the tool position is known. The CAM must position with G0 first.');
+        requireFeed(li, rawLine);
         // Arc: linearize first, then polar-convert each sub-point
         var nI = ('I' in words) ? words['I'] : null;
         var nJ = ('J' in words) ? words['J'] : null;
         var nR = ('R' in words) ? words['R'] : null;
+        checkArc(li, rawLine, curX, curY, newX, newY, nI, nJ, nR);
         unwindSigned(false);   // FIX (2026-09-12): leave negative-X representation first
         // FIX (2026-09-12): an arc is approximated TWICE — first into chords here,
         // then each chord is split again for the polar transform. Both used the
@@ -1566,6 +1616,10 @@
       out.push('( !! ' + passThroughWarnings + ' lines contained G-codes that are illegal inside polar )');
       out.push('( !! interpolation, Fanuc PS214 list, and were copied through UNCONVERTED.           )');
       out.push('( !! Search this file for "WARNING: G" and check each one before running.           )');
+    }
+
+    if (dwellWarnings > 0) {
+      out.push('( !! ' + dwellWarnings + ' dwells G4 of 60 s or more - search this file for "dwell of" )');
     }
 
     // Restore G94 and terminate program.

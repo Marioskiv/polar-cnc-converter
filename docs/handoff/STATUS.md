@@ -1,4 +1,6 @@
-# Status — written 2026-10-07 (converter v2.4.0)
+# Status — updated 2026-10-07 (converter v2.4.1)
+
+Session history: `LOG.md` (newest first).
 
 The real machine is the source of truth. Where this file and the files on the LinuxCNC computer disagree,
 trust the computer and tell Marios about the difference.
@@ -36,6 +38,13 @@ trust the computer and tell Marios about the difference.
 - `gamepad.hal`: X dead zone ±0.45, Z ±0.35, C trigger gain ×6, right stick DOWN = +X. Not yet confirmed by Marios.
 
 ## Open items — machine
+- **SAFETY: no hardware E-stop.** `estop-ext` reads the raw input `gpio.013.in` (TEMPORARY, not
+  fail-safe: a broken wire looks like "all clear"). The only E-stop is the gamepad Options button.
+  Wire an NC E-stop button and switch the `.hal` to `gpio.013.in_not` (the line is already there).
+- Input P11 (`gpio.014`, Z zeroing / probe sensor) does not respond. Replace the ribbon cable; if dead,
+  move the wire to P13 and use `gpio.016` (see the `.hal`).
+- Stale comments to correct on the REAL files (not urgent): `.ini` header "HOME_OFFSET is set to 135"
+  (it is -20); `.hal` Z comment "coordinate 600" (10 with the mill-style `.ini`).
 - Align the router on the chuck centre at X0 after Home, in X AND height (dial indicator, or V-bit on a centre dot).
 - Check C+ direction (else mirrored parts); `G0 C3600` then `G0 C0` must return exactly (else lower C speed to 105/90).
 - C soft limits ±99,999° allow only ~277 chuck turns per program — raise them in `[AXIS_C]`/`[JOINT_2]`.
@@ -49,7 +58,10 @@ trust the computer and tell Marios about the difference.
 - Fusion post: LinuxCNC, compensation "in computer", expanded drilling cycles, no G18/G19 arcs, mm, clearance-height retracts.
 
 ## Open items — software
-- Upload v2.4.0 to GitHub (Marios does it by hand).
+- v2.4.0 is on GitHub (PR #1 merged). v2.4.1 (arc/feed/dwell checks) is on branch
+  `claude/youthful-goldberg-a6qv5t` — merge when Marios agrees.
+- Waiting for Marios's decision (see LOG.md 2026-10-07): feed floor `MIN_TIME` lowers the real feed on
+  short blocks; `G53 G0 X Y` park rejected vs `G28` park skipped; local copy of three.js for offline use.
 - Future router tilt axis (rotates continuously during a program; Marios calls it A, conventional letter in the X-Z
   plane would be B). Plan, each step only with his go-ahead:
   1. Study Kiri:Moto's 4th-axis code — DONE, see `reference-kirimoto-bird-4axis.md`.
