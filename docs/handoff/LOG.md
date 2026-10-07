@@ -5,6 +5,21 @@ Short and factual. Current state lives in `STATUS.md`, permanent decisions in `D
 
 ---
 
+## 2026-10-07 (late night, 5) — which CAM: not Fusion; FreeCAD checked
+
+**Marios said:** most likely **not Fusion** for the tilted work (no subscription) — maybe Kiri:Moto or FreeCAD;
+Fusion perhaps for plain XYZ. If merged into Kiri one day, it should feel like a **professional program**.
+
+**Done:** FreeCAD CAM source read (`e326ee2`, dev 2026-10-07) → `references/freecad-cam.md`: indexed tilt per
+operation and a machine kinematic model, continuous 4th-axis RotarySurface (tool radial), **no simultaneous
+tilt**. Neither Kiri nor FreeCAD gives a tool orientation that changes while cutting.
+
+**Proposed:** XZC + B layout in stages — B fixed per program for face work; periphery at B 90 from 4th-axis
+programs (FreeCAD RotarySurface, Kiri lathe); simultaneous tilt for ball-end tools computed by the converter;
+full tilt operations later inside Kiri. Waiting for his go-ahead.
+
+---
+
 ## 2026-10-07 (late night, 4) — step 2 done: converter in three stages (2.6.0)
 
 **Asked:** go-ahead ("NAI") for step 2, the restructure.

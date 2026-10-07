@@ -76,12 +76,13 @@ trust the computer and tell Marios about the difference.
   converter layout selector "XZC / XZC + tilt (B, A as rename)".** Letter researched: **B**
   (`references/tilt-axis-research.md`). Marios: tilt must change **while cutting** (simultaneous), for propellers
   and hard-to-reach spots. **Confirmed 2026-10-07: it tilts "like Bird's printer" → radial plane → B.**
-  Tool length: proposed reading LinuxCNC `tool.tbl`. Open: which CAM gives tool orientations; go-ahead for
-  step 2 (restructure) + selector.
+  Tool length: proposed reading LinuxCNC `tool.tbl`. CAM for tilt (Marios, 2026-10-07): **not Fusion** (no
+  subscription; Fusion maybe for plain XYZ) → Kiri:Moto or FreeCAD. Verified: neither gives simultaneous tilt
+  (`references/freecad-cam.md`); FreeCAD RotarySurface / Kiri lathe give periphery (B 90) programs.
 - Marios's goal (2026-10-07): "behave like Fusion 360 CAM for polar / multi-axis machines — a universal CAM for
   all machine types". Clarified later the same night: **the converter is to be merged into Kiri:Moto** (if its
   author agrees) → a professional-style CAM where one chooses the machine layout and all parameters, all
-  operations inside the CAM, no post-editing. Consequence: step 2 (restructure) must make the converter a clean
+  operations inside the CAM, no post-editing. He wants the **user experience of a professional program**. Consequence: step 2 (restructure) must make the converter a clean
   machine-layout **library** usable both by our page and inside Kiri (see `references/kirimoto.md` §6, §10). Agreed direction proposed: the CAM (Fusion, Kiri:Moto, …) makes the toolpaths, the
   converter is the universal **machine-layout** stage (like Fusion's machine definition + post).
 - Ideas not built: overcut difference map, polar-native operations (spiral facing, bolt circles, radial and concentric
