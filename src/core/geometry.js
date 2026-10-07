@@ -10,7 +10,7 @@
 (function (root, factory) {
   'use strict';
   var isNode = typeof module === 'object' && module.exports;
-  var api = isNode ? factory() : factory();
+  var api = factory();
   if (isNode) module.exports = api;
   else { root.PolarCNC = root.PolarCNC || {}; root.PolarCNC.geometry = api; }
 })(typeof self !== 'undefined' ? self : this, function () {
@@ -43,14 +43,19 @@
   //   Segment length = 2*sqrt(2*r*chordTol), clamped to [0.02, 2.0] mm.
   function linearizeArc(x0, y0, z0, x1, y1, z1, I, J, R, isG2, chordTol) {
     var tol = (chordTol > 0) ? chordTol : 0.01;
-    var cx, cy, r;
+    var cx, cy, r, rEnd;
 
     if (R !== null && R !== undefined) {
       var dx = x1 - x0, dy = y1 - y0;
       var dist = Math.hypot(dx, dy);
       var absR = Math.abs(R);
       if (dist < 1e-9) return [{ x: x1, y: y1, z: z1, arcSegLen: 0 }];
-      if (absR < dist / 2 - 1e-9) return [{ x: x1, y: y1, z: z1, arcSegLen: Math.hypot(dx, dy) }];
+      // FIX 2.4.1: a half circle whose end points were rounded a hair more
+      // than 2R apart used to become a STRAIGHT LINE (measured: R10 half
+      // circle ending 0.0001 mm too far -> 10 mm off). LinuxCNC treats it as a
+      // half circle (interp_arc.cc arc_data_r: "allow a small error for
+      // semicircle"); so does this now. The converter rejects R values that
+      // are really too small, with LinuxCNC's tolerance, before calling here.
       var h  = Math.sqrt(Math.max(0, absR * absR - (dist / 2) * (dist / 2)));
       var mx = (x0 + x1) / 2, my = (y0 + y1) / 2;
       var px = -dy / dist, py = dx / dist;
@@ -59,11 +64,17 @@
       cx = mx + px * h * sign;
       cy = my + py * h * sign;
       r  = absR;
+      rEnd = absR;
     } else {
       cx = x0 + (I || 0);
       cy = y0 + (J || 0);
       r  = Math.hypot(x0 - cx, y0 - cy);
       if (r < 1e-9) return [{ x: x1, y: y1, z: z1, arcSegLen: Math.hypot(x1 - x0, y1 - y0) }];
+      // FIX 2.4.1: the end radius can differ slightly from the start radius
+      // (rounded I/J). LinuxCNC then cuts a spiral that ends exactly at the
+      // programmed end point; the old code kept the start radius, so the last
+      // point missed the end point by the difference. Same spiral here.
+      rEnd = Math.hypot(x1 - cx, y1 - cy);
     }
 
     // Adaptive segment length based on arc radius and chordal tolerance
@@ -90,8 +101,8 @@
     var pts = [];
     for (var i = 1; i <= n; i++) {
       var t = i / n;
-      var a = a0a + sweep * t;
-      pts.push({ x: cx + r * Math.cos(a), y: cy + r * Math.sin(a),
+      var a = a0a + sweep * t, ri = r + (rEnd - r) * t;
+      pts.push({ x: cx + ri * Math.cos(a), y: cy + ri * Math.sin(a),
                  z: z0 + (z1 - z0) * t, arcSegLen: arcSegLen });
     }
     return pts;

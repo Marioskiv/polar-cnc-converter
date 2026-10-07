@@ -82,6 +82,21 @@ for (const [name, g] of Object.entries(real)) {
   ok(p.length === 0, `${name}: ${p.join(' | ')}`);
 }
 
+// 2b. (2.7.0) The tilting layout XZC + B: every golden program, ball-end tool leaning.
+const TILT = { layout: 'xzcb', retractZMachine: 0, tiltPivot: 60, tiltMin: -30, tiltMax: 60, tiltLean: 25,
+               toolTable: 'T1 P1 Z40 D6 ;ball', ballTools: '1' };
+for (const pn of Object.keys(G.programs)) {
+  for (const xr of [{ xMin: 0, xMax: 113 }, { xMin: -20, xMax: 125 }]) {
+    const prog = 'T1 M6\n' + G.programs[pn];
+    let out;
+    try { out = convert(prog, Object.assign({}, TILT, xr)); } catch (e) { out = null; }
+    if (out === null) continue;            // programs the XZC layout refuses too
+    const p = lintProgram(out);
+    programs++;
+    ok(p.length === 0, `tilt ${pn}: ${p.slice(0, 3).join(' | ')}`);
+  }
+}
+
 // 3. The linter itself catches what it must (so a pass means something).
 ok(lintLine('( absorbed modal from: G21 (mm) )').includes('nested comment'), 'linter detects nesting');
 ok(lintLine('G1 X1 X2 F10').includes('two X words'), 'linter detects duplicate words');

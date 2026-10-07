@@ -9,7 +9,7 @@
 // Runs every test file; exits non-zero if any fails. Used by `npm test` and CI.
 const { spawnSync } = require('child_process');
 const path = require('path');
-const files = ['options.test.js', 'input.test.js', 'lint.test.js', 'words.test.js', 'sim.test.js', 'material.test.js', 'golden.test.js', 'geometry.test.js', 'ui.test.js'];
+const files = ['options.test.js', 'input.test.js', 'lint.test.js', 'words.test.js', 'sim.test.js', 'material.test.js', 'golden.test.js', 'geometry.test.js', 'tilt.test.js', 'ui.test.js'];
 let failed = 0;
 for (const f of files) {
   const r = spawnSync(process.execPath, [path.join(__dirname, f)], { stdio: 'inherit' });

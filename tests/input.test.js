@@ -65,11 +65,18 @@ const rejects = {
   'G18 plane arc':            'G21 G90\nG0 X20 Y0 Z2\nG1 Z0 F100\nG18\nG2 X30 Z-5 I5 K0',
   'G90.1 absolute centres':   'G21 G90.1\nG0 X20 Y0 Z2',
   'G93 input feed':           'G21 G90 G93\nG0 X20 Y0 Z2',
-  'G53 with X/Y':             'G21 G90\nG53 G0 X0 Y0',
+  'G53 G1 with X/Y':          'G21 G90\nG53 G1 X0 Y0',
+  'exponent number':          'G21 G90\nG0 X20 Y0 Z2\nG1 Z-1 F1E3',
   'G28 with XY waypoint':     'G21 G90\nG0 X20 Y0 Z2\nG28 X10 Y10',
   'G91 before position known':'G21 G91\nG0 X10 Y0',
   'cut before Z known':       'G21 G90\nG0 X20 Y0\nG1 X30 F300',
   'G31 probe':                'G21 G90\nG0 X20 Y0 Z2\nG31 Z-5 F50',
+  // 2.4.1: refused like LinuxCNC refuses them (interp_arc.cc), never converted into something else
+  'G1 with no feed rate':     'G21 G90\nG0 X20 Y0 Z2\nG1 Z-1\nG1 X30',
+  'arc with no I/J/R':        'G21 G90\nG0 X20 Y0 Z2\nG1 Z-1 F100\nG2 X0 Y20',
+  'R too small for the arc':  'G21 G90\nG0 X10 Y0 Z2\nG1 Z-1 F100\nG3 X0 Y30 R5',
+  'R full circle':            'G21 G90\nG0 X10 Y0 Z2\nG1 Z-1 F100\nG3 X10 Y0 R5',
+  'end radius far off':       'G21 G90\nG0 X10 Y0 Z2\nG1 Z-1 F100\nG3 X0 Y12 I-10 J0',
 };
 for (const [name, g] of Object.entries(rejects)) {
   let msg = null; try { convert(g, O); } catch (e) { msg = e.message; }
@@ -97,5 +104,39 @@ for (const g of ['G21 G90\nG0 X100 Y0 Z5\nG0 X-100 Y0 Z5\nG1 Z-1 F300\nG1 X-90 Y
   const xs = convert(g, { xMin: 0, xMax: 113 }).split('\n').filter(l => /^G[01] X/.test(l)).map(l => +l.match(/X(-?[\d.]+)/)[1]);
   ok(Math.min(...xs) >= 0, 'X Min 0 must keep every block on one side (got ' + Math.min(...xs) + ')');
 }
+
+// 10. (2.4.1) A half circle in R format whose end points were rounded a hair
+// more than 2R apart is still a half circle (was converted as a straight line).
+const { linearizeArc } = require('../src/core/geometry.js');
+for (const extra of [0, 0.0001, 0.001]) {
+  const pts = linearizeArc(10, 0, 0, -10 - extra, 0, 0, null, null, 10, false, 0.0125);
+  ok(Math.max(...pts.map(p => Math.abs(p.y))) > 9.99, 'R half circle ' + extra + ' mm too long must stay a half circle');
+}
+const semi = 'G21 G90\nG0 X10 Y0 Z2\nG1 Z-1 F100\nG3 X-10.001 Y0 R10\nG0 Z5\nM30';
+ok(motion(semi).length > 10, 'rounded R half circle converted as an arc');
+// 11. (2.4.1) An I/J arc whose end radius differs within LinuxCNC's tolerance
+// is a spiral that ends exactly on the programmed end point.
+const sp = linearizeArc(10, 0, 0, 0, 10.02, 0, -10, 0, null, false, 0.0125);
+const last = sp[sp.length - 1];
+ok(Math.hypot(last.x - 0, last.y - 10.02) < 1e-9, 'I/J arc ends exactly on its end point');
+// 12. (2.4.1) A dwell of a minute or more is flagged (G4 P is seconds in LinuxCNC).
+ok(lines('G21 G90\nG0 X20 Y0 Z5\nG04 P2000\nM30').some(l => /dwell of 2000 SECONDS/.test(l)), 'G04 P2000 must be flagged');
+ok(!lines('G21 G90\nG0 X20 Y0 Z5\nG4 P0.5\nM30').some(l => /dwell of/.test(l)), 'a short dwell is not flagged');
+
+// 13. (2.5.0) Fusion's optional end park "G53 G0 X0 Y0" is skipped like the G28 park.
+const park = lines('G21 G90\nG0 X20 Y0 Z5\nG1 Z-1 F300\nG1 X30 F500\nG53 G0 Z0\nG53 G0 X0 Y0\nM30');
+ok(park.some(l => /G53 X\/Y park skipped/.test(l)) && !park.some(l => /^G53 G0 X/.test(l)), 'G53 G0 X0 Y0 park is skipped');
+ok(park.filter(l => /^G53 G0 Z590/.test(l)).length === 1, 'the G53 Z retract still becomes the safe retract');
+// 14. (2.5.0) Cutter diameter from Kiri:Moto's tool list ("; tool#=N flute=D ... unit=...").
+const kiri = (body) => lines('; --- tools ---\n; tool#=2 flute=3.175 len=20 unit=metric\n; tool#=5 flute=0.25 len=1 unit=imperial\nG21 G90\n' + body + '\nG0 X20 Y0 Z5\nG1 Z-1 F300\nM30');
+ok(kiri('M6 T2').some(l => /polar-cnc tool: T2 D=3\.1750 \)/.test(l)), 'Kiri metric tool diameter read');
+ok(kiri('M6 T5').some(l => /polar-cnc tool: T5 D=6\.3500 \)/.test(l)), 'Kiri imperial tool diameter converted to mm');
+// 15. (2.5.0) One listed tool and no tool change: that tool's diameter is used from the start.
+const one = lines('; tool#=1 flute=4 len=20 unit=metric\nG21 G90\nG0 X20 Y0 Z5\nG1 Z-1 F300\nM30');
+ok(one.some(l => /polar-cnc tool: T1 D=4\.0000 - the only tool listed/.test(l)), 'single listed tool used without M6');
+const fus = lines('(T3 D=0.125 CR=0.)\nG20 G90\nG0 X1 Y0 Z0.2\nG1 Z-0.04 F10\nM30');
+ok(fus.some(l => /polar-cnc tool: T3 D=3\.1750/.test(l)), 'single Fusion tool in an inch program converted to mm');
+// 16. (2.5.0) A radial line (C constant) is not cut into small pieces.
+ok(motion('G21 G90\nG0 X10 Y0 Z5\nG1 Z-1 F300\nG1 X100 Y0\nM30').filter(l => /^G1 /.test(l)).length <= 20, 'radial line in 5 mm pieces');
 
 console.log(`input: ${n} checks passed`);

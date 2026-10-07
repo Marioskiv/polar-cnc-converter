@@ -10,13 +10,14 @@
     - https://github.com/kadirilkimen/gCodePolarizerJS          (core Cartesian->Polar JS library)
   None of their original code is reused verbatim here — this project is an independent
   implementation written specifically for LinuxCNC's G93 inverse-time feed mode, with its own
-  physics-based feed model (C-axis angular velocity limiting), adaptive chordal segmentation,
+  per-block inverse-time feed (axis limits are left to the controller), adaptive chordal segmentation,
   center-singularity handling (freeze threshold, concentric pocket fill, Signed-X pass-through
   with Auto crossing detection), and a Three.js based 3D toolpath simulator.
   Credit goes to the original author for pioneering the underlying idea for this class of machine.
 
   Copyright (c) 2026 Marioskiv — https://github.com/Marioskiv/polar-cnc-converter
   License: MIT (see LICENSE in this repository).
+  SPDX-License-Identifier: MIT
 -->
 <html lang="en">
 <head>
@@ -24,8 +25,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Polar CNC - Convert &amp; Simulate</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='110' fill='%23141519'/><circle cx='256' cy='256' r='160' fill='none' stroke='%2300b0ff' stroke-width='26'/><rect x='234' y='66' width='44' height='60' rx='6' fill='%2300b0ff'/><rect x='234' y='66' width='44' height='60' rx='6' fill='%2300b0ff' transform='rotate(45 256 256)'/><rect x='234' y='66' width='44' height='60' rx='6' fill='%2300b0ff' transform='rotate(90 256 256)'/><rect x='234' y='66' width='44' height='60' rx='6' fill='%2300b0ff' transform='rotate(135 256 256)'/><circle cx='256' cy='256' r='95' fill='%23141519' stroke='%23ff6d00' stroke-width='6'/><circle cx='256' cy='256' r='20' fill='%23ff6d00'/></svg>">
-  <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/build/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/controls/OrbitControls.js"></script>
+  <!-- three.js r134, local copy (MIT, see lib/three/LICENSE): the page also works without internet -->
+  <script src="lib/three/three.min.js"></script>
+  <script src="lib/three/OrbitControls.js"></script>
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
@@ -80,6 +82,7 @@
         <span class="tl">C&thinsp;(&theta;):&nbsp;</span><span class="tv" id="tC">&mdash;</span>&thinsp;&deg;<br>
         <span class="tl">Z (depth):&nbsp;</span><span class="tv" id="tZ">&mdash;</span>&thinsp;mm<br>
         <span class="tl">F&thinsp;(G93):&nbsp;</span><span class="tv" id="tF">&mdash;</span><br>
+        <span id="tTiltRow" style="display:none"><span class="tl">Tilt:&nbsp;</span><span class="tv" id="tTilt">&mdash;</span>&thinsp;&deg;<br></span>
         <span class="tl">MaxR:&nbsp;</span><span id="tMaxR" style="color:var(--dim)">&mdash;</span>&thinsp;mm
       </div>
 
@@ -168,6 +171,60 @@
           </div>
         </div>
 
+        <!-- ADDED 2.7.0: machine layout. "XZC + tilt" = a router that tilts in the X-Z plane
+             (B by ISO 841 / LinuxCNC). Its fields are shown only when that layout is chosen. -->
+        <div class="cvt-card">
+          <div class="cvt-subhead">&#128208; Machine layout</div>
+          <div class="cvt-grid">
+            <div class="cvt-field" title="XZC: the router is fixed (parallel to Z). XZC + tilt: the router tilts in the X-Z plane (toward / away from the chuck axis). With a BALL-END tool the converter leans it while cutting, keeping the ball centre on the CAM path, as far as the X travel and the tilt travel allow.">
+              <label class="cvt-lbl">Layout</label>
+              <select id="selLayout" class="cvt-inp">
+                <option value="xzc" selected>XZC (fixed router)</option>
+                <option value="xzcb">XZC + tilt</option>
+              </select>
+            </div>
+          </div>
+          <div id="tiltFields" style="display:none;margin-top:6px;">
+            <div class="cvt-grid">
+              <div class="cvt-field" title="Letter of the tilt axis. B is the standard (rotation about a line parallel to Y); A only if your controller is set up that way.">
+                <label class="cvt-lbl">Tilt axis</label>
+                <select id="selTiltAxis" class="cvt-inp"><option value="B" selected>B</option><option value="A">A</option></select>
+              </div>
+              <div class="cvt-field" title="Distance from the tilt pivot axis to the face of the tool holder (where the tool length is measured from), in mm. Measure it on the machine. No default.">
+                <label class="cvt-lbl">Pivot to holder <span class="cvt-unit">mm</span></label>
+                <input type="number" id="inpTiltPivot" class="cvt-inp" value="" placeholder="measure" step="0.01">
+              </div>
+              <div class="cvt-field" title="Tilt travel of the machine, in its own terms (degrees). No default.">
+                <label class="cvt-lbl">Tilt min <span class="cvt-unit">deg</span></label>
+                <input type="number" id="inpTiltMin" class="cvt-inp" value="" step="1">
+              </div>
+              <div class="cvt-field" title="Tilt travel of the machine, in its own terms (degrees). No default.">
+                <label class="cvt-lbl">Tilt max <span class="cvt-unit">deg</span></label>
+                <input type="number" id="inpTiltMax" class="cvt-inp" value="" step="1">
+              </div>
+              <div class="cvt-field" title="How far ball-end tools lean while cutting (degrees). + = the tool tip toward the chuck axis (needs more X). It is reduced automatically wherever the X travel or the tilt travel would not allow it. 0 = no lean.">
+                <label class="cvt-lbl">Lean (ball-end) <span class="cvt-unit">deg</span></label>
+                <input type="number" id="inpTiltLean" class="cvt-inp" value="0" step="1">
+              </div>
+              <div class="cvt-field" title="Ball-end tool numbers, e.g. 1, 3. Tools whose tool-table comment contains the word 'ball' count too. Only these lean; every other tool stays upright.">
+                <label class="cvt-lbl">Ball-end tools</label>
+                <input type="text" id="inpBallTools" class="cvt-inp" value="" placeholder="e.g. 1, 3">
+              </div>
+            </div>
+            <label class="cvt-lbl" style="display:flex;align-items:center;gap:6px;cursor:pointer;margin-top:6px;"
+                   title="Tick if the tilt axis turns the other way. Check it with a test before cutting.">
+              <input type="checkbox" id="chkInvertTilt"> Invert tilt direction
+            </label>
+            <div class="cvt-field" style="margin-top:6px;" title="The LinuxCNC tool table (tool.tbl): the converter needs each tool's LENGTH (Z) to tilt it correctly. Load the same file the machine uses, or paste it.">
+              <label class="cvt-lbl">Tool table (LinuxCNC tool.tbl)
+                <button id="btnLoadToolTable" class="feed-tok" type="button" style="margin-left:6px;">&#128194; Load tool.tbl</button>
+              </label>
+              <textarea id="inpToolTable" class="cvt-inp" rows="3" spellcheck="false" style="width:100%;font-family:monospace;text-align:left;" placeholder="T1 P1 Z40.000 D6.000 ;6 mm ball"></textarea>
+              <input type="file" id="fileToolTable" accept=".tbl,.txt,text/plain" style="display:none">
+            </div>
+          </div>
+        </div>
+
         <details class="cvt-card">
           <summary class="cvt-subhead" style="cursor:pointer;">&#128295; Advanced &mdash; change only if needed</summary>
           <div class="cvt-grid" style="margin-top:6px;">
@@ -208,6 +265,9 @@
 </div>
 <!-- Core (pure, testable in Node): -->
 <script src="src/core/geometry.js" charset="utf-8"></script>
+<script src="src/core/gcode-input.js" charset="utf-8"></script>
+<script src="src/core/layout-xzc.js" charset="utf-8"></script>
+<script src="src/core/layout-xzcb.js" charset="utf-8"></script>
 <script src="src/core/converter.js" charset="utf-8"></script>
 <script src="src/core/polar-parser.js" charset="utf-8"></script>
 <script src="src/core/material.js" charset="utf-8"></script>

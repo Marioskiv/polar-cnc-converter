@@ -1,5 +1,107 @@
 # Changelog
 
+## 2.7.0 — layout "XZC + tilt": ball-end tools lean while cutting
+
+### Added
+- **Machine layout selector** (page and profiles): *XZC* (today's machine, unchanged) or *XZC + tilt* — a router that
+  tilts in the X-Z plane. Tilt letter **B** by ISO 841 / LinuxCNC (A as a rename), *invert tilt*.
+- `src/core/layout-xzcb.js`: built on the XZC layout. **Ball-end tools lean** by the set angle while cutting, with the
+  **ball centre kept exactly on the CAM path**; the lean is reduced automatically where the X travel or the tilt travel
+  would not allow it (X = r + K·sin B, Z = z + K·(cos B − 1), K = pivot → ball centre; C unchanged). Each XZC block is
+  split so the tilt adds at most 0.08 × chord tolerance (K·dB²/8). Other tools stay at B 0; B returns to 0 before a tool
+  change, after a machine retract and at the end. G43 stays valid.
+- Tool lengths from the machine's own **LinuxCNC `tool.tbl`** (load the file or paste it); ball-end tools listed by
+  number or marked "ball" in the tool-table comment. Pivot length, tilt travel and tool lengths have **no defaults** —
+  missing values stop the conversion with a message.
+- Simulator: reads B, shows the tool tip (not the head), draws the **tilted tool**, Tilt telemetry; the X-travel check
+  uses the head's real X.
+- `tests/tilt.test.js` (150 checks): joint-space replay (X, Z, B, C linear) with the ball centre recovered and compared
+  with the CAM path — worst **0.0229 mm** (leans up to 45°, 43 programs incl. 40 random), rapids ≤ 0.39 mm, X and B
+  inside their travel, flat tools upright, upright at tool change / retract / end, letter A + inverted, refusals.
+  `tests/lint.test.js` also checks the tilted output of every golden program.
+
+### Unchanged
+- Layout XZC: golden 144/144 identical, sweeps worst 0.0225 mm.
+
+## 2.6.0 — the converter in three stages (no output change)
+
+Step 2 of the plan for other machine layouts (a tilting router, XZC + B) and for use inside another CAM
+(Kiri:Moto). **The output is byte-for-byte the same.**
+
+### Changed
+- `src/core/converter.js` was one 1,600-line function. It is now three stages:
+  - `src/core/gcode-input.js` — reads and checks the Cartesian program (units, G91, cycles, retracts, tools,
+    every rejection with its line number) and hands every line over **in order**: motion as events, the rest
+    as text;
+  - `src/core/layout-xzc.js` — the machine layout XZC: pole handling, segmentation, C unwrap, G93 blocks;
+  - `src/core/converter.js` — options, the common header and end, clean-up; `convert(text, options)` is
+    unchanged for its users.
+- The code was **moved, not rewritten**: a script cut the old function into the stages line by line and
+  stopped if any anchor line had moved; only the glue between the stages is new.
+- `index.html` loads the two new files.
+
+### Verified
+- `npm test` (golden 144/144 identical), sweeps (worst G1 0.0225 mm), and a one-off comparison of the old and
+  the new converter on 13,671 program × settings combinations (all golden programs plus 1,500 random programs
+  with lines, arcs, rapids, comments, tool changes, cycles, G91, inches, G53/G28, M0/M30, × 9 option sets
+  covering every centre mode and output profile): **0 differences**, identical error messages.
+
+## 2.5.0 — real feed on short blocks, Kiri:Moto tool list, works offline
+
+The remaining findings of the 2026-10-07 review, fixed at Marios's request.
+
+### Fixed
+- **The cutting feed was silently lowered on short blocks.** Every G1 block had a minimum time of 0.06 s
+  (F_g93 ≤ 1000), so a block shorter than feed × 0.06 s ran slower than the CAM asked: measured on a circle
+  r20, F1500 ran at ~844 mm/min and F3000 at ~856. The floor is now 0.6 ms — below LinuxCNC's 1 ms servo
+  period, so it never changes motion; the controller alone limits speed (as DECISIONS.md says). Now F1500 →
+  F1500. Golden: 68 outputs changed, **only** the F word of blocks that sat exactly at F1000 (checked line
+  by line: same lines, same geometry).
+- **Cutter diameter from Kiri:Moto programs** was not read (its tool list is a `;` comment,
+  `; tool#=2 flute=3.175 len=20 unit=metric`); the Tool Diameter setting was used instead. Now read, inches
+  converted. Also: a program that lists exactly **one** tool and has no tool change at all now uses that
+  tool's diameter (was the setting).
+- **Radial lines** (C constant, e.g. a cut along X at Y=0) were cut into ~1.4 mm pieces for nothing; X alone
+  traces them exactly, so they now go in 5 mm pieces like Signed-X lines. Golden: 29 outputs changed, all
+  with fewer G1 blocks, identical rapids/comments, same deviation (checked by replay).
+- `G53 G0 X.. Y..` (Fusion's optional end park) was rejected while `G28 G91 X0 Y0` was skipped. Both
+  are skipped now (not moving can hit nothing); a Z on the same line is still the safe retract.
+- Numbers in exponent form (`F1E3`) were half-read and left a stray `e3` line. Refused with the line number.
+
+### Changed
+- **three.js is included** (`lib/three/`, r134, MIT, unmodified npm files) instead of being loaded from a CDN:
+  the page now works **without internet** (checked in Chromium from disk: no network request, no error).
+
+## 2.4.1 — arcs, feed and dwell checked like LinuxCNC checks them
+
+Found in a full code review (2026-10-07). Output of every existing test program is unchanged
+(golden 144/144); only programs that were converted wrongly before now behave differently.
+
+### Fixed
+- **A half circle in R format could become a straight line.** If the CAM rounded the end points so
+  they were a hair more than 2R apart (0.0001 mm is enough), the arc was cut as a straight chord —
+  10 mm off on an R10 half circle. It is now a half circle, as in LinuxCNC (`interp_arc.cc`, "allow a
+  small error for semicircle").
+- **An I/J arc whose end radius differs slightly from its start radius** (rounded I/J) ended next to
+  its end point instead of on it. It is now a spiral that ends exactly on the end point — what
+  LinuxCNC does.
+- **No more invented feed rate.** A program without an F word was cut at 500 mm/min that nobody chose.
+  A cut (G1/G2/G3 or drilling cycle) with no feed rate is now rejected with its line number, as
+  LinuxCNC rejects it.
+
+### Added
+- Arcs LinuxCNC 2.9 would refuse are refused here too, with the line number and LinuxCNC's default
+  tolerances: no I/J/R, R too small to reach the end point, R-format full circle, zero radius, end
+  radius too far from the start radius. Before, the first three became straight lines.
+- A dwell `G4 P` of 60 or more gets a warning comment (and a count at the end of the file): in
+  LinuxCNC P is seconds, while Fanuc-style posts write milliseconds (`G04 P2000` = 33 minutes).
+
+### Docs
+- README: test table brought up to date (144 golden outputs, 80 geometry cases, the input/lint/words
+  tests), drilling cycles are expanded (not rejected), the chuck-end note depends on the installed
+  `.ini`, the removed `T_crot` no longer mentioned. `index.html` header: SPDX line, no "C velocity
+  limiting" (removed in 2.3).
+
 ## 2.4.0 — exact near the centre, every line and arc within tolerance
 
 Found while checking the converter against the Core R-Theta 4-axis printer research (bug list B1-B9).

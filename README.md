@@ -12,7 +12,8 @@ work — check yours before the first cut.
 
 Live demo (once GitHub Pages is enabled for this repo): https://marioskiv.github.io/polar-cnc-converter/
 
-Open [`index.html`](./index.html) directly in any modern browser — no build step, no server required.
+Open [`index.html`](./index.html) directly in any modern browser — no build step, no server and **no internet**
+required (three.js is included in `lib/three/`).
 
 > [!WARNING]
 > **Project Status & Disclaimer:** This software is currently in the **experimental/development** phase. The conversion algorithms and mathematical models have been validated via the built-in 3D simulator and dry-run code analysis, but **the generated G-code has not yet been physically tested on a live CNC machine**. 
@@ -79,7 +80,8 @@ This project solves both:
 - **Everything else in the program is kept.** Tool changes (`T`/`M6`), tool length (`G43 H`), spindle and
   coolant words, work offsets, dwells, comments — including when they share a line with a move. They are
   emitted before the move (stop codes `M0/M1/M2/M30` after it), the same order a controller executes a line.
-- **Tools.** The active tool's diameter is read from the CAM's tool comments (e.g. Fusion's `(T2 D=3. ...)`),
+- **Tools.** The active tool's diameter is read from the CAM's tool comments (Fusion's `(T2 D=3. ...)`, Kiri:Moto's
+  `; tool#=2 flute=3 ... unit=metric`),
   or taken from the **Tool Diameter** setting, and used for the centre pocket fill and the material map.
 - **Drilling cycles expanded.** `G81, G82, G83, G73, G85, G89` with `G98/G99`, `R`, `Q`, `P` become plain
   moves — in polar, a hole is just a position (X, C) followed by Z moves.
@@ -117,7 +119,8 @@ and use inverse-time feed mode to tell the motion controller how long each move 
 
 ```bash
 npm install     # one time — installs jsdom, used only by the UI test
-npm test        # options, golden, geometry and UI tests
+npm test        # all tests below
+node tools/sweeps.js   # heavy random validation (several minutes) - run after any converter change
 ```
 
 The suite runs automatically on every push via GitHub Actions (`.github/workflows/test.yml`).
@@ -125,8 +128,11 @@ The suite runs automatically on every push via GitHub Actions (`.github/workflow
 | Test | What it guards |
 |---|---|
 | `options.test.js` | option parsing, including "0 is a real value" (X Min, fill step, retract) |
-| `golden.test.js` | byte-for-byte output of 156 program/mode/settings combinations — any unintended change fails |
-| `geometry.test.js` | 11 cases x 3 centre modes replayed with rosekins kinematics against the CAM path |
+| `input.test.js` | real CAM post output (Fusion LinuxCNC / grbl), G91, G20, `%`, retracts, and everything that must be rejected with its line number |
+| `lint.test.js` | every output line of 147 programs is valid LinuxCNC: no nested comments, one motion code per line, F on every G93 move |
+| `words.test.js` | non-motion words (T, M6, S, M3, G43 H, coolant…) and expanded drilling cycles keep their order |
+| `golden.test.js` | byte-for-byte output of 144 program/mode/settings combinations — any unintended change fails |
+| `geometry.test.js` | 80 cases (lines and ramps near the pole, arcs, R arcs, with X Min 0) replayed with rosekins kinematics against the CAM path |
 | `sim.test.js` | the simulator shows retracts going up, realistic block times, joint-space curves |
 | `material.test.js` | material is removed only under the cutter path; rapids into material are reported |
 | `ui.test.js` | the page loads without errors, form defaults equal `DEFAULT_OPTIONS`, buttons are wired, warnings shown |
@@ -141,7 +147,7 @@ Every output block is replayed the way LinuxCNC executes it under
 **forward kinematics of LinuxCNC's own `rosekins`** (`x = r·cos C`, `y = r·sin C`). The distance from each
 replayed point to the path the CAM asked for is measured.
 
-With the machine's real X travel (−10 … +125 mm), in Auto, Index and Signed modes:
+With an X travel of −10 … +125 mm, in Auto, Index and Signed modes:
 
 | Case | Cutting (G1) | Rapids (G0) |
 |---|---|---|
@@ -167,20 +173,27 @@ machine. Air-cut every new program first.
 index.html              page markup only
 css/styles.css          styles
 src/core/geometry.js    angle helpers, arc linearisation           (pure)
-src/core/converter.js   Cartesian -> polar XZC, DEFAULT_OPTIONS    (pure)
+src/core/converter.js   convert(): options + the 3 stages below     (pure)
+src/core/gcode-input.js  stage 1: reads/checks the Cartesian program (pure)
+src/core/layout-xzc.js   stage 2: machine layout XZC, polar G93 blocks (pure)
+src/core/layout-xzcb.js  stage 2: layout XZC + tilting router B, built on XZC (pure)
 src/core/polar-parser.js polar G-code -> toolpath for the simulator (pure)
 src/ui/state.js         shared UI/simulator state, DOM references
 src/ui/settings.js      reads the settings panel into an options object
 src/core/material.js    material removal depth map, rapid-collision check (pure)
 src/sim/simulator.js    Three.js scene, per-frame update, animation loop
+lib/three/              three.js r134 (MIT), local copy so the page works offline
 src/ui/app.js           event handlers and boot
 tests/                  Node test suite (see Verification)
 profiles/               machine profiles (generic examples + the author's machine)
 examples/               LinuxCNC vismach simulation of an example lathe conversion
 ```
 
-The three `src/core` files have no DOM access and no globals. They load in the browser as
-`PolarCNC.converter`, `PolarCNC.geometry`, `PolarCNC.parser`, and in Node with `require()`:
+The `src/core` files have no DOM access and no globals. They load in the browser as
+`PolarCNC.converter`, `PolarCNC.gcodeInput`, `PolarCNC.layoutXZC`, `PolarCNC.geometry`, `PolarCNC.parser`, and in
+Node with `require()`. Since 2.6.0 the converter is three stages — **input** (read and check the CAM program, in
+order) → **machine layout** (here XZC: the polar transform) → **output** (header, end, clean-up) — so other machine
+layouts (a tilting router, XZC + B) can be added, and the same pieces can be used inside another CAM:
 
 ```js
 const { convert } = require('./src/core/converter.js');
@@ -215,19 +228,25 @@ The converter reads ordinary 3-axis milling G-code. Use a LinuxCNC (or grbl) pos
 | Feed `G94` (units/min) | Required — the converter computes `G93` itself. `G93` input is rejected |
 | Arcs in the XY plane (`G17`, incremental I/J) | Converted. Arcs in `G18`/`G19` planes are rejected — set the post to output them as lines |
 | `G53 G0 Z…`, `G28 G91 Z0`, `G30 G91 Z0` retracts | Replaced by `G53 G0 Z<Safe retract Z>` — see below. Rejected if that setting is empty |
-| `G28 G91 X0 Y0` (park) | Skipped — the tool stays where it is |
+| `G28 G91 X0 Y0`, `G53 G0 X… Y…` (park) | Skipped — the tool stays where it is |
 | `%` delimiters | Kept as the first and last line, as LinuxCNC requires |
 | `G54`–`G59` | Passed through. **Your work offset must have X = 0 at the chuck centre** |
 
 **Rejected with a message naming the line** (so nothing is ever converted wrongly):
-cutter compensation `G41/G42` (use compensation *in computer*), canned cycles `G73/G76/G81–G89`
-(enable *expand cycles*), offsets set with coordinates `G92/G52/G10`, probing `G31/G38.x`,
-rotation `G68`, absolute arc centres `G90.1`, `G53` or `G28` with an X/Y point, and any cut before
-the tool position is known.
+cutter compensation `G41/G42` (use compensation *in computer*), tapping, threading and boring cycles
+`G74/G76/G84/G86–G88` (enable *expand cycles*; drilling cycles are expanded by the converter itself),
+offsets set with coordinates `G92/G52/G10`, probing `G31/G38.x`, rotation `G68`, absolute arc centres
+`G90.1`, `G28` with an X/Y waypoint, `G53 G1`, numbers in exponent form (`1E3`), a cut before the tool position is known, a cut without a
+feed rate, and arcs LinuxCNC itself would refuse (no I/J/R, R too small, R full circle, end radius
+too far from the start radius — same tolerances as LinuxCNC 2.9).
+
+A dwell `G4 P` of 60 or more is kept but flagged with a warning: in LinuxCNC P is **seconds**, while
+Fanuc-style posts write milliseconds.
 
 **Machine-coordinate retracts are machine-specific.** A mill's post emits `G53 G0 Z0` because on a
-mill machine Z0 is the top of Z. On this lathe conversion the Z home switch is at the tailstock end,
-so machine Z0 is at the **chuck** end — passing `G53 G0 Z0` through would rapid the carriage toward
+mill machine Z0 is the top of Z. On many lathe conversions the Z home switch is at the tailstock end
+and machine Z0 is at the **chuck** end (the author's machine too, until its mill-style Z numbering is
+installed) — passing `G53 G0 Z0` through would rapid the carriage toward
 the chuck. `G28` is no safer: its stored position is machine 0,0,0 unless set with `G28.1`. So the
 converter never passes these through. Either set the post's safe-retract method to **clearance
 height** (then no machine-coordinate moves appear at all), or enter **Safe retract Z (machine)** —
@@ -263,6 +282,26 @@ direction or X sign on the machine is the opposite of what the converter assumes
 mirrored — and no simulator can show that. If it is, tick **Invert rotary direction** in the profile.
 For a full check of the machine's own behaviour, LinuxCNC can simulate the machine itself with a `vismach`
 model — `examples/linuxcnc-vismach-xzc-lathe` is a ready example.
+
+## Tilting router (layout "XZC + tilt", 2.7.0)
+
+For a machine whose router also **tilts in the X-Z plane** (toward or away from the chuck axis — axis **B** by
+ISO 841 / LinuxCNC; A only as a rename). Choose **Machine layout → XZC + tilt**.
+
+- **Ball-end tools lean** by the angle you set (*Lean*, + = tool tip toward the chuck axis) **while they cut**, and the
+  converter keeps the **ball centre exactly on the CAM path** — a ball looks the same from every direction, so the
+  surface is unchanged. Any normal 3-axis program can be used; no multi-axis CAM is needed.
+- The lean is **reduced automatically** wherever the X travel or the tilt travel would not allow it: tilting moves the
+  router's X by K·sin B (K = pivot → ball centre), so big leans fit only near the centre.
+- Other tools stay upright (B 0). The router turns upright before a tool change, after a machine retract (at the top)
+  and at the end. B must be 0 at the start (home it); touch off Z with B 0; **G43 H stays valid**.
+- Needed, with **no defaults** (they belong to your machine; missing values are refused): *pivot to tool holder*
+  (measured), *tilt min/max*, and the tool **lengths** — load the machine's own LinuxCNC `tool.tbl`. Ball-end tools:
+  list their numbers, or write "ball" in the tool-table comment.
+- Verified (`tests/tilt.test.js`): the output is replayed as LinuxCNC runs it (X, Z, B, C linear in joint space), the
+  ball centre is recovered from every sample and compared with the CAM path: worst 0.023 mm with leans up to 45°.
+- **Not yet:** tilt that follows the part's shape (to reach undercuts) needs the tool orientation from a CAM —
+  planned inside Kiri:Moto. The direction of B on a real machine must be proven with a test cut (*Invert tilt*).
 
 ## Settings reference
 
@@ -313,7 +352,7 @@ Every one of these was read directly, not cited second-hand. None is reused verb
 | **LinuxCNC** | `interp_find.cc`, `interp_inverse.cc`, `tc.c`, `emccanon.cc` | Established that G94 ignores rotary distance, that G93 carries time directly, and that `getStraightVelocity()` reduces linear velocity until the C axis can keep up (NIST IR6556 §2.1.2.5(A)) |
 | **Klipper** | `klippy/kinematics/polar.py` | `check_move()` limits speed near the pole using the **perpendicular distance from the origin to the segment**, not the endpoint radius — the same quantity Fanuc calls `L` |
 | **Marlin** | `src/module/polar.cpp` | Same >180° delta unwrap. `POLAR_CENTER_OFFSET` avoids the singularity *mechanically* by mounting the tool off-centre |
-| **RepRapFirmware** | `src/Movement/Kinematics/PolarKinematics.cpp` | `LimitSpeedAndAcceleration()` is mathematically the same guarantee as this converter's `T_crot`. Also has `minRadius`/`maxRadius` and a continuous-rotation shortcut |
+| **RepRapFirmware** | `src/Movement/Kinematics/PolarKinematics.cpp` | `LimitSpeedAndAcceleration()` is the same guarantee that LinuxCNC's own axis limits give this converter's output (the converter's former `T_crot` was removed in favour of the controller's limits). Also has `minRadius`/`maxRadius` and a continuous-rotation shortcut |
 | **grblHAL** | `kinematics/polar.c` | Identical unwrap; feed corrected by the ratio of polar to Cartesian distance, clamped at 0.5× |
 | **Grbl_Esp32** | `Custom/polar_coaster.cpp` | The original that grblHAL's version was lifted from — nothing additional |
 | **FreeCAD CAM** | `Path/Base/Generator/rotary_spiral.py`, `rotary_wrap.py` | `_FeedClamp` inspired the original feed-clamp diagnostics (since replaced by the simulator's peak chuck speed). `apply_wrap_strategy()` supplied the UNWOUND / MODULO / REZERO vocabulary for the C-unwind problem |

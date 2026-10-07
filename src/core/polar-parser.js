@@ -9,7 +9,7 @@
 (function (root, factory) {
   'use strict';
   var isNode = typeof module === 'object' && module.exports;
-  var api = isNode ? factory() : factory();
+  var api = factory();
   if (isNode) module.exports = api;
   else { root.PolarCNC = root.PolarCNC || {}; root.PolarCNC.parser = api; }
 })(typeof self !== 'undefined' ? self : this, function () {
@@ -40,6 +40,12 @@
   function parsePolarGCode(text, profile) {
     var P = profile || {};
     var ROT = String(P.rotaryAxis || 'C').toUpperCase();
+    // 2.7.0: tilting router (layout XZC + B). The machine X/Z then belong to the
+    // tilted head; the tool tip is r = X - K sin B, z = Z - K (cos B - 1), with K
+    // of the active tool from the converter's "( polar-cnc tilt: T.. K=.. )".
+    var TILT = P.layout === 'xzcb' ? String(P.tiltAxis || 'B').toUpperCase() : null;
+    function toB(b) { return P.invertTilt ? -b : b; }
+    var tiltK = 0, lastB = 0;
     var xScale = P.xDiameter ? 2 : 1;
     function toR(x) { return (P.invertX ? -x : x) / xScale; }        // machine X -> radius
     function toC(c) { return P.invertC ? -c : c; }                    // machine rotary -> part angle
@@ -78,9 +84,15 @@
     var feedModal = 'G93';  // our output always opens with G93
 
     var toolD = null;   // diameter of the active tool, from "( polar-cnc tool: T.. D=.. )"
+    var lastTilt = 0;   // tilt of the last drawn point (degrees; 0 without a tilt axis)
     for (var i = 0; i < lines.length; i++) {
       var tm = lines[i].match(/polar-cnc tool:\s*T\d+\s+D=([\d.]+)/i);
       if (tm) toolD = parseFloat(tm[1]);
+      if (TILT) {
+        var km = lines[i].match(/polar-cnc tilt:\s*T\d+\s+K=([\d.]+)/i);
+        if (km) tiltK = parseFloat(km[1]);
+        else if (/polar-cnc tilt:\s*T\S*\s+is not a ball-end/i.test(lines[i])) tiltK = 0;
+      }
       var ln = clean(lines[i]);
       if (!ln || ln === '%') continue;
       var g = gcodes(ln);
@@ -91,6 +103,21 @@
       var xw = word(ln, 'X'), cw = word(ln, ROT), zw = word(ln, 'Z'), fw = word(ln, 'F');
       if (xw !== null) xw = toR(xw);
       if (cw !== null) cw = toC(cw);
+      if (TILT) {
+        // machine X/Z (head) -> tool tip; X/Z not on the line keep the head where it was
+        var bw = word(ln, TILT);
+        var bNew = bw !== null ? toB(bw) : lastB, bOld = lastB;
+        if (xw !== null || zw !== null || bw !== null) {
+          var sinO = Math.sin(bOld * Math.PI / 180), cosO = Math.cos(bOld * Math.PI / 180);
+          var sinN = Math.sin(bNew * Math.PI / 180), cosN = Math.cos(bNew * Math.PI / 180);
+          var headX = xw !== null ? xw : lastR + tiltK * sinO;
+          xw = headX - tiltK * sinN;
+          if (zw !== null) zw = zw - tiltK * (cosN - 1);
+          else if (bw !== null && lastZ !== null) zw = lastZ + tiltK * (cosO - 1) - tiltK * (cosN - 1);
+        }
+        lastB = bNew;
+      }
+      var tB = TILT ? lastB : 0;          // tilt at the end of this block (degrees)
 
       if (g[53] || g[28] || g[30]) {
         // Machine-reference move: the simulator cannot know machine coordinates,
@@ -113,8 +140,8 @@
 
       var prev = result.length ? result[result.length - 1] : null;
       if (!prev) {
-        result.push(makePoint(tR, tC, tZ, lastF, 0, 0.001, null, type, feedModal, i + 1, machineRef, toolD, P));
-        lastR = tR; lastC = tC; lastZ = tZ;
+        result.push(makePoint(tR, tC, tZ, lastF, 0, 0.001, null, type, feedModal, i + 1, machineRef, toolD, P, tB, tiltK));
+        lastR = tR; lastC = tC; lastZ = tZ; lastTilt = tB;
         continue;
       }
 
@@ -140,24 +167,27 @@
       for (var s = 1; s <= k; s++) {
         var fr = s / k;
         var pr = result[result.length - 1];
-        var rr = lastR + dR * fr, cc = lastC + dC * fr, zz = lastZ + dZ * fr;
+        var rr = lastR + dR * fr, cc = lastC + dC * fr, zz = lastZ + dZ * fr, bb = lastTilt + (tB - lastTilt) * fr;
         var rad = cc * Math.PI / 180;
         var x3 = rr * Math.cos(rad), y3 = rr * Math.sin(rad);
         var sd = Math.sqrt((x3 - pr.x3) * (x3 - pr.x3) + (y3 - pr.y3) * (y3 - pr.y3) + (zz - pr.z3) * (zz - pr.z3));
         result.push(makePoint(rr, cc, zz, lastF, sd, T / k, cmdT === null ? null : cmdT / k,
-                              type, feedModal, i + 1, machineRef, toolD, P));
+                              type, feedModal, i + 1, machineRef, toolD, P, bb, tiltK));
       }
-      lastR = tR; lastC = tC; lastZ = tZ;
+      lastR = tR; lastC = tC; lastZ = tZ; lastTilt = tB;
     }
     return result;
   }
 
-  function makePoint(r, c, z, f, segDist, segDurNom, durCmdSec, type, feedMode, lineNum, machineRef, toolD, P) {
+  function makePoint(r, c, z, f, segDist, segDurNom, durCmdSec, type, feedMode, lineNum, machineRef, toolD, P, tilt, kTilt) {
     var rad = c * Math.PI / 180;
-    var xm = ((P && P.invertX) ? -r : r) * ((P && P.xDiameter) ? 2 : 1);   // X as written to the file
+    tilt = tilt || 0;
+    var head = r + (kTilt || 0) * Math.sin(tilt * Math.PI / 180);         // machine X (radius) of the head
+    var xm = ((P && P.invertX) ? -head : head) * ((P && P.xDiameter) ? 2 : 1);   // X as written to the file
     return {
       xm: xm,                    // machine X value (for travel-limit checks)
       toolD: toolD,              // active tool diameter, or null (use the setting)
+      tilt: tilt,                // tilt of the router (degrees, + = tip toward the chuck axis); 0 = upright
       r: r, theta: c, z: z, f: f,
       x3: r * Math.cos(rad), y3: r * Math.sin(rad), z3: z,
       segDist: segDist,          // Cartesian length of this (sub)segment, for drawing

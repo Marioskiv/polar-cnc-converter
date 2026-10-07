@@ -18,9 +18,18 @@ var SETTINGS_FIELDS = {
   toolDia:         'inpToolDia',
   centerStep:      'inpCenterStep',
   centerRetract:   'inpCenterRetract',
-  retractZMachine: 'inpRetractZ'
+  retractZMachine: 'inpRetractZ',
+  // 2.7.0: tilting router (layout XZC + B)
+  tiltPivot:       'inpTiltPivot',
+  tiltMin:         'inpTiltMin',
+  tiltMax:         'inpTiltMax',
+  tiltLean:        'inpTiltLean',
+  ballTools:       'inpBallTools',
+  toolTable:       'inpToolTable'
 };
-var SETTINGS_CHECKS = { autoStepover: 'chkAutoStep', invertC: 'chkInvertC', invertX: 'chkInvertX' };
+var SETTINGS_CHECKS = { autoStepover: 'chkAutoStep', invertC: 'chkInvertC', invertX: 'chkInvertX', invertTilt: 'chkInvertTilt' };
+// Plain <select> settings: option key -> element id (value = option value).
+var SETTINGS_SELECTS = { rotaryAxis: 'selRotaryAxis', layout: 'selLayout', tiltAxis: 'selTiltAxis' };
 var CENTER_MODE_BUTTONS = {
   signed: 'btnCenterSignedX',
   index:  'btnCenterIndex',
@@ -38,7 +47,7 @@ var profileExtras = {};
 function hasControl(key) {
   if (SETTINGS_FIELDS[key]) return !!document.getElementById(SETTINGS_FIELDS[key]);
   if (SETTINGS_CHECKS[key]) return !!document.getElementById(SETTINGS_CHECKS[key]);
-  if (key === 'rotaryAxis') return !!document.getElementById('selRotaryAxis');
+  if (SETTINGS_SELECTS[key]) return !!document.getElementById(SETTINGS_SELECTS[key]);
   if (key === 'xDiameter') return !!document.getElementById('selXMode');
   if (key === 'centerMode') return !!document.getElementById(CENTER_MODE_BUTTONS.auto);
   return false;
@@ -55,8 +64,10 @@ function readConverterOptions() {
     var el = document.getElementById(SETTINGS_CHECKS[key]);
     if (el) o[key] = el.checked;
   });
-  var rot = document.getElementById('selRotaryAxis');
-  if (rot) o.rotaryAxis = rot.value;
+  Object.keys(SETTINGS_SELECTS).forEach(function (key) {
+    var el = document.getElementById(SETTINGS_SELECTS[key]);
+    if (el) o[key] = el.value;
+  });
   var xm = document.getElementById('selXMode');
   if (xm) o.xDiameter = (xm.value === 'diameter');
   if (hasControl('centerMode')) {
@@ -82,13 +93,17 @@ function applyConverterOptions(o) {
     if (!el) return;
     if (key in o && o[key] !== null && o[key] !== undefined) el.value = o[key];
     else if (key === 'threshold') el.value = '';   // automatic zone
+    else if (key in o && o[key] === null) el.value = '';   // e.g. a tilt value not set
   });
   Object.keys(SETTINGS_CHECKS).forEach(function (key) {
     var el = document.getElementById(SETTINGS_CHECKS[key]);
     if (el && key in o) el.checked = !!o[key];
   });
-  var rot = document.getElementById('selRotaryAxis');
-  if (rot && o.rotaryAxis) rot.value = o.rotaryAxis;
+  Object.keys(SETTINGS_SELECTS).forEach(function (key) {
+    var el = document.getElementById(SETTINGS_SELECTS[key]);
+    if (el && o[key]) el.value = o[key];
+  });
+  showTiltFields();
   var xm = document.getElementById('selXMode');
   if (xm && 'xDiameter' in o) xm.value = o.xDiameter ? 'diameter' : 'radius';
   if (o.centerMode && CENTER_MODE_BUTTONS[o.centerMode]) {
@@ -112,11 +127,37 @@ function restoreConverterSettings() {
   } catch (e) { /* ignore */ }
 }
 
+// The tilt fields are shown only for the layout "XZC + tilt".
+function showTiltFields() {
+  var sel = document.getElementById('selLayout'), box = document.getElementById('tiltFields');
+  if (sel && box) box.style.display = sel.value === 'xzcb' ? '' : 'none';
+}
+
 (function wireSettingsPersistence() {
   restoreConverterSettings();
+  showTiltFields();
+  var lay = document.getElementById('selLayout');
+  if (lay) lay.addEventListener('change', showTiltFields);
+  // Load the machine's own LinuxCNC tool table (tool lengths for the tilt).
+  var bTbl = document.getElementById('btnLoadToolTable'), fTbl = document.getElementById('fileToolTable');
+  if (bTbl && fTbl) {
+    bTbl.addEventListener('click', function () { fTbl.click(); });
+    fTbl.addEventListener('change', function () {
+      var f = fTbl.files && fTbl.files[0];
+      if (!f) return;
+      var rd = new FileReader();
+      rd.onload = function () {
+        var ta = document.getElementById('inpToolTable');
+        if (ta) { ta.value = String(rd.result); saveConverterSettings(); }
+        fTbl.value = '';
+      };
+      rd.readAsText(f);
+    });
+  }
   var ids = Object.keys(SETTINGS_FIELDS).map(function (k) { return SETTINGS_FIELDS[k]; })
     .concat(Object.keys(SETTINGS_CHECKS).map(function (k) { return SETTINGS_CHECKS[k]; }))
-    .concat(['selRotaryAxis', 'selXMode']);
+    .concat(Object.keys(SETTINGS_SELECTS).map(function (k) { return SETTINGS_SELECTS[k]; }))
+    .concat(['selXMode']);
   ids.forEach(function (id) {
     var el = document.getElementById(id);
     if (el) el.addEventListener('change', saveConverterSettings);

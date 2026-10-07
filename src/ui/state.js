@@ -60,6 +60,8 @@ var tX          = document.getElementById('tX');
 var tC          = document.getElementById('tC');
 var tZ          = document.getElementById('tZ');
 var tF          = document.getElementById('tF');
+var tTilt       = document.getElementById('tTilt');
+var tTiltRow    = document.getElementById('tTiltRow');
 
 // --- Three.js Handles ---
 var scene, camera, renderer, controls;

@@ -6,6 +6,7 @@
   (inverse time). G94 was removed on purpose: LinuxCNC applies a G94 F only to the X/Z length and ignores the C arc,
   so feed control was wrong on tangential moves.
 - The converter does **not** model machine dynamics (axis speed, acceleration, gear ratio). The controller enforces them.
+  Hence no minimum block time that changes motion (2.5.0: floor 0.6 ms, was 0.06 s and slowed short blocks).
 - `convert(text, options)` stays a pure function, no DOM. Licence MIT, header in every source file.
 
 ## Accuracy
@@ -22,10 +23,12 @@
 
 ## Input handling
 - Preserve every G-code word (G43 H, S, M, T, coolant, comments, tool changes) in the correct execution order.
-- G53/G28/G30 retracts are replaced by the user's Safe retract Z (rejected if empty). G41/G42, G92/G52/G10 with XY,
+- G53/G28/G30 retracts are replaced by the user's Safe retract Z (rejected if empty). X/Y parks (`G28 G91 X0 Y0`,
+  `G53 G0 X.. Y..`) are skipped — not moving can hit nothing (2.5.0). G41/G42, G92/G52/G10 with XY,
   G90.1, G93 input, G18/G19 arcs, tapping/threading are rejected with the line number. Drilling cycles are expanded.
 - Tool diameter comes from CAM tool comments (Fusion `(T1 D=6. …)`); the page field is only a fallback. Tool length is
-  never needed (LinuxCNC applies G43 H from its tool table).
+  never needed for XZC (LinuxCNC applies G43 H from its tool table). The tilting layout needs it (2.7.0): it reads the
+  machine's own LinuxCNC `tool.tbl`; G43 stays valid (see `references/tilt-axis-research.md` §3).
 - Converter-written comments never nest (LinuxCNC: "Nested comment found"); a safety net strips inner parentheses.
 
 ## REJECTED by Marios — do not propose again
@@ -44,6 +47,18 @@
   A tangential tilt would add an unreachable disk of radius L·|sin a| around the centre — avoid unless needed.
 - The distance pivot → tool tip changes with every tool; it must be a per-tool value.
 - Stay on trivkins (offline transform). Custom kinematics would move the pole problem into the controller.
-- Bird's code is GPL: method only. See `reference-kirimoto-bird-4axis.md`.
+- Bird's code is GPL: method only. See `references/bird-4axis.md`.
+- **Marios confirmed (2026-10-07): the router tilts like Bird's printer (toward/away from the centre, radial plane),
+  simultaneously while cutting.**
+- Tilt axis letter: **B** (rotation about a line parallel to Y — LinuxCNC docs, ISO 841, LinuxCNC's own tilting-head
+  example, industry B-axis mill-turns); A only as a rename option. Direction needs an invert option + test cut.
+  Research: `references/tilt-axis-research.md` (2026-10-07). Hardware not built: no `.ini`/`.hal` change now.
+- **Built 2.7.0 (layout `xzcb`):** ball-end tools lean by a wanted angle, reduced automatically to fit the X and B travel;
+  the ball centre stays on the CAM path (exact for a ball). Other tools stay at B 0. B returns to 0 before a tool change,
+  after a machine retract (at the top) and at the end. Built ON the XZC layout (its blocks, split for the tilt error
+  K·dB²/8 ≤ 0.08·chord tol). Pivot, tilt travel and tool lengths have no defaults: missing → refused.
+- Adding the tilt axis renumbers the joints (canonical order X Y Z A B C): XZBC → C becomes joint 3.
+- For milling the tilt comes from the CAM's tool orientation (or a fixed 0°/90°), not from a printing-style
+  optimiser; G93 time and the error checks use the **tool-tip** path, not the pivot path.
 - G93 time of a block = max(tip path length / CAM feed, each joint's travel / its limit, a minimum time) — pure
   reorientation moves have zero tip length and must not produce F = 1/0.

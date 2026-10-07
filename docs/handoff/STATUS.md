@@ -1,4 +1,6 @@
-# Status — written 2026-10-07 (converter v2.4.0)
+# Status — updated 2026-10-07 (converter v2.7.0)
+
+Session history: `LOG.md` (newest first).
 
 The real machine is the source of truth. Where this file and the files on the LinuxCNC computer disagree,
 trust the computer and tell Marios about the difference.
@@ -36,6 +38,13 @@ trust the computer and tell Marios about the difference.
 - `gamepad.hal`: X dead zone ±0.45, Z ±0.35, C trigger gain ×6, right stick DOWN = +X. Not yet confirmed by Marios.
 
 ## Open items — machine
+- **SAFETY: no hardware E-stop.** `estop-ext` reads the raw input `gpio.013.in` (TEMPORARY, not
+  fail-safe: a broken wire looks like "all clear"). The only E-stop is the gamepad Options button.
+  Wire an NC E-stop button and switch the `.hal` to `gpio.013.in_not` (the line is already there).
+- Input P11 (`gpio.014`, Z zeroing / probe sensor) does not respond. Replace the ribbon cable; if dead,
+  move the wire to P13 and use `gpio.016` (see the `.hal`).
+- Stale comments to correct on the REAL files (not urgent): `.ini` header "HOME_OFFSET is set to 135"
+  (it is -20); `.hal` Z comment "coordinate 600" (10 with the mill-style `.ini`).
 - Align the router on the chuck centre at X0 after Home, in X AND height (dial indicator, or V-bit on a centre dot).
 - Check C+ direction (else mirrored parts); `G0 C3600` then `G0 C0` must return exactly (else lower C speed to 105/90).
 - C soft limits ±99,999° allow only ~277 chuck turns per program — raise them in `[AXIS_C]`/`[JOINT_2]`.
@@ -49,13 +58,36 @@ trust the computer and tell Marios about the difference.
 - Fusion post: LinuxCNC, compensation "in computer", expanded drilling cycles, no G18/G19 arcs, mm, clearance-height retracts.
 
 ## Open items — software
-- Upload v2.4.0 to GitHub (Marios does it by hand).
+- v2.4.0 is on GitHub (PR #1 merged). v2.4.1 and v2.5.0 (all review findings fixed, incl. real feed on short
+  blocks, Kiri tool list, offline three.js) and v2.6.0 (three stages) are on branch
+  `claude/youthful-goldberg-a6qv5t` — merge when Marios agrees. v2.7.0 (tilt layout) on the same branch.
 - Future router tilt axis (rotates continuously during a program; Marios calls it A, conventional letter in the X-Z
   plane would be B). Plan, each step only with his go-ahead:
-  1. Study Kiri:Moto's 4th-axis code — DONE, see `reference-kirimoto-bird-4axis.md`.
+  1. Study Kiri:Moto's code — DONE (full CAM read 2026-10-07), see `references/kirimoto.md`; Bird: `references/bird-4axis.md`.
   2. Restructure the converter into input → machine layout → output with **zero output change** (golden 144/144).
+     **DONE 2.6.0** (`gcode-input.js` → `layout-xzc.js` → `converter.js`; 13,671 old-vs-new comparisons, 0 differences).
+     Step 3 first part **DONE 2.7.0**: layout `xzcb` — ball-end lean while cutting, auto-limited by X/B travel
+     (`layout-xzcb.js`, `tests/tilt.test.js`). Still open: tilt following the part's shape (needs CAM orientation →
+     Kiri), fixed B per program for non-ball tools, periphery from 4th-axis programs.
   3. Add the tilt layout: per-point tool direction (from Kiri:Moto / 5-axis G-code), pivot-to-tip distance per tool,
      tilt smoothing, max tilt change per block, tip + orientation error checks, simulator with a tilted tool.
+  Bird's printer and S4 slicer read in detail 2026-10-07: `references/bird-4axis.md` §5-6. **Before any work,
+  Marios must answer:** indexed (0°/90° fixed per cut) or simultaneous tilt? axis letter, travel, motor/drive/
+  reduction, homing, BOB output, pivot-to-tip L per tool and pivot offset, router clearance at 90°.
+  Machine config first: adding the axis moves C from joint 2 to joint 3 (canonical order X Z B C).
+  **2026-10-07 Marios: the axis is not built, the router stays fixed → NO `.ini`/`.hal` changes now; only a
+  converter layout selector "XZC / XZC + tilt (B, A as rename)".** Letter researched: **B**
+  (`references/tilt-axis-research.md`). Marios: tilt must change **while cutting** (simultaneous), for propellers
+  and hard-to-reach spots. **Confirmed 2026-10-07: it tilts "like Bird's printer" → radial plane → B.**
+  Tool length: proposed reading LinuxCNC `tool.tbl`. CAM for tilt (Marios, 2026-10-07): **not Fusion** (no
+  subscription; Fusion maybe for plain XYZ) → Kiri:Moto or FreeCAD. Verified: neither gives simultaneous tilt
+  (`references/freecad-cam.md`); FreeCAD RotarySurface / Kiri lathe give periphery (B 90) programs.
+- Marios's goal (2026-10-07): "behave like Fusion 360 CAM for polar / multi-axis machines — a universal CAM for
+  all machine types". Clarified later the same night: **the converter is to be merged into Kiri:Moto** (if its
+  author agrees) → a professional-style CAM where one chooses the machine layout and all parameters, all
+  operations inside the CAM, no post-editing. He wants the **user experience of a professional program**. Consequence: step 2 (restructure) must make the converter a clean
+  machine-layout **library** usable both by our page and inside Kiri (see `references/kirimoto.md` §6, §10). Agreed direction proposed: the CAM (Fusion, Kiri:Moto, …) makes the toolpaths, the
+  converter is the universal **machine-layout** stage (like Fusion's machine definition + post).
 - Ideas not built: overcut difference map, polar-native operations (spiral facing, bolt circles, radial and concentric
   grooves), a "pole governor" warning (feed near the centre is limited by C speed: v = ω·d), acceleration in simulator timing.
 - Collaboration with the Kiri:Moto author (Stewart Allen) only AFTER the real tests and photos exist.

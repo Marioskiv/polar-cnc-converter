@@ -104,4 +104,4 @@ function analyse(name, gcode, out, opts = {}, quiet = false) {
   return res;
 }
 
-module.exports = { intendedPath, analyse };
+module.exports = { intendedPath, analyse, distPtSeg };
