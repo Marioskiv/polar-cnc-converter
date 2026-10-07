@@ -1,5 +1,28 @@
 # Changelog
 
+## 2.7.0 — layout "XZC + tilt": ball-end tools lean while cutting
+
+### Added
+- **Machine layout selector** (page and profiles): *XZC* (today's machine, unchanged) or *XZC + tilt* — a router that
+  tilts in the X-Z plane. Tilt letter **B** by ISO 841 / LinuxCNC (A as a rename), *invert tilt*.
+- `src/core/layout-xzcb.js`: built on the XZC layout. **Ball-end tools lean** by the set angle while cutting, with the
+  **ball centre kept exactly on the CAM path**; the lean is reduced automatically where the X travel or the tilt travel
+  would not allow it (X = r + K·sin B, Z = z + K·(cos B − 1), K = pivot → ball centre; C unchanged). Each XZC block is
+  split so the tilt adds at most 0.08 × chord tolerance (K·dB²/8). Other tools stay at B 0; B returns to 0 before a tool
+  change, after a machine retract and at the end. G43 stays valid.
+- Tool lengths from the machine's own **LinuxCNC `tool.tbl`** (load the file or paste it); ball-end tools listed by
+  number or marked "ball" in the tool-table comment. Pivot length, tilt travel and tool lengths have **no defaults** —
+  missing values stop the conversion with a message.
+- Simulator: reads B, shows the tool tip (not the head), draws the **tilted tool**, Tilt telemetry; the X-travel check
+  uses the head's real X.
+- `tests/tilt.test.js` (150 checks): joint-space replay (X, Z, B, C linear) with the ball centre recovered and compared
+  with the CAM path — worst **0.0229 mm** (leans up to 45°, 43 programs incl. 40 random), rapids ≤ 0.39 mm, X and B
+  inside their travel, flat tools upright, upright at tool change / retract / end, letter A + inverted, refusals.
+  `tests/lint.test.js` also checks the tilted output of every golden program.
+
+### Unchanged
+- Layout XZC: golden 144/144 identical, sweeps worst 0.0225 mm.
+
 ## 2.6.0 — the converter in three stages (no output change)
 
 Step 2 of the plan for other machine layouts (a tilting router, XZC + B) and for use inside another CAM

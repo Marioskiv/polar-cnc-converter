@@ -27,7 +27,8 @@
   `G53 G0 X.. Y..`) are skipped — not moving can hit nothing (2.5.0). G41/G42, G92/G52/G10 with XY,
   G90.1, G93 input, G18/G19 arcs, tapping/threading are rejected with the line number. Drilling cycles are expanded.
 - Tool diameter comes from CAM tool comments (Fusion `(T1 D=6. …)`); the page field is only a fallback. Tool length is
-  never needed (LinuxCNC applies G43 H from its tool table).
+  never needed for XZC (LinuxCNC applies G43 H from its tool table). The tilting layout needs it (2.7.0): it reads the
+  machine's own LinuxCNC `tool.tbl`; G43 stays valid (see `references/tilt-axis-research.md` §3).
 - Converter-written comments never nest (LinuxCNC: "Nested comment found"); a safety net strips inner parentheses.
 
 ## REJECTED by Marios — do not propose again
@@ -52,6 +53,10 @@
 - Tilt axis letter: **B** (rotation about a line parallel to Y — LinuxCNC docs, ISO 841, LinuxCNC's own tilting-head
   example, industry B-axis mill-turns); A only as a rename option. Direction needs an invert option + test cut.
   Research: `references/tilt-axis-research.md` (2026-10-07). Hardware not built: no `.ini`/`.hal` change now.
+- **Built 2.7.0 (layout `xzcb`):** ball-end tools lean by a wanted angle, reduced automatically to fit the X and B travel;
+  the ball centre stays on the CAM path (exact for a ball). Other tools stay at B 0. B returns to 0 before a tool change,
+  after a machine retract (at the top) and at the end. Built ON the XZC layout (its blocks, split for the tilt error
+  K·dB²/8 ≤ 0.08·chord tol). Pivot, tilt travel and tool lengths have no defaults: missing → refused.
 - Adding the tilt axis renumbers the joints (canonical order X Y Z A B C): XZBC → C becomes joint 3.
 - For milling the tilt comes from the CAM's tool orientation (or a fixed 0°/90°), not from a printing-style
   optimiser; G93 time and the error checks use the **tool-tip** path, not the pivot path.

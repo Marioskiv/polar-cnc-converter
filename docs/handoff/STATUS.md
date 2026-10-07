@@ -1,4 +1,4 @@
-# Status — updated 2026-10-07 (converter v2.6.0)
+# Status — updated 2026-10-07 (converter v2.7.0)
 
 Session history: `LOG.md` (newest first).
 
@@ -60,12 +60,15 @@ trust the computer and tell Marios about the difference.
 ## Open items — software
 - v2.4.0 is on GitHub (PR #1 merged). v2.4.1 and v2.5.0 (all review findings fixed, incl. real feed on short
   blocks, Kiri tool list, offline three.js) and v2.6.0 (three stages) are on branch
-  `claude/youthful-goldberg-a6qv5t` — merge when Marios agrees.
+  `claude/youthful-goldberg-a6qv5t` — merge when Marios agrees. v2.7.0 (tilt layout) on the same branch.
 - Future router tilt axis (rotates continuously during a program; Marios calls it A, conventional letter in the X-Z
   plane would be B). Plan, each step only with his go-ahead:
   1. Study Kiri:Moto's code — DONE (full CAM read 2026-10-07), see `references/kirimoto.md`; Bird: `references/bird-4axis.md`.
   2. Restructure the converter into input → machine layout → output with **zero output change** (golden 144/144).
      **DONE 2.6.0** (`gcode-input.js` → `layout-xzc.js` → `converter.js`; 13,671 old-vs-new comparisons, 0 differences).
+     Step 3 first part **DONE 2.7.0**: layout `xzcb` — ball-end lean while cutting, auto-limited by X/B travel
+     (`layout-xzcb.js`, `tests/tilt.test.js`). Still open: tilt following the part's shape (needs CAM orientation →
+     Kiri), fixed B per program for non-ball tools, periphery from 4th-axis programs.
   3. Add the tilt layout: per-point tool direction (from Kiri:Moto / 5-axis G-code), pivot-to-tip distance per tool,
      tilt smoothing, max tilt change per block, tip + orientation error checks, simulator with a tilted tool.
   Bird's printer and S4 slicer read in detail 2026-10-07: `references/bird-4axis.md` §5-6. **Before any work,

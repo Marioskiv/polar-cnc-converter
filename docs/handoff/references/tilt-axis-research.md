@@ -39,8 +39,11 @@ lock pins), `docs/src/config/ini-config.adoc` ~l.1062, `ini-homing.adoc` ~l.346.
   "Tool-Length Compensation"). With **trivkins**, `G43 H` adds the tool length to **Z only** — right at B = 0,
   **wrong at B = 90** (the tool then sticks out along X).
 - ⇒ In a tilted layout the converter must know **each tool's length** (pivot → tip = fixed pivot length + tool
-  length) and compute X/Z itself; G43 must then not add the length again (cancel with G49 for those sections).
-  This changes DECISIONS.md ("tool length is never needed") **for the tilted layout only**.
+  length) and compute X/Z itself.
+- **Corrected 2026-10-07 (while building 2.7.0):** `G43` can stay. With the touch-off at B = 0, the machine
+  X/Z mean "the tool tip when upright"; G43 only shifts Z by the tool length at every B alike, and the
+  formula X = r + K sin B, Z = z + K (cos B − 1) (K = pivot → ball centre, which contains the tool length)
+  is right with G43 active. Cancelling G43 is NOT needed.
 
 ## 4. Face vs periphery — industry names and inputs
 - **Face, B = 0:** "polar coordinate interpolation" (Fanuc G12.1/G112, Siemens TRANSMIT) — what the converter does.

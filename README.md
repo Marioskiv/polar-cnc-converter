@@ -176,6 +176,7 @@ src/core/geometry.js    angle helpers, arc linearisation           (pure)
 src/core/converter.js   convert(): options + the 3 stages below     (pure)
 src/core/gcode-input.js  stage 1: reads/checks the Cartesian program (pure)
 src/core/layout-xzc.js   stage 2: machine layout XZC, polar G93 blocks (pure)
+src/core/layout-xzcb.js  stage 2: layout XZC + tilting router B, built on XZC (pure)
 src/core/polar-parser.js polar G-code -> toolpath for the simulator (pure)
 src/ui/state.js         shared UI/simulator state, DOM references
 src/ui/settings.js      reads the settings panel into an options object
@@ -281,6 +282,26 @@ direction or X sign on the machine is the opposite of what the converter assumes
 mirrored — and no simulator can show that. If it is, tick **Invert rotary direction** in the profile.
 For a full check of the machine's own behaviour, LinuxCNC can simulate the machine itself with a `vismach`
 model — `examples/linuxcnc-vismach-xzc-lathe` is a ready example.
+
+## Tilting router (layout "XZC + tilt", 2.7.0)
+
+For a machine whose router also **tilts in the X-Z plane** (toward or away from the chuck axis — axis **B** by
+ISO 841 / LinuxCNC; A only as a rename). Choose **Machine layout → XZC + tilt**.
+
+- **Ball-end tools lean** by the angle you set (*Lean*, + = tool tip toward the chuck axis) **while they cut**, and the
+  converter keeps the **ball centre exactly on the CAM path** — a ball looks the same from every direction, so the
+  surface is unchanged. Any normal 3-axis program can be used; no multi-axis CAM is needed.
+- The lean is **reduced automatically** wherever the X travel or the tilt travel would not allow it: tilting moves the
+  router's X by K·sin B (K = pivot → ball centre), so big leans fit only near the centre.
+- Other tools stay upright (B 0). The router turns upright before a tool change, after a machine retract (at the top)
+  and at the end. B must be 0 at the start (home it); touch off Z with B 0; **G43 H stays valid**.
+- Needed, with **no defaults** (they belong to your machine; missing values are refused): *pivot to tool holder*
+  (measured), *tilt min/max*, and the tool **lengths** — load the machine's own LinuxCNC `tool.tbl`. Ball-end tools:
+  list their numbers, or write "ball" in the tool-table comment.
+- Verified (`tests/tilt.test.js`): the output is replayed as LinuxCNC runs it (X, Z, B, C linear in joint space), the
+  ball centre is recovered from every sample and compared with the CAM path: worst 0.023 mm with leans up to 45°.
+- **Not yet:** tilt that follows the part's shape (to reach undercuts) needs the tool orientation from a CAM —
+  planned inside Kiri:Moto. The direction of B on a real machine must be proven with a test cut (*Invert tilt*).
 
 ## Settings reference
 

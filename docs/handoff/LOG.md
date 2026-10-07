@@ -5,6 +5,24 @@ Short and factual. Current state lives in `STATUS.md`, permanent decisions in `D
 
 ---
 
+## 2026-10-07 (late night, 6) — 2.7.0: layout XZC + tilt (ball-end lean)
+
+**Marios said:** the router may not reach 90° (X travel) and big parts cannot be machined on the periphery — then chose
+option 2: tilt that changes while cutting, ball-end, automatic, as far as it fits.
+
+**Done (2.7.0):** layout selector XZC / XZC + tilt (page, profiles, `normalizeOptions`). `layout-xzcb.js` on top of the
+XZC layout: K = pivot→ball centre per tool (pivot setting + `tool.tbl` length − ball radius); X = r + K sin B,
+Z = z + K (cos B − 1), C unchanged; lean auto-limited by X and B travel; blocks split so the tilt error ≤ 0.08·tol;
+upright at tool change / after machine retract / end; flat tools upright; missing pivot/travel/length refused.
+**Found while building: G43 stays valid** (research note §3 corrected). Simulator: B read, tool tip recovered, tilted
+tool drawn, Tilt telemetry. Tests: `tilt.test.js` 150 checks (ball centre worst 0.0229 mm), lint on tilted outputs,
+golden 144/144 unchanged, sweeps, Chromium check with screenshots.
+
+**Open:** B direction on the real machine needs a test cut; tilt following the shape needs CAM orientation (Kiri);
+fixed B for non-ball tools; periphery input. Machine not built: nothing for the `.ini`/`.hal`.
+
+---
+
 ## 2026-10-07 (late night, 5) — which CAM: not Fusion; FreeCAD checked
 
 **Marios said:** most likely **not Fusion** for the tilted work (no subscription) — maybe Kiri:Moto or FreeCAD;

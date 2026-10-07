@@ -72,8 +72,10 @@ function clearScene() {
 
 function reg(obj) { scene.add(obj); sceneObjects.push(obj); return obj; }
 
+var simHasTilt = false;   // the program uses the tilt axis (shows the Tilt telemetry row)
 function buildScene(pts) {
   clearScene();
+  simHasTilt = pts.some(function (p) { return Math.abs(p.tilt || 0) > 1e-6; });
 
   // Bounds from toolpath
   var maxR = 1, zMin = Infinity, zMax = -Infinity;
@@ -304,9 +306,10 @@ function updateScene() {
   // and then jump instantly to the next vertex — this reproduces smooth,
   // real feedrate-based motion instead of discrete point-to-point teleports.
   var pt2 = (currentFrac > 0 && idx + 1 < toolpath.length) ? toolpath[idx + 1] : null;
-  var r, theta, z, x3, y3, z3, dispPt;
+  var r, theta, z, x3, y3, z3, dispPt, tilt;
   if (pt2) {
     var fr = currentFrac;
+    tilt  = (pt.tilt || 0) + ((pt2.tilt || 0) - (pt.tilt || 0)) * fr;
     r     = pt.r     + (pt2.r     - pt.r)     * fr;
     theta = pt.theta + (pt2.theta - pt.theta) * fr;
     z     = pt.z     + (pt2.z     - pt.z)     * fr;
@@ -316,7 +319,7 @@ function updateScene() {
     z3 = z;
     dispPt = pt2;   // telemetry (F/type/line#) reflects the move currently in progress
   } else {
-    r = pt.r; theta = pt.theta; z = pt.z;
+    r = pt.r; theta = pt.theta; z = pt.z; tilt = pt.tilt || 0;
     x3 = pt.x3; y3 = pt.y3; z3 = pt.z3;
     dispPt = pt;
   }
@@ -364,12 +367,15 @@ function updateScene() {
     workpieceGroup.rotation.set(0, 0, -cRad);
     toolGroup.position.set(r, 0, z);
     toolGroup.position.y = 0;           // hard guard - Y must always be 0
-    toolGroup.rotation.set(0, 0, 0);
+    // 2.7.0: tilting router (XZC + B): the tool leans in the X-Z plane about
+    // its tip; + = tip toward the chuck axis (the top of the tool outward).
+    toolGroup.rotation.set(0, tilt * Math.PI / 180, 0);
   } else {
     // STATIC 3D MODE - workpiece fixed, tool traces Cartesian shape
     workpieceGroup.rotation.set(0, 0, 0);
     toolGroup.position.set(x3, y3, z3);
-    toolGroup.rotation.set(0, 0, Math.atan2(y3, x3));
+    // lean in the radial plane first, then turn to the point's angle
+    toolGroup.rotation.set(0, tilt * Math.PI / 180, Math.atan2(y3, x3), 'ZYX');
   }
 
   // Telemetry overlay
@@ -379,6 +385,7 @@ function updateScene() {
   tX.textContent    = r.toFixed(4);
   tC.textContent    = theta.toFixed(2);
   tZ.textContent    = z.toFixed(4);
+  if (tTilt) { tTilt.textContent = tilt.toFixed(1); tTiltRow.style.display = simHasTilt ? '' : 'none'; }
   var fMode = dispPt.feedMode || 'G93';
   tF.textContent    = dispPt.f > 0
     ? (fMode === 'G93'

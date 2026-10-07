@@ -22,7 +22,7 @@
   //   sink.text(line)        a line to write as it is
   //   sink.flush(feed)       write any motion the layout still holds back
   //   sink.move(event)       a G0/G1/G2/G3 (see the call below for the fields)
-  //   sink.tool(diameter)    the active cutter changed (mm)
+  //   sink.tool(dia, number) the active cutter changed (diameter in mm, tool number as text)
   //   sink.programEnd(feed)  the CAM's own M2/M30 follows (flush + G94 restore)
   // Returns { usedPercent, programEnded, warnings[] } for the converter.
   function read(text, O, sink) {
@@ -164,7 +164,7 @@
       if (nextTool === null) return;
       activeTool = nextTool;
       TOOL_DIA = (activeTool in toolDiaRaw) ? toolDiaMM(activeTool) : O.toolDia;
-      sink.tool(TOOL_DIA);
+      sink.tool(TOOL_DIA, activeTool);
       emit('( polar-cnc tool: T' + activeTool + ' D=' + TOOL_DIA.toFixed(4)
                + ((activeTool in toolDiaRaw) ? '' : ' - from settings, no diameter in the program') + ' )');
     }
@@ -179,7 +179,7 @@
       // the program's unit is not read yet here: look for G20 in it
       var inchProg = lines.some(function (l) { return /\bG0*20(?![.\d])/i.test(l.replace(/\([^)]*\)/g, '').replace(/;.*$/, '')); });
       TOOL_DIA = toolDiaRaw[nextTool].mm ? toolDiaRaw[nextTool].d : toolDiaRaw[nextTool].d * (inchProg ? 25.4 : 1);
-      sink.tool(TOOL_DIA);
+      sink.tool(TOOL_DIA, nextTool);
       emit('( polar-cnc tool: T' + nextTool + ' D=' + TOOL_DIA.toFixed(4) + ' - the only tool listed, no tool change )');
     }
 

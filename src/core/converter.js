@@ -10,11 +10,11 @@
 (function (root, factory) {
   'use strict';
   var isNode = typeof module === 'object' && module.exports;
-  var api = isNode ? factory(require('./gcode-input.js'), require('./layout-xzc.js'))
-                   : factory(root.PolarCNC.gcodeInput, root.PolarCNC.layoutXZC);
+  var api = isNode ? factory(require('./gcode-input.js'), require('./layout-xzc.js'), require('./layout-xzcb.js'))
+                   : factory(root.PolarCNC.gcodeInput, root.PolarCNC.layoutXZC, root.PolarCNC.layoutXZCB);
   if (isNode) module.exports = api;
   else { root.PolarCNC = root.PolarCNC || {}; root.PolarCNC.converter = api; }
-})(typeof self !== 'undefined' ? self : this, function (gcodeInput, layoutXZC) {
+})(typeof self !== 'undefined' ? self : this, function (gcodeInput, layoutXZC, layoutXZCB) {
   'use strict';
 
   // ---------------------------------------------------------------------------
@@ -36,7 +36,18 @@
     rotaryAxis:    'C',     //      letter of the rotary axis: 'C' | 'A' | 'B'
     invertC:       false,   //      rotary turns the other way (else parts come out mirrored)
     invertX:       false,   //      radial axis counts the other way / tool on the -X side
-    xDiameter:     false    //      controller expects X as a DIAMETER (lathe diameter mode)
+    xDiameter:     false,   //      controller expects X as a DIAMETER (lathe diameter mode)
+    // ---- machine layout (2.6.0). 'xzc' = today's machine; 'xzcb' = XZC plus a router
+    // that tilts in the X-Z plane (the radial plane through the chuck axis). ----
+    layout:        'xzc',   //      'xzc' | 'xzcb'
+    tiltAxis:      'B',     //      letter of the tilt axis (B by ISO 841 / LinuxCNC; A only as a rename)
+    invertTilt:    false,   //      tilt axis turns the other way
+    tiltPivot:     null,    // mm   pivot axis -> tool holder face (machine constant; no default on purpose)
+    tiltMin:       null,    // deg  tilt travel, in machine terms (no default on purpose)
+    tiltMax:       null,    // deg
+    tiltLean:      0,       // deg  lean wanted for BALL-END tools (+ = tool tip toward the chuck axis)
+    toolTable:     '',      //      LinuxCNC tool.tbl text (T.. Z<length> D<dia> ;comment "ball")
+    ballTools:     ''       //      ball-end tool numbers, e.g. "1, 3" (also: "ball" in the tool table comment)
   });
   // CLEANUP (2026-10-02): the C velocity limit, C motor rpm, C acceleration
   // and corner-feed settings were removed. Every controller this targets
@@ -47,6 +58,7 @@
   // duplicated machine-specific values that every user would have to copy.
   var ROTARY_AXES = ['C', 'A', 'B'];
   var CENTER_MODES = ['auto', 'signed', 'index', 'fill'];
+  var LAYOUT_NAMES = ['xzc', 'xzcb'];
 
   // normalizeOptions: accepts partial options (numbers or numeric strings, as
   // read from form fields) and returns a complete, clamped options object.
@@ -90,7 +102,17 @@
                        ? String(o.rotaryAxis).toUpperCase() : D.rotaryAxis,
       invertC:       !!o.invertC,
       invertX:       !!o.invertX,
-      xDiameter:     !!o.xDiameter
+      xDiameter:     !!o.xDiameter,
+      layout:        LAYOUT_NAMES.indexOf(o.layout) >= 0 ? o.layout : D.layout,
+      tiltAxis:      ROTARY_AXES.indexOf(String(o.tiltAxis || '').toUpperCase()) >= 0
+                       ? String(o.tiltAxis).toUpperCase() : D.tiltAxis,
+      invertTilt:    !!o.invertTilt,
+      tiltPivot:     (function (v) { var p = parseFloat(v); return (isFinite(p) && p >= 0) ? p : null; })(o.tiltPivot),
+      tiltMin:       (function (v) { var p = parseFloat(v); return isFinite(p) ? p : null; })(o.tiltMin),
+      tiltMax:       (function (v) { var p = parseFloat(v); return isFinite(p) ? p : null; })(o.tiltMax),
+      tiltLean:      num(o.tiltLean, D.tiltLean),
+      toolTable:     typeof o.toolTable === 'string' ? o.toolTable : D.toolTable,
+      ballTools:     typeof o.ballTools === 'string' ? o.ballTools : (o.ballTools == null ? D.ballTools : String(o.ballTools))
     };
   }
 
@@ -127,24 +149,28 @@
   // input reading, and the same pieces can be used inside another CAM:
   //   gcode-input.js  - reads and checks the Cartesian program, in order
   //   layout-xzc.js   - the machine layout (polar transform, G93 blocks)
+  //   layout-xzcb.js  - XZC + a router tilting in the X-Z plane (B), built on XZC
   //   this file       - options, the common header/footer, output clean-up
   // The output is byte-for-byte the same as before (tests/golden.test.js).
-  var LAYOUTS = { xzc: layoutXZC };
+  var LAYOUTS = { xzc: layoutXZC, xzcb: layoutXZCB };
 
   function convertCartesianToPolar(text, options) {
     var O = normalizeOptions(options);
     var out = [];
-    var layout = LAYOUTS.xzc.create(O, out);
+    var layout = LAYOUTS[O.layout].create(O, out);
     Array.prototype.push.apply(out, layout.header());
     out.push('', 'G21', 'G90', 'G93');
 
     var res = gcodeInput.read(text, O, {
-      text: function (line) { out.push(line); },
+      // A layout may need to act before a passed-through line (the tilting
+      // layout turns the router back to B0 before a tool change).
+      text: function (line) { if (layout.text) layout.text(line); else out.push(line); },
       flush: function (feed) { layout.flush(feed); },
       move: function (ev) { return layout.move(ev); },
-      tool: function (dia) { layout.setTool(dia); },
+      tool: function (dia, number) { layout.setTool(dia, number); },
       programEnd: function (feed) {
         layout.flush(feed);
+        if (layout.beforeEnd) layout.beforeEnd();
         out.push('G94  ( restore units/min mode before end )');
       }
     });
