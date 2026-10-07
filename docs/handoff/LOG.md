@@ -5,6 +5,34 @@ Short and factual. Current state lives in `STATUS.md`, permanent decisions in `D
 
 ---
 
+## 2026-10-07 (evening) — converter 2.5.0, Bird repos in detail
+
+**Asked:** (1) "it should behave like a Fusion 360 CAM for polar / multi-axis machines — a universal CAM for all
+machine types"; (2) fix the remaining review findings, especially the cutter diameter not being read; (3) he will
+often ask about Kiri:Moto; (4) he plans a 4th axis: the router, on X and Z, will **tilt about 90°** to machine
+the periphery of the part, like Bird's printer — read `Core-R-Theta-4-Axis-Printer` and `S4_Slicer` in detail,
+because the converter must support it with a **layout selector**; say if they must be downloaded.
+
+**Done — converter 2.5.0** (all tests, sweeps 0.0225 mm, release zip, Chromium offline check):
+- G93 floor 0.06 s → 0.6 ms: real feed now = CAM feed on short blocks (F1500: 844 → ~1443 measured).
+  Golden 68 changed — only F of blocks at the old F1000 floor (script-checked line by line).
+- Kiri:Moto tool list `; tool#=N flute=D … unit=` read (imperial → mm); single listed tool used without M6.
+- Radial lines in 5 mm pieces (was ~1.4 mm). Golden 29 changed — fewer blocks, same rapids, same deviation.
+- `G53 G0 X Y` park skipped like `G28` park; exponent numbers refused.
+- three.js r134 in `lib/three/` (MIT, from the npm package — cdn.jsdelivr.net is blocked in this sandbox).
+
+**Done — Bird repos:** cloned here (Marios does not need to download anything); firmware read completely, S4
+notebook read completely. Notes rewritten: `references/bird-4axis.md` (pipeline, kinematics, what carries over to
+milling and what not, consequences for his machine). Key points: same layout as his plan (B in the radial plane);
+RRF 4-axis mode = offline transform + G93 like ours; S4's optimiser is for printing overhangs, not milling;
+**adding the axis moves C to joint 3**; a mill 4th-axis program (Kiri's lathe op, Fusion rotary) maps directly
+to "router at 90°".
+
+**Waiting for Marios:** indexed or simultaneous tilt; axis letter, travel, motor/drive/reduction, homing, BOB
+output, pivot-to-tip L per tool, pivot offset, router clearance at 90° (rule 4: not assumed).
+
+---
+
 ## 2026-10-07 (later) — references folder, full Kiri:Moto CAM read
 
 **Asked:** set up a place to remember other people's code (one notes file per project); check Kiri:Moto in

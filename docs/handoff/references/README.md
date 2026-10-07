@@ -6,7 +6,7 @@ One file per project, so a new session knows what was already read without readi
 | Project | File | Licence | What it is for us |
 |---|---|---|---|
 | Kiri:Moto (GridSpace/grid-apps) `d138275` | [kirimoto.md](kirimoto.md) | MIT (file headers say "All Rights Reserved") | CAM in the browser; candidate home for the converter (post-processor hook `gcodeProc`); its 4th-axis code |
-| Joshua Bird — Core R-Theta printer, S4 + radial slicers | [bird-4axis.md](bird-4axis.md) | GPL-3 (+ no-sell clause) — **method only** | Tilting tool in the radial plane, pivot-to-tip compensation, tilt smoothing, G93 |
+| Joshua Bird — Core R-Theta printer `107e2c1`, S4 slicer `bc4b8d9` (+ radial slicer, first pass) | [bird-4axis.md](bird-4axis.md) | GPL-3 (+ no-sell clause on the printer) — **method only** | Model for Marios's tilting router (B in the radial plane): pivot compensation, max tilt per block, G93, firmware limits; what does NOT carry over to milling |
 
 ## How to add a project (when Marios gives a URL or files)
 1. Clone into the scratchpad (never into this repo): `git clone --depth 50 <url>`; note the **commit hash**.

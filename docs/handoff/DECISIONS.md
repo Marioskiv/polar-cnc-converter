@@ -47,5 +47,8 @@
 - The distance pivot → tool tip changes with every tool; it must be a per-tool value.
 - Stay on trivkins (offline transform). Custom kinematics would move the pole problem into the controller.
 - Bird's code is GPL: method only. See `references/bird-4axis.md`.
+- Adding the tilt axis renumbers the joints (canonical order X Y Z A B C): XZBC → C becomes joint 3.
+- For milling the tilt comes from the CAM's tool orientation (or a fixed 0°/90°), not from a printing-style
+  optimiser; G93 time and the error checks use the **tool-tip** path, not the pivot path.
 - G93 time of a block = max(tip path length / CAM feed, each joint's travel / its limit, a minimum time) — pure
   reorientation moves have zero tip length and must not produce F = 1/0.

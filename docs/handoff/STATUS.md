@@ -67,6 +67,13 @@ trust the computer and tell Marios about the difference.
   2. Restructure the converter into input → machine layout → output with **zero output change** (golden 144/144).
   3. Add the tilt layout: per-point tool direction (from Kiri:Moto / 5-axis G-code), pivot-to-tip distance per tool,
      tilt smoothing, max tilt change per block, tip + orientation error checks, simulator with a tilted tool.
+  Bird's printer and S4 slicer read in detail 2026-10-07: `references/bird-4axis.md` §5-6. **Before any work,
+  Marios must answer:** indexed (0°/90° fixed per cut) or simultaneous tilt? axis letter, travel, motor/drive/
+  reduction, homing, BOB output, pivot-to-tip L per tool and pivot offset, router clearance at 90°.
+  Machine config first: adding the axis moves C from joint 2 to joint 3 (canonical order X Z B C).
+- Marios's goal (2026-10-07): "behave like Fusion 360 CAM for polar / multi-axis machines — a universal CAM for
+  all machine types". Agreed direction proposed: the CAM (Fusion, Kiri:Moto, …) makes the toolpaths, the
+  converter is the universal **machine-layout** stage (like Fusion's machine definition + post).
 - Ideas not built: overcut difference map, polar-native operations (spiral facing, bolt circles, radial and concentric
   grooves), a "pole governor" warning (feed near the centre is limited by C speed: v = ω·d), acceleration in simulator timing.
 - Collaboration with the Kiri:Moto author (Stewart Allen) only AFTER the real tests and photos exist.
