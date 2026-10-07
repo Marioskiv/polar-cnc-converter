@@ -44,6 +44,6 @@
   A tangential tilt would add an unreachable disk of radius L·|sin a| around the centre — avoid unless needed.
 - The distance pivot → tool tip changes with every tool; it must be a per-tool value.
 - Stay on trivkins (offline transform). Custom kinematics would move the pole problem into the controller.
-- Bird's code is GPL: method only. See `reference-kirimoto-bird-4axis.md`.
+- Bird's code is GPL: method only. See `references/bird-4axis.md`.
 - G93 time of a block = max(tip path length / CAM feed, each joint's travel / its limit, a minimum time) — pure
   reorientation moves have zero tip length and must not produce F = 1/0.

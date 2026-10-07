@@ -1,0 +1,21 @@
+# References — other people's code we have studied
+
+One file per project, so a new session knows what was already read without reading it again.
+**Read this list at the start of any work that touches another project.**
+
+| Project | File | Licence | What it is for us |
+|---|---|---|---|
+| Kiri:Moto (GridSpace/grid-apps) `d138275` | [kirimoto.md](kirimoto.md) | MIT (file headers say "All Rights Reserved") | CAM in the browser; candidate home for the converter (post-processor hook `gcodeProc`); its 4th-axis code |
+| Joshua Bird — Core R-Theta printer, S4 + radial slicers | [bird-4axis.md](bird-4axis.md) | GPL-3 (+ no-sell clause) — **method only** | Tilting tool in the radial plane, pivot-to-tip compensation, tilt smoothing, G93 |
+
+## How to add a project (when Marios gives a URL or files)
+1. Clone into the scratchpad (never into this repo): `git clone --depth 50 <url>`; note the **commit hash**.
+2. Read the **licence file and the file headers**. GPL / no-sell / "All Rights Reserved" → method only.
+3. Write `references/<name>.md`:
+   - URL, commit, date read, licence (verified);
+   - what was read in full, what was skimmed, what was not read;
+   - the method in our own words (formulas, pseudo-code — never pasted code);
+   - key files and functions (path:line) so a later session can go straight back to them;
+   - what is useful to us, what is not, problems found;
+   - Marios's goal for this project, in his words.
+4. Add a row to the table above and an entry in `../LOG.md`.

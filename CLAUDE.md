@@ -24,6 +24,8 @@ Read `docs/handoff/STATUS.md` first (what is installed on the real machine and w
 10. **Keep notes (asked by Marios 2026-10-07).** At the start read the latest entry of `docs/handoff/LOG.md`.
     During/at the end of every session add an entry at the top of `LOG.md` (asked / done / not done /
     decided) and keep `STATUS.md` (current state) and `DECISIONS.md` (decisions, rejected ideas) up to date.
+    Other people's code that was studied: `docs/handoff/references/README.md` (one notes file per project, with
+    URL + commit, licence, method in our own words). Never copy their code into this repo.
 
 ## Safety facts that cost real mistakes before
 - G-code `G53 G0 Z0` goes to machine Z0. Which end of the lathe that is depends on the INSTALLED `.ini`

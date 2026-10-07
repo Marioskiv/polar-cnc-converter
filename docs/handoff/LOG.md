@@ -5,6 +5,30 @@ Short and factual. Current state lives in `STATUS.md`, permanent decisions in `D
 
 ---
 
+## 2026-10-07 (later) — references folder, full Kiri:Moto CAM read
+
+**Asked:** set up a place to remember other people's code (one notes file per project); check Kiri:Moto in
+full, because Marios may one day offer the converter to its author so Kiri becomes a CAM for complex machines
+"like mine XZC, XZCYA, ZCZA and the others" (his words; those layouts still need to be defined with him).
+Next he will give another project's code to check and say what he wants done with it.
+
+**Done:**
+- `docs/handoff/references/` with an index (`README.md`, incl. how to add a project). Old
+  `reference-kirimoto-bird-4axis.md` split into `references/kirimoto.md` and `references/bird-4axis.md`.
+  CLAUDE.md rule 10 points to the index.
+- Kiri:Moto `d138275` (4.7.0, no newer commit) re-read: the whole CAM output path (slice → prepare → export),
+  the rotary ops, engine/CLI, export dialog, mods, docs. Notes in `references/kirimoto.md`.
+- **Key finding:** Kiri already has a post-processor hook — device JSON `gcodeProc` names a page function that
+  receives the whole G-code. Our converter can plug in **without changing Kiri** (UI export only, not the
+  headless engine). Other findings: no G93 anywhere; CLI broken (30/59 files missing); a docs/code directive
+  name mismatch; a dwell time-estimate bug; our converter does not read Kiri's `; tool#=` comments yet.
+- Corrected two wrong points of the first notes (lerp points are not exported; AXISMAP exists).
+
+**Not done / next:** proof of concept (self-hosted Kiri + `gcodeProc` + our converter) only with Marios's
+go-ahead; reading Kiri's tool comments is a converter change (his OK first).
+
+---
+
 ## 2026-10-07 — full code review, converter 2.4.1
 
 **Asked:** read the whole repo, check the code, list the open items; then "fix what you believe is

@@ -64,7 +64,7 @@ trust the computer and tell Marios about the difference.
   short blocks; `G53 G0 X Y` park rejected vs `G28` park skipped; local copy of three.js for offline use.
 - Future router tilt axis (rotates continuously during a program; Marios calls it A, conventional letter in the X-Z
   plane would be B). Plan, each step only with his go-ahead:
-  1. Study Kiri:Moto's 4th-axis code — DONE, see `reference-kirimoto-bird-4axis.md`.
+  1. Study Kiri:Moto's code — DONE (full CAM read 2026-10-07), see `references/kirimoto.md`; Bird: `references/bird-4axis.md`.
   2. Restructure the converter into input → machine layout → output with **zero output change** (golden 144/144).
   3. Add the tilt layout: per-point tool direction (from Kiri:Moto / 5-axis G-code), pivot-to-tip distance per tool,
      tilt smoothing, max tilt change per block, tip + orientation error checks, simulator with a tilted tool.
