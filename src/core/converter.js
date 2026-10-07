@@ -194,7 +194,14 @@
     // silently. A program with two XY rapids before its first G1 therefore
     // plunged at the wrong place. Declared here, once, for every branch.
     var MAX_DEG_PER_SEG = 45.0;   // max C rotation per block (degrees)
-    var MIN_TIME    = 0.001;   // G93 safety floor [min] → max F_g93 = 1000
+    // CHANGED 2.5.0: was 0.001 min (0.06 s, F_g93 <= 1000). That floor silently
+    // SLOWED THE CUT on every short block: measured on a circle r20, F1500 ran at
+    // ~844 mm/min, F3000 at ~856. Machine dynamics are the controller's job
+    // (DECISIONS.md), and LinuxCNC cannot run a block in less than one servo
+    // period (1 ms) anyway. The floor is now 0.6 ms - below that - so it only
+    // guards against F = 1/0 (a block with no length) and never changes motion.
+    var MIN_TIME    = 0.00001; // G93 floor [min] (0.6 ms) -> max F_g93 = 100000
+    var MAX_F_G93   = 1 / MIN_TIME;
     var MIN_SEG      = 0.02;  // absolute floor (mm)
     var MAX_SEG_G    = 5.0;   // segment length cap (mm) — larger = fewer segments at big R
     // Minimum 3D distance between two consecutively emitted G1 points.
@@ -310,10 +317,16 @@
       var BUDGET = budget || ERR_BUDGET;
       var L = Math.hypot(dx, dy);
       if (L < 1e-12 || tB <= tA) { cb(tB); return; }
+      // ADDED 2.5.0: a RADIAL line (on a ray from the pole, not passing through
+      // it here) keeps C constant, so X alone traces it exactly: a piece of any
+      // length is exact, as in the Signed-X branch. It was cut into pieces
+      // sized for a curving joint path (1.4 mm at r = 10) for nothing.
+      var tPole = -(x0 * dx + y0 * dy) / (L * L);
+      var radial = Math.abs(x0 * dy - y0 * dx) / L < 1e-6 && !(tPole > tA - 1e-9 && tPole < tB + 1e-9);
       var t = tA, guard = 0;
       while (t < tB - 1e-12 && guard++ < 2000000) {
         var px = x0 + dx * t, py = y0 + dy * t, rp = Math.hypot(px, py);
-        var len = Math.min(segLenAt(rp), (tB - t) * L);
+        var len = Math.min(radial ? MAX_SEG_G : segLenAt(rp), (tB - t) * L);
         // Inside the centre zone the points are skipped (C frozen), so the next
         // emitted block joins the last point BEFORE the zone to the first point
         // AFTER it. Leave the zone exactly at its edge, so that crossing block
@@ -447,7 +460,7 @@
       // 3. Feed-plunge to cutting depth
       if (CENTER_RETRACT > 1e-6) {
         var T_plunge = Math.max(CENTER_RETRACT / feedFill, MIN_TIME);
-        var F_plunge = Math.min(1.0 / T_plunge, 1000);
+        var F_plunge = Math.min(1.0 / T_plunge, MAX_F_G93);
         out.push('G1 ' + wx(rStart) + ' ' + wc(cumC) +
                  ' Z' + z.toFixed(4) + ' F' + F_plunge.toFixed(4));
         prevZ = z;
@@ -600,8 +613,8 @@
     // deferred-merge filter has decided this endpoint should be written to output.
     //
     // G93 inverse time from the real 3D path length (radial + rotary arc +
-    // axial) at the CAM feed: T = dist3D / F, F_g93 = 1/T (capped at 1000,
-    // i.e. a 0.06 s floor per block). The controller enforces axis limits.
+    // axial) at the CAM feed: T = dist3D / F, F_g93 = 1/T (floor MIN_TIME, far
+    // below one servo period). The controller enforces axis limits.
     function _doEmitG1(r, outC, z) {
       _deferPts = [];
       var dR     = r - prevR;
@@ -619,7 +632,7 @@
       var arcLen = dC_rad * rAvg;                              // tangential arc (mm)
       var dist3D = Math.sqrt(dR * dR + arcLen * arcLen + dZ * dZ);
       var T      = Math.max(dist3D / feed, MIN_TIME);         // [min]
-      var F_g93  = Math.min(1.0 / T, 1000.0);                 // inverse-time word
+      var F_g93  = Math.min(1.0 / T, MAX_F_G93);              // inverse-time word
       out.push('G1 ' + wx(r) + ' ' + wc(outC) + ' Z' + z.toFixed(4) + ' F' + F_g93.toFixed(4));
 
       if (r < X_MIN_LIMIT || r > X_MAX_LIMIT) xLimitViolations++;
@@ -789,20 +802,42 @@
     var pendingPost = null;   // stop codes from the previous move line
 
     // Tool diameters stated by the CAM in comments, e.g. "(T2 D=3. CR=0. ...)".
+    // toolDiaRaw[n] = { d: diameter, mm: true if the CAM said the unit (else the
+    // program's own unit at the tool change applies) }.
     var toolDiaRaw = {};
     lines.forEach(function (l) {
       (l.match(/\([^)]*\)/g) || []).forEach(function (c) {
         var m = c.match(/\bT\s*(\d+)\b[^)]*?\b(?:D|DIA|DIAM|DIAMETER)\s*[=:]?\s*(\d*\.?\d+)/i);
-        if (m && !(m[1] in toolDiaRaw)) toolDiaRaw[m[1]] = parseFloat(m[2]);
+        if (m && !(m[1] in toolDiaRaw)) toolDiaRaw[m[1]] = { d: parseFloat(m[2]), mm: false };
       });
+      // ADDED 2.5.0: Kiri:Moto's tool list, a ";" comment in its header:
+      //   "; tool#=1 flute=6 len=20 unit=metric"   (unit=imperial -> inches)
+      // (Kiri writes it only when "strip comments" is off in its device profile.)
+      var k = l.match(/;\s*tool#\s*=\s*(\d+)\s+flute\s*=\s*(\d*\.?\d+)(?:.*?\bunit\s*=\s*(metric|imperial))?/i);
+      if (k && !(k[1] in toolDiaRaw))
+        toolDiaRaw[k[1]] = { d: parseFloat(k[2]) * (k[3] && k[3].toLowerCase() === 'imperial' ? 25.4 : 1), mm: true };
     });
+    function toolDiaMM(t) { var e = toolDiaRaw[t]; return e.mm ? e.d : e.d * unitScale; }
     var nextTool = null, activeTool = null;
     function noteToolChange() {
       if (nextTool === null) return;
       activeTool = nextTool;
-      TOOL_DIA = (activeTool in toolDiaRaw) ? toolDiaRaw[activeTool] * unitScale : O.toolDia;
+      TOOL_DIA = (activeTool in toolDiaRaw) ? toolDiaMM(activeTool) : O.toolDia;
       out.push('( polar-cnc tool: T' + activeTool + ' D=' + TOOL_DIA.toFixed(4)
                + ((activeTool in toolDiaRaw) ? '' : ' - from settings, no diameter in the program') + ' )');
+    }
+    // ADDED 2.5.0: a program with ONE tool in its list and no tool change at all
+    // (e.g. Kiri:Moto with "initial tool change" off) used that tool's
+    // diameter nowhere - the setting was used instead. Use the listed tool.
+    var listedTools = Object.keys(toolDiaRaw);
+    if (listedTools.length === 1 && !lines.some(function (l) {
+          return /\bM0*6(?![.\d])/i.test(l.replace(/\([^)]*\)/g, '').replace(/;.*$/, ''));
+        })) {
+      nextTool = listedTools[0];
+      // the program's unit is not read yet here: look for G20 in it
+      var inchProg = lines.some(function (l) { return /\bG0*20(?![.\d])/i.test(l.replace(/\([^)]*\)/g, '').replace(/;.*$/, '')); });
+      TOOL_DIA = toolDiaRaw[nextTool].mm ? toolDiaRaw[nextTool].d : toolDiaRaw[nextTool].d * (inchProg ? 25.4 : 1);
+      out.push('( polar-cnc tool: T' + nextTool + ' D=' + TOOL_DIA.toFixed(4) + ' - the only tool listed, no tool change )');
     }
 
     // ─── CANNED DRILLING CYCLES (2026-10-02) ───────────────────────────────────
@@ -857,6 +892,11 @@
       // file. The converter writes its own header first, so a passed-through %
       // would land mid-file. Strip it here and re-wrap the output at the end.
       if (ln === '%') { usedPercent = true; continue; }
+      // ADDED 2.5.0: numbers like "F1E3" are not G-code (LinuxCNC has no
+      // exponent notation). The word reader accepted them and the rest of the
+      // line leaked into the output as a stray "e3" line. Refused instead.
+      if (/\d\.?E[+-]?\d/.test(ln))
+        inputError(li, rawLine, 'number in exponent notation (like 1E3). Write it as a plain number.');
 
       // Collect all G-codes on this line
       var gSet = {};
@@ -984,10 +1024,15 @@
         flushDeferred();
         var refName = gSet[53] ? 'G53' : (gSet[28] ? 'G28' : 'G30');
         var rx = ('X' in words), ry = ('Y' in words), rz = ('Z' in words);
-        if (gSet[53] && (rx || ry))
-          inputError(li, rawLine, 'G53 with X/Y uses Cartesian machine coordinates and cannot be converted.');
         if (gSet[53] && (gSet[1] || (!gSet[0] && modalMove !== 'G0')))
           inputError(li, rawLine, 'use G53 G0 for machine-coordinate retracts.');
+        // CHANGED 2.5.0: "G53 G0 X.. Y.." (Fusion's optional end-of-program park)
+        // was rejected while "G28 G91 X0 Y0" was skipped. Machine X/Y of a mill
+        // mean nothing on this machine, and NOT moving can hit nothing: skipped
+        // the same way, the position stays known. A Z on the line is still the
+        // safe retract below.
+        if (gSet[53] && (rx || ry))
+          out.push('( G53 X/Y park skipped: the tool stays where it is )');
         if (!gSet[53] && !rx && !ry && !rz)
           inputError(li, rawLine, refName + ' with no axis words sends EVERY axis to the stored position (machine 0,0,0 unless set with G28.1) — the chuck centre and the chuck end of Z.' + RETRACT_HELP);
         if (!gSet[53] && (rx || ry)) {

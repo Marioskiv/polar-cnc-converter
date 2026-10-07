@@ -12,7 +12,8 @@ work — check yours before the first cut.
 
 Live demo (once GitHub Pages is enabled for this repo): https://marioskiv.github.io/polar-cnc-converter/
 
-Open [`index.html`](./index.html) directly in any modern browser — no build step, no server required.
+Open [`index.html`](./index.html) directly in any modern browser — no build step, no server and **no internet**
+required (three.js is included in `lib/three/`).
 
 > [!WARNING]
 > **Project Status & Disclaimer:** This software is currently in the **experimental/development** phase. The conversion algorithms and mathematical models have been validated via the built-in 3D simulator and dry-run code analysis, but **the generated G-code has not yet been physically tested on a live CNC machine**. 
@@ -79,7 +80,8 @@ This project solves both:
 - **Everything else in the program is kept.** Tool changes (`T`/`M6`), tool length (`G43 H`), spindle and
   coolant words, work offsets, dwells, comments — including when they share a line with a move. They are
   emitted before the move (stop codes `M0/M1/M2/M30` after it), the same order a controller executes a line.
-- **Tools.** The active tool's diameter is read from the CAM's tool comments (e.g. Fusion's `(T2 D=3. ...)`),
+- **Tools.** The active tool's diameter is read from the CAM's tool comments (Fusion's `(T2 D=3. ...)`, Kiri:Moto's
+  `; tool#=2 flute=3 ... unit=metric`),
   or taken from the **Tool Diameter** setting, and used for the centre pocket fill and the material map.
 - **Drilling cycles expanded.** `G81, G82, G83, G73, G85, G89` with `G98/G99`, `R`, `Q`, `P` become plain
   moves — in polar, a hole is just a position (X, C) followed by Z moves.
@@ -177,6 +179,7 @@ src/ui/state.js         shared UI/simulator state, DOM references
 src/ui/settings.js      reads the settings panel into an options object
 src/core/material.js    material removal depth map, rapid-collision check (pure)
 src/sim/simulator.js    Three.js scene, per-frame update, animation loop
+lib/three/              three.js r134 (MIT), local copy so the page works offline
 src/ui/app.js           event handlers and boot
 tests/                  Node test suite (see Verification)
 profiles/               machine profiles (generic examples + the author's machine)
@@ -219,7 +222,7 @@ The converter reads ordinary 3-axis milling G-code. Use a LinuxCNC (or grbl) pos
 | Feed `G94` (units/min) | Required — the converter computes `G93` itself. `G93` input is rejected |
 | Arcs in the XY plane (`G17`, incremental I/J) | Converted. Arcs in `G18`/`G19` planes are rejected — set the post to output them as lines |
 | `G53 G0 Z…`, `G28 G91 Z0`, `G30 G91 Z0` retracts | Replaced by `G53 G0 Z<Safe retract Z>` — see below. Rejected if that setting is empty |
-| `G28 G91 X0 Y0` (park) | Skipped — the tool stays where it is |
+| `G28 G91 X0 Y0`, `G53 G0 X… Y…` (park) | Skipped — the tool stays where it is |
 | `%` delimiters | Kept as the first and last line, as LinuxCNC requires |
 | `G54`–`G59` | Passed through. **Your work offset must have X = 0 at the chuck centre** |
 
@@ -227,7 +230,7 @@ The converter reads ordinary 3-axis milling G-code. Use a LinuxCNC (or grbl) pos
 cutter compensation `G41/G42` (use compensation *in computer*), tapping, threading and boring cycles
 `G74/G76/G84/G86–G88` (enable *expand cycles*; drilling cycles are expanded by the converter itself),
 offsets set with coordinates `G92/G52/G10`, probing `G31/G38.x`, rotation `G68`, absolute arc centres
-`G90.1`, `G53` or `G28` with an X/Y point, a cut before the tool position is known, a cut without a
+`G90.1`, `G28` with an X/Y waypoint, `G53 G1`, numbers in exponent form (`1E3`), a cut before the tool position is known, a cut without a
 feed rate, and arcs LinuxCNC itself would refuse (no I/J/R, R too small, R full circle, end radius
 too far from the start radius — same tolerances as LinuxCNC 2.9).
 

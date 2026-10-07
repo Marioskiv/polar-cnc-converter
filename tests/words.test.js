@@ -29,7 +29,7 @@ ok(t.includes('(finish pass)'), 'comment on a motion line is kept');
 ok(idx(t, /^M9$/) > idx(t, /^G1 .*X36\.4005/), 'M9 on a rapid line is kept');
 ok(t.filter(l => /^M30$/.test(l)).length === 1 && t[t.length - 2] === 'M30', 'one M30, at the end');
 const g1 = L('G21 G90\nG0 X20 Y0 Z2\nG1 Z-1 F100\nG1 X30 M0\nG1 X40\nM30');
-ok(idx(g1, /^M0$/) > idx(g1, /^G1 X30\.0000/) && idx(g1, /^M0$/) < idx(g1, /^G1 X32/), 'M0 on a motion line runs AFTER that motion');
+ok(idx(g1, /^M0$/) > idx(g1, /^G1 X30\.0000/) && idx(g1, /^M0$/) < idx(g1, /^G1 X(3[1-9]|40)\./), 'M0 on a motion line runs AFTER that motion');
 
 // --- tools ---------------------------------------------------------------------
 ok(t.includes('( polar-cnc tool: T1 D=6.0000 )') && t.includes('( polar-cnc tool: T2 D=3.0000 )'), 'tool diameters read from the CAM comments');

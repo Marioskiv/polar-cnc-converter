@@ -1,4 +1,4 @@
-# Status — updated 2026-10-07 (converter v2.4.1)
+# Status — updated 2026-10-07 (converter v2.5.0)
 
 Session history: `LOG.md` (newest first).
 
@@ -58,10 +58,9 @@ trust the computer and tell Marios about the difference.
 - Fusion post: LinuxCNC, compensation "in computer", expanded drilling cycles, no G18/G19 arcs, mm, clearance-height retracts.
 
 ## Open items — software
-- v2.4.0 is on GitHub (PR #1 merged). v2.4.1 (arc/feed/dwell checks) is on branch
-  `claude/youthful-goldberg-a6qv5t` — merge when Marios agrees.
-- Waiting for Marios's decision (see LOG.md 2026-10-07): feed floor `MIN_TIME` lowers the real feed on
-  short blocks; `G53 G0 X Y` park rejected vs `G28` park skipped; local copy of three.js for offline use.
+- v2.4.0 is on GitHub (PR #1 merged). v2.4.1 and v2.5.0 (all review findings fixed, incl. real feed on short
+  blocks, Kiri tool list, offline three.js) are on branch `claude/youthful-goldberg-a6qv5t` — merge when
+  Marios agrees.
 - Future router tilt axis (rotates continuously during a program; Marios calls it A, conventional letter in the X-Z
   plane would be B). Plan, each step only with his go-ahead:
   1. Study Kiri:Moto's code — DONE (full CAM read 2026-10-07), see `references/kirimoto.md`; Bird: `references/bird-4axis.md`.

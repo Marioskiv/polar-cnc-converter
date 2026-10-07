@@ -6,6 +6,7 @@
   (inverse time). G94 was removed on purpose: LinuxCNC applies a G94 F only to the X/Z length and ignores the C arc,
   so feed control was wrong on tangential moves.
 - The converter does **not** model machine dynamics (axis speed, acceleration, gear ratio). The controller enforces them.
+  Hence no minimum block time that changes motion (2.5.0: floor 0.6 ms, was 0.06 s and slowed short blocks).
 - `convert(text, options)` stays a pure function, no DOM. Licence MIT, header in every source file.
 
 ## Accuracy
@@ -22,7 +23,8 @@
 
 ## Input handling
 - Preserve every G-code word (G43 H, S, M, T, coolant, comments, tool changes) in the correct execution order.
-- G53/G28/G30 retracts are replaced by the user's Safe retract Z (rejected if empty). G41/G42, G92/G52/G10 with XY,
+- G53/G28/G30 retracts are replaced by the user's Safe retract Z (rejected if empty). X/Y parks (`G28 G91 X0 Y0`,
+  `G53 G0 X.. Y..`) are skipped — not moving can hit nothing (2.5.0). G41/G42, G92/G52/G10 with XY,
   G90.1, G93 input, G18/G19 arcs, tapping/threading are rejected with the line number. Drilling cycles are expanded.
 - Tool diameter comes from CAM tool comments (Fusion `(T1 D=6. …)`); the page field is only a fallback. Tool length is
   never needed (LinuxCNC applies G43 H from its tool table).

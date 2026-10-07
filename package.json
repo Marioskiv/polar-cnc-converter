@@ -1,6 +1,6 @@
 {
   "name": "polar-cnc-converter",
-  "version": "2.4.1",
+  "version": "2.5.0",
   "description": "Cartesian XYZ to polar XZC G-code converter and 3D simulator for LinuxCNC (trivkins, G93 inverse-time)",
   "license": "MIT",
   "author": "Marioskiv (https://github.com/Marioskiv)",

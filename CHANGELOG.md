@@ -1,5 +1,31 @@
 # Changelog
 
+## 2.5.0 — real feed on short blocks, Kiri:Moto tool list, works offline
+
+The remaining findings of the 2026-10-07 review, fixed at Marios's request.
+
+### Fixed
+- **The cutting feed was silently lowered on short blocks.** Every G1 block had a minimum time of 0.06 s
+  (F_g93 ≤ 1000), so a block shorter than feed × 0.06 s ran slower than the CAM asked: measured on a circle
+  r20, F1500 ran at ~844 mm/min and F3000 at ~856. The floor is now 0.6 ms — below LinuxCNC's 1 ms servo
+  period, so it never changes motion; the controller alone limits speed (as DECISIONS.md says). Now F1500 →
+  F1500. Golden: 68 outputs changed, **only** the F word of blocks that sat exactly at F1000 (checked line
+  by line: same lines, same geometry).
+- **Cutter diameter from Kiri:Moto programs** was not read (its tool list is a `;` comment,
+  `; tool#=2 flute=3.175 len=20 unit=metric`); the Tool Diameter setting was used instead. Now read, inches
+  converted. Also: a program that lists exactly **one** tool and has no tool change at all now uses that
+  tool's diameter (was the setting).
+- **Radial lines** (C constant, e.g. a cut along X at Y=0) were cut into ~1.4 mm pieces for nothing; X alone
+  traces them exactly, so they now go in 5 mm pieces like Signed-X lines. Golden: 29 outputs changed, all
+  with fewer G1 blocks, identical rapids/comments, same deviation (checked by replay).
+- `G53 G0 X.. Y..` (Fusion's optional end park) was rejected while `G28 G91 X0 Y0` was skipped. Both
+  are skipped now (not moving can hit nothing); a Z on the same line is still the safe retract.
+- Numbers in exponent form (`F1E3`) were half-read and left a stray `e3` line. Refused with the line number.
+
+### Changed
+- **three.js is included** (`lib/three/`, r134, MIT, unmodified npm files) instead of being loaded from a CDN:
+  the page now works **without internet** (checked in Chromium from disk: no network request, no error).
+
 ## 2.4.1 — arcs, feed and dwell checked like LinuxCNC checks them
 
 Found in a full code review (2026-10-07). Output of every existing test program is unchanged

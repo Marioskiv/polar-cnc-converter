@@ -15,7 +15,7 @@ const { JSDOM, ResourceLoader, VirtualConsole } = require('jsdom');
 const { convert, DEFAULT_OPTIONS } = require('../src/core/converter.js');
 const THREE_STUB = "window.THREE=(function(){function m(){var f=function(){};return new Proxy(f,{get:function(t,p){if(p==='domElement')return document.createElement('canvas');if(p===Symbol.toPrimitive)return function(){return 0};if(p==='then')return undefined;if(!(p in t))t[p]=m();return t[p]},set:function(t,p,v){t[p]=v;return true},apply:function(){return m()},construct:function(){return m()}})}return m()})();";
 class Loader extends ResourceLoader {
-  fetch(url, o) { if (/cdn\.jsdelivr\.net/.test(url)) return Promise.resolve(Buffer.from(/three\.min/.test(url) ? THREE_STUB : '')); return super.fetch(url, o); }
+  fetch(url, o) { if (/cdn\.jsdelivr\.net|\/lib\/three\//.test(url)) return Promise.resolve(Buffer.from(/three\.min/.test(url) ? THREE_STUB : '')); return super.fetch(url, o); }
 }
 const PAGE = path.join(__dirname, '..', 'index.html');
 const PROG = 'G21 G90\nG0 X50 Y0 Z2\nG1 Z-1 F300\nG1 X-50 Y0 F500\nG1 X-50 Y3\nG1 X50 Y3 F500\nG0 Z5\nM30';
