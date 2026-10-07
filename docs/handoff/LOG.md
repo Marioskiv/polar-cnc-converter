@@ -5,6 +5,14 @@ Short and factual. Current state lives in `STATUS.md`, permanent decisions in `D
 
 ---
 
+## 2026-10-07 (end) — PR #2 merged
+
+**Marios** pressed the PR button in the app and asked what it is and to update the repository in his account.
+Explained the PR; CI green and no conflicts → merged PR #2 into `main` (merge commit `3c79a11`). His GitHub
+repository now has v2.7.0. Branch `claude/youthful-goldberg-a6qv5t` restarted from `main` for later work.
+
+---
+
 ## 2026-10-07 (late night, 6) — 2.7.0: layout XZC + tilt (ball-end lean)
 
 **Marios said:** the router may not reach 90° (X travel) and big parts cannot be machined on the periphery — then chose
