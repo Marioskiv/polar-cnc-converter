@@ -1,5 +1,28 @@
 # Changelog
 
+## 2.6.0 — the converter in three stages (no output change)
+
+Step 2 of the plan for other machine layouts (a tilting router, XZC + B) and for use inside another CAM
+(Kiri:Moto). **The output is byte-for-byte the same.**
+
+### Changed
+- `src/core/converter.js` was one 1,600-line function. It is now three stages:
+  - `src/core/gcode-input.js` — reads and checks the Cartesian program (units, G91, cycles, retracts, tools,
+    every rejection with its line number) and hands every line over **in order**: motion as events, the rest
+    as text;
+  - `src/core/layout-xzc.js` — the machine layout XZC: pole handling, segmentation, C unwrap, G93 blocks;
+  - `src/core/converter.js` — options, the common header and end, clean-up; `convert(text, options)` is
+    unchanged for its users.
+- The code was **moved, not rewritten**: a script cut the old function into the stages line by line and
+  stopped if any anchor line had moved; only the glue between the stages is new.
+- `index.html` loads the two new files.
+
+### Verified
+- `npm test` (golden 144/144 identical), sweeps (worst G1 0.0225 mm), and a one-off comparison of the old and
+  the new converter on 13,671 program × settings combinations (all golden programs plus 1,500 random programs
+  with lines, arcs, rapids, comments, tool changes, cycles, G91, inches, G53/G28, M0/M30, × 9 option sets
+  covering every centre mode and output profile): **0 differences**, identical error messages.
+
 ## 2.5.0 — real feed on short blocks, Kiri:Moto tool list, works offline
 
 The remaining findings of the 2026-10-07 review, fixed at Marios's request.

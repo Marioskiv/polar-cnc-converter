@@ -37,7 +37,9 @@ Read `docs/handoff/STATUS.md` first (what is installed on the real machine and w
   segments rapids too. Never emit a long G0 with X and C both changing.
 
 ## Code layout
-- `src/core/converter.js` — `convert(text, options)`, a pure function (no DOM). `geometry.js`, `material.js`,
+- `src/core/converter.js` — `convert(text, options)`, a pure function (no DOM). Since 2.6.0 three stages:
+  `gcode-input.js` (reads/checks the CAM program, emits events in order) → `layout-xzc.js` (machine layout: polar
+  transform, G93) → output in `converter.js`. New machine layouts go next to `layout-xzc.js`. `geometry.js`, `material.js`,
   `polar-parser.js` next to it. `src/sim/simulator.js`, `src/ui/*` (page), `index.html`, `css/`.
 - `profiles/` — machine output profiles (JSON). `examples/linuxcnc-vismach-xzc-lathe/` — LinuxCNC simulation config.
 - `tests/` — `npm test` (= `node tests/run-all.js`; needs `npm install` once for jsdom). `tests/lib/replay.js` replays

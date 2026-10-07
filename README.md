@@ -173,7 +173,9 @@ machine. Air-cut every new program first.
 index.html              page markup only
 css/styles.css          styles
 src/core/geometry.js    angle helpers, arc linearisation           (pure)
-src/core/converter.js   Cartesian -> polar XZC, DEFAULT_OPTIONS    (pure)
+src/core/converter.js   convert(): options + the 3 stages below     (pure)
+src/core/gcode-input.js  stage 1: reads/checks the Cartesian program (pure)
+src/core/layout-xzc.js   stage 2: machine layout XZC, polar G93 blocks (pure)
 src/core/polar-parser.js polar G-code -> toolpath for the simulator (pure)
 src/ui/state.js         shared UI/simulator state, DOM references
 src/ui/settings.js      reads the settings panel into an options object
@@ -186,8 +188,11 @@ profiles/               machine profiles (generic examples + the author's machin
 examples/               LinuxCNC vismach simulation of an example lathe conversion
 ```
 
-The three `src/core` files have no DOM access and no globals. They load in the browser as
-`PolarCNC.converter`, `PolarCNC.geometry`, `PolarCNC.parser`, and in Node with `require()`:
+The `src/core` files have no DOM access and no globals. They load in the browser as
+`PolarCNC.converter`, `PolarCNC.gcodeInput`, `PolarCNC.layoutXZC`, `PolarCNC.geometry`, `PolarCNC.parser`, and in
+Node with `require()`. Since 2.6.0 the converter is three stages — **input** (read and check the CAM program, in
+order) → **machine layout** (here XZC: the polar transform) → **output** (header, end, clean-up) — so other machine
+layouts (a tilting router, XZC + B) can be added, and the same pieces can be used inside another CAM:
 
 ```js
 const { convert } = require('./src/core/converter.js');

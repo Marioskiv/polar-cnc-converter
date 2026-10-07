@@ -5,6 +5,22 @@ Short and factual. Current state lives in `STATUS.md`, permanent decisions in `D
 
 ---
 
+## 2026-10-07 (late night, 4) — step 2 done: converter in three stages (2.6.0)
+
+**Asked:** go-ahead ("NAI") for step 2, the restructure.
+
+**Done:** `src/core/converter.js` (one 1,600-line function) split into `gcode-input.js` (reads/checks the CAM
+program, emits events in order: text / flush / move / tool / programEnd), `layout-xzc.js` (the polar transform,
+unchanged code) and `converter.js` (options, header, end, clean-up). Done by a script that cut the old code line
+by line with anchor checks — moved, not rewritten. Verified: npm test (golden 144/144), sweeps 0.0225 mm,
+Chromium offline, release zip, and 13,671 old-vs-new comparisons (all golden programs + 1,500 random programs ×
+9 option sets): 0 differences, identical errors. `index.html` loads the two new files.
+
+**Next (needs Marios):** the selector "XZC / XZC + B" (a `layout-xzcb.js` next to `layout-xzc.js`), which CAM
+gives the tool orientation; or first the Kiri:Moto `gcodeProc` proof.
+
+---
+
 ## 2026-10-07 (late night, 3) — goal: converter merged into Kiri:Moto
 
 **Marios said:** later the converter must be adapted to Kiri:Moto; if its author allows, merge them into a CAM
