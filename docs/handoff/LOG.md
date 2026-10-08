@@ -5,6 +5,20 @@ Short and factual. Current state lives in `STATUS.md`, permanent decisions in `D
 
 ---
 
+## 2026-10-08 (2) — FreeCAD or Kiri:Moto as the home of the converter?
+
+**Marios:** not merging 2.8.0 yet. Asked whether the converter should go into FreeCAD rather than Kiri:Moto; he
+believes being part of a CAM computes all operations better.
+**Answered (no decision yet):** partly right — inside a CAM the operations can be planned for polar (no centre
+crossing, spiral facing, feed limited by C speed near the pole, tilt from the surface, machine simulation); as a post
+it only transforms. The transform math is the same either way. Recommended **FreeCAD** as the long-term home (he
+uses it, CAD + CAM, official post-processor extension, large community, its CAM is building a rotary machine model
+and RotarySurface) with a thin **FreeCAD post that calls our converter** first (one codebase, no permission needed);
+Kiri `gcodeProc` stays the cheap JS proof. Costs said plainly: Python vs our JavaScript, LGPL for code inside
+FreeCAD, slow core review, FreeCAD CAM sim is 3-axis. Real test cuts first. **Waiting for his choice.**
+
+---
+
 ## 2026-10-08 — 2.8.0: cutter diameter from any CAM
 
 **Marios said:** yes — read the tool diameters from all CAMs.
