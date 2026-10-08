@@ -5,6 +5,20 @@ Short and factual. Current state lives in `STATUS.md`, permanent decisions in `D
 
 ---
 
+## 2026-10-08 — 2.8.0: cutter diameter from any CAM
+
+**Marios said:** yes — read the tool diameters from all CAMs.
+**Done (2.8.0):** `scanToolDiameters()` in `gcode-input.js` reads Fusion/HSM, Mastercam, FreeCAD, Kiri:Moto, CamBam-style,
+APT `TOOL/MILL` (Carbide Create), generic `Tool Diameter:/DIA/Ø` and a size with a unit in a tool name. Untagged
+comments bind to the next tool change (before motion) or the current tool. Stated diameter beats a name size (marked
+in the output comment). Conflicting diameters → warning. **Bug found and fixed:** Mastercam `| D1 |` (offset register)
+was read as D = 1 mm; tool numbers with leading zeros did not match. Web research on CAM formats was thin (forums
+blocked); formats taken from forum snippets — Vectric/Estlcam/SheetCam exact output unverified, covered by the generic
+rules. Tests: input 67 checks (+10), golden 144/144 unchanged, sweeps worst 0.0225 mm. His FreeCAD program now gives
+`T1 D=5`. **Still needed from him:** feed rates in the FreeCAD Tool Controller.
+
+---
+
 ## 2026-10-07 (end, 2) — FreeCAD program refused: no feed rate
 
 **Marios** converted a FreeCAD program (post `linuxcnc_post`, tool "TC: 5mm Endmill") and got "Line 25 … cutting

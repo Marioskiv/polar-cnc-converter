@@ -1,4 +1,4 @@
-# Status — updated 2026-10-07 (converter v2.7.0)
+# Status — updated 2026-10-08 (converter v2.8.0)
 
 Session history: `LOG.md` (newest first).
 
@@ -59,6 +59,8 @@ trust the computer and tell Marios about the difference.
 
 ## Open items — software
 - **v2.7.0 is on `main`** (PR #2 merged 2026-10-07 at Marios's request, CI green): 2.4.1 – 2.7.0 and all notes.
+- **v2.8.0** (tool diameter from any CAM's comments) on branch `claude/youthful-goldberg-a6qv5t`, not merged yet.
+- FreeCAD programs: the Tool Controller feeds must be set (default 0 → no F → refused). FreeCAD Z0 = stock bottom.
 - Future router tilt axis (rotates continuously during a program; Marios calls it A, conventional letter in the X-Z
   plane would be B). Plan, each step only with his go-ahead:
   1. Study Kiri:Moto's code — DONE (full CAM read 2026-10-07), see `references/kirimoto.md`; Bird: `references/bird-4axis.md`.

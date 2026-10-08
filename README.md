@@ -80,9 +80,13 @@ This project solves both:
 - **Everything else in the program is kept.** Tool changes (`T`/`M6`), tool length (`G43 H`), spindle and
   coolant words, work offsets, dwells, comments — including when they share a line with a move. They are
   emitted before the move (stop codes `M0/M1/M2/M30` after it), the same order a controller executes a line.
-- **Tools.** The active tool's diameter is read from the CAM's tool comments (Fusion's `(T2 D=3. ...)`, Kiri:Moto's
-  `; tool#=2 flute=3 ... unit=metric`),
-  or taken from the **Tool Diameter** setting, and used for the centre pocket fill and the material map.
+- **Tools.** The active tool's diameter is read from the CAM's tool comments — any CAM: Fusion/HSM `(T2 D=3. ...)`,
+  Mastercam `(T1 | ... | TOOL DIA. - .25)`, FreeCAD `(TC: 5mm Endmill)` / `(... Diameter: 5.0)`, Kiri:Moto
+  `; tool#=2 flute=3 ... unit=metric`, CamBam-style `(T1 : 6.0)`, APT `(TOOL/MILL,3.175,...)` (Carbide Create),
+  generic `(Tool Diameter: 6.35)`, or a size in the tool name (`End Mill (6 mm)`, `1/4" ball`). A stated diameter
+  beats a size in a name; the output comment `( polar-cnc tool: ... )` says which was used. Otherwise the
+  **Tool Diameter** setting is used. The diameter serves the centre pocket fill, the material map and (tilt layout)
+  the ball radius when `tool.tbl` has none.
 - **Drilling cycles expanded.** `G81, G82, G83, G73, G85, G89` with `G98/G99`, `R`, `Q`, `P` become plain
   moves — in polar, a hole is just a position (X, C) followed by Z moves.
 - **Rejected with the line number** (never converted wrongly): cutter compensation `G41/G42`, tapping and

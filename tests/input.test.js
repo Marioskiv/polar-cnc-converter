@@ -139,4 +139,20 @@ ok(fus.some(l => /polar-cnc tool: T3 D=3\.1750/.test(l)), 'single Fusion tool in
 // 16. (2.5.0) A radial line (C constant) is not cut into small pieces.
 ok(motion('G21 G90\nG0 X10 Y0 Z5\nG1 Z-1 F300\nG1 X100 Y0\nM30').filter(l => /^G1 /.test(l)).length <= 20, 'radial line in 5 mm pieces');
 
+// 17. (2.8.0) Cutter diameter from the tool comments of other CAMs.
+const prog = (head, unit) => lines((unit || 'G21') + ' G90\n' + head + '\nG0 X20 Y0 Z5\nG1 Z-1 F300\nM30');
+const dia = (out) => { const m = out.map(l => l.match(/polar-cnc tool: .*?D=([\d.]+)/)).find(Boolean); return m ? +m[1] : null; };
+ok(dia(prog('( T1 | 1/4 FLAT ENDMILL | H1 | D1 | WEAR COMP | TOOL DIA. - .25 )\nT1 M6', 'G20')) === 6.35, 'Mastercam TOOL DIA read, the D1 register ignored');
+ok(dia(prog('(TC: 5mm Endmill)\nM5\nM6 T1\nG43 H1\n(Compensated Tool Path. Diameter: 5.0)')) === 5, 'FreeCAD tool controller + Diameter comment');
+const fcName = prog('(TC: 6mm Ball End)\nM6 T1');
+ok(dia(fcName) === 6 && fcName.some(l => /from the tool name "TC: 6mm Ball End"/.test(l)), 'FreeCAD size from the tool name, marked as such');
+ok(dia(prog('(TC: 3mm Endmill)\nM6 T1\nG0 X5 Y0 Z5\n(Compensated Tool Path. Diameter: 3.2)')) === 3.2, 'a stated diameter beats the name');
+ok(dia(prog('( T1 : 6.0 )\nM6 T1')) === 6, 'CamBam-style "T1 : 6.0"');
+ok(dia(prog('(Tool: 102)\n(TOOL/MILL,3.175, 0.00, 0.00, 0.00)\nM6 T102')) === 3.175, 'APT TOOL/MILL (Carbide Create)');
+ok(dia(prog('(Tools: 1 = End Mill (1/8"))\nT1 M6')) === 3.175, 'Vectric-style name with inch size and nested parentheses');
+ok(dia(prog('(Tool: End Mill 6 mm)')) === 6, 'program with no tool number: the stated tool is used');
+ok(dia(prog('(Stock 100mm x 50mm)\n(Part diameter: 80)\n(Feed 600mm/min)\nM6 T1')) === 6, 'stock / part / feed comments are not tool diameters (setting used)');
+const two = convert('(T1 D=6)\n(T1 D=8)\nG21 G90\nM6 T1\nG0 X20 Y0 Z5\nG1 Z-1 F300\nM30', O);
+ok(/two diameters for T1/.test(two), 'two different diameters for one tool are reported');
+
 console.log(`input: ${n} checks passed`);

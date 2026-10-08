@@ -25,6 +25,122 @@
   //   sink.tool(dia, number) the active cutter changed (diameter in mm, tool number as text)
   //   sink.programEnd(feed)  the CAM's own M2/M30 follows (flush + G94 restore)
   // Returns { usedPercent, programEnded, warnings[] } for the converter.
+  // ADDED 2.8.0: cutter diameters from the tool comments of ANY CAM.
+  // Every comment, "( ... )" or "; ...", is checked. Known forms:
+  //   Fusion / HSM / Inventor  (T1 D=6. CR=0. - ZMIN=-5. - flat end mill)
+  //   Mastercam                ( T1 | 1/4 FLAT ENDMILL | H1 | D1 | TOOL DIA. - .25 )
+  //                            ("D1" there is the offset register, NOT a diameter)
+  //   FreeCAD                  (TC: 5mm Endmill)  (Compensated Tool Path. Diameter: 5.0)
+  //   Kiri:Moto                ; tool#=1 flute=6 len=20 unit=metric
+  //   CamBam-style             ( T1 : 6.0 )
+  //   APT/CL (Carbide Create)  (TOOL/MILL,3.175, 0.00, 0.00, 0.00)
+  //   generic                  (Tool Diameter: 6.35)  (DIA 6)  (Tool: End Mill 6 mm)  (T2 1/4" ball)
+  // A comment naming a tool number belongs to that tool. One without a number
+  // belongs to the tool change that follows it before any motion (FreeCAD
+  // writes "(TC: ...)" just before "M6 T1"), else to the tool selected before it.
+  // A stated diameter (D=, DIA, Diameter, TOOL/MILL, flute=) beats a size inside
+  // a tool NAME ("5mm Endmill"). Returns { tools: { n: { d, mm, fromName } },
+  // conflicts: [text] }; n is the tool number as text, '?' when the program
+  // never selects a tool. mm = the comment gave the unit (else the program's unit).
+  var NUM = '(\\d+(?:\\.\\d*)?|\\.\\d+)';
+  var UNIT = '\\s*(mm|millimet(?:er|re)s?|"|in(?:ch(?:es)?)?\\b|\'\')?';
+  var RE_KIRI   = /tool#\s*=\s*(\d+)\s+flute\s*=\s*(\d*\.?\d+)(?:.*?\bunit\s*=\s*(metric|imperial))?/i;
+  var RE_APT    = new RegExp('\\bTOOL\\s*\\/\\s*MILL\\s*,\\s*' + NUM, 'i');
+  var RE_DIAKW  = new RegExp('(?:\\bDIA(?:M(?:ETER)?)?\\b\\.?|\\u00D8|\\u2300)\\s*(?:[:=]|-(?!\\d)|\\s)*\\s*' + NUM + UNIT, 'i');
+  var RE_DEQ    = new RegExp('(?:^|[\\s|,(])D\\s*[=:]\\s*' + NUM + UNIT, 'i');
+  var RE_TONLY  = new RegExp('^\\s*T\\s*\\d+\\s*[:=]\\s*' + NUM + UNIT + '\\s*$', 'i');
+  var RE_TNUM   = /(?:^|[^A-Z0-9])T\s*0*(\d+)\b(?!\s*[.,]\d)/i;
+  var RE_TOOLNO = /\bTOOLS?\s*(?:#|NO\.?|NUMBER)?\s*[:=#]?\s*0*(\d+)\s*(?=$|[:=|,)\-]\s*(?![\d.]*\s*(?:mm|"|in\b)))/i;
+  var RE_TOOLISH = /\b(?:TC\s*:|TOOLS?\b|TOOL\s*\/|CUTTER|END\s*-?\s*MILLS?|ENDMILLS?|BALL|BULL|FLAT|BIT|DRILL|MILL|ROUTER|ENGRAV|V-?\s*BIT|SPOT)/i;
+  var RE_NOTTOOL = /\b(?:STOCK|PART|BLANK|WORK\s*PIECE|WORKPIECE|HOLE|THREAD|BORE|CIRCLE|BOSS|FEED|SPEED|MIN\b|DEPTH|STEP|PASS)/i;
+  // a size inside a tool name: "5mm", "6.35 mm", '1/4"', "0.25in", "1/8 inch"
+  var RE_NAMESZ = /(?:^|[^\w.\/])(\d+\s*\/\s*\d+|\d+(?:\.\d*)?|\.\d+)\s*(mm|millimet(?:er|re)s?|"|''|in(?:ch(?:es)?)?)(?![\w\/])/i;
+
+  function toNum(s) {
+    var f = String(s).match(/^(\d+)\s*\/\s*(\d+)$/);
+    return f ? parseFloat(f[1]) / parseFloat(f[2]) : parseFloat(s);
+  }
+  function unitMM(u) {            // null = unit not stated
+    if (!u) return null;
+    return /^m/i.test(u) ? 1 : 25.4;
+  }
+
+  // One comment -> { tool: 'n' | null, d, scale (1, 25.4 or null), strong }
+  function readToolComment(c) {
+    var tool = null, m;
+    var k = c.match(RE_KIRI);
+    if (k) return { tool: String(parseInt(k[1], 10)), d: parseFloat(k[2]),
+                    scale: k[3] && k[3].toLowerCase() === 'imperial' ? 25.4 : 1, strong: true };
+    if ((m = c.match(RE_TNUM))) tool = String(parseInt(m[1], 10));
+    else if ((m = c.match(RE_TOOLNO))) tool = String(parseInt(m[1], 10));
+    var toolish = tool !== null || RE_TOOLISH.test(c);
+    if (!toolish) return null;
+    if (tool === null && RE_NOTTOOL.test(c) && !/\bTOOL\b/i.test(c)) return null;
+    if ((m = c.match(RE_APT)))   return { tool: tool, d: toNum(m[1]), scale: null, strong: true };
+    if ((m = c.match(RE_DIAKW))) return { tool: tool, d: toNum(m[1]), scale: unitMM(m[2]), strong: true };
+    if ((m = c.match(RE_DEQ)))   return { tool: tool, d: toNum(m[1]), scale: unitMM(m[2]), strong: true };
+    if ((m = c.match(RE_TONLY))) return { tool: tool, d: toNum(m[1]), scale: unitMM(m[2]), strong: true };
+    if ((m = c.match(RE_NAMESZ))) return { tool: tool, d: toNum(m[1]), scale: unitMM(m[2]), strong: false };
+    return null;
+  }
+
+  function scanToolDiameters(lines) {
+    function code(l) { return l.replace(/\([^)]*\)/g, ' ').replace(/;.*$/, ''); }
+    function comments(l) {
+      var out = [], body = l;
+      // ";" starts a comment unless it sits inside "( ... )"
+      var depth = 0, cut = -1;
+      for (var i = 0; i < l.length; i++) {
+        if (l[i] === '(') depth++;
+        else if (l[i] === ')') depth = Math.max(0, depth - 1);
+        else if (l[i] === ';' && depth === 0) { cut = i; break; }
+      }
+      if (cut >= 0) { out.push(l.slice(cut + 1)); body = l.slice(0, cut); }
+      // "( ... )" - a nested name like "(Tool: End Mill (6 mm))" stays one comment
+      var start = -1; depth = 0;
+      for (var j = 0; j < body.length; j++) {
+        if (body[j] === '(') { if (depth === 0) start = j + 1; depth++; }
+        else if (body[j] === ')' && depth > 0) { depth--; if (depth === 0) out.push(body.slice(start, j)); }
+      }
+      if (depth > 0) out.push(body.slice(start));
+      return out;
+    }
+    // where each line's untagged comments belong: the next T word if no motion
+    // comes first, else the last T word before
+    var tAt = [], moveAt = [], anyT = false;
+    lines.forEach(function (l, i) {
+      var c = code(l).toUpperCase();
+      var t = c.match(/\bT\s*(\d+)/) || c.match(/T\s*(\d+)/);
+      tAt[i] = t ? String(parseInt(t[1], 10)) : null;
+      if (tAt[i] !== null) anyT = true;
+      moveAt[i] = /[XYZ]\s*[-+.\d]/.test(c);
+    });
+    var nextT = [], pending = null;
+    for (var b = lines.length - 1; b >= 0; b--) {
+      if (tAt[b] !== null) pending = tAt[b];
+      else if (moveAt[b]) pending = null;
+      nextT[b] = pending;
+    }
+    var tools = {}, conflicts = [], prevT = null;
+    lines.forEach(function (l, i) {
+      comments(l).forEach(function (c) {
+        var r = readToolComment(c);
+        if (!r || !(r.d > 0) || !isFinite(r.d)) return;
+        var n = r.tool;
+        if (n === null) n = nextT[i] !== null ? nextT[i] : (prevT !== null ? prevT : (anyT ? null : '?'));
+        if (n === null) return;
+        var e = { d: r.scale ? r.d * r.scale : r.d, mm: r.scale !== null, fromName: !r.strong,
+                  text: c.trim() };
+        var old = tools[n];
+        if (!old || (old.fromName && r.strong)) { tools[n] = e; return; }
+        if (r.strong && !old.fromName && old.mm === e.mm && Math.abs(old.d - e.d) > 1e-6)
+          conflicts.push('T' + n + ': "' + old.text + '" and "' + e.text + '"');
+      });
+      if (tAt[i] !== null) prevT = tAt[i];
+    });
+    return { tools: tools, conflicts: conflicts };
+  }
+
   function read(text, O, sink) {
     function emit(line) { sink.text(line); }
     var passThroughWarnings = 0;   // illegal-in-polar G-codes copied through verbatim
@@ -142,23 +258,15 @@
     }
     var pendingPost = null;   // stop codes from the previous move line
 
-    // Tool diameters stated by the CAM in comments, e.g. "(T2 D=3. CR=0. ...)".
+    // Tool diameters stated by the CAM in comments (any CAM, see scanToolDiameters).
     // toolDiaRaw[n] = { d: diameter, mm: true if the CAM said the unit (else the
-    // program's own unit at the tool change applies) }.
-    var toolDiaRaw = {};
-    lines.forEach(function (l) {
-      (l.match(/\([^)]*\)/g) || []).forEach(function (c) {
-        var m = c.match(/\bT\s*(\d+)\b[^)]*?\b(?:D|DIA|DIAM|DIAMETER)\s*[=:]?\s*(\d*\.?\d+)/i);
-        if (m && !(m[1] in toolDiaRaw)) toolDiaRaw[m[1]] = { d: parseFloat(m[2]), mm: false };
-      });
-      // ADDED 2.5.0: Kiri:Moto's tool list, a ";" comment in its header:
-      //   "; tool#=1 flute=6 len=20 unit=metric"   (unit=imperial -> inches)
-      // (Kiri writes it only when "strip comments" is off in its device profile.)
-      var k = l.match(/;\s*tool#\s*=\s*(\d+)\s+flute\s*=\s*(\d*\.?\d+)(?:.*?\bunit\s*=\s*(metric|imperial))?/i);
-      if (k && !(k[1] in toolDiaRaw))
-        toolDiaRaw[k[1]] = { d: parseFloat(k[2]) * (k[3] && k[3].toLowerCase() === 'imperial' ? 25.4 : 1), mm: true };
-    });
+    // program's own unit at the tool change applies), fromName }.
+    var scanned = scanToolDiameters(lines);
+    var toolDiaRaw = scanned.tools;
     function toolDiaMM(t) { var e = toolDiaRaw[t]; return e.mm ? e.d : e.d * unitScale; }
+    function toolNote(t) {
+      return toolDiaRaw[t].fromName ? ' - from the tool name "' + commentSafe(toolDiaRaw[t].text) + '"' : '';
+    }
     var nextTool = null, activeTool = null;
     function noteToolChange() {
       if (nextTool === null) return;
@@ -166,7 +274,7 @@
       TOOL_DIA = (activeTool in toolDiaRaw) ? toolDiaMM(activeTool) : O.toolDia;
       sink.tool(TOOL_DIA, activeTool);
       emit('( polar-cnc tool: T' + activeTool + ' D=' + TOOL_DIA.toFixed(4)
-               + ((activeTool in toolDiaRaw) ? '' : ' - from settings, no diameter in the program') + ' )');
+               + ((activeTool in toolDiaRaw) ? toolNote(activeTool) : ' - from settings, no diameter in the program') + ' )');
     }
     // ADDED 2.5.0: a program with ONE tool in its list and no tool change at all
     // (e.g. Kiri:Moto with "initial tool change" off) used that tool's
@@ -179,8 +287,11 @@
       // the program's unit is not read yet here: look for G20 in it
       var inchProg = lines.some(function (l) { return /\bG0*20(?![.\d])/i.test(l.replace(/\([^)]*\)/g, '').replace(/;.*$/, '')); });
       TOOL_DIA = toolDiaRaw[nextTool].mm ? toolDiaRaw[nextTool].d : toolDiaRaw[nextTool].d * (inchProg ? 25.4 : 1);
-      sink.tool(TOOL_DIA, nextTool);
-      emit('( polar-cnc tool: T' + nextTool + ' D=' + TOOL_DIA.toFixed(4) + ' - the only tool listed, no tool change )');
+      sink.tool(TOOL_DIA, nextTool === '?' ? null : nextTool);
+      emit('( polar-cnc tool: ' + (nextTool === '?' ? '' : 'T' + nextTool + ' ') + 'D=' + TOOL_DIA.toFixed(4)
+           + (nextTool === '?' ? ' - from the program, no tool number' : ' - the only tool listed, no tool change')
+           + toolNote(nextTool) + ' )');
+      if (nextTool === '?') nextTool = null;
     }
 
     // ─── CANNED DRILLING CYCLES (2026-10-02) ───────────────────────────────────
@@ -545,7 +656,12 @@
       warnings.push('( !! ' + dwellWarnings + ' dwells G4 of 60 s or more - search this file for "dwell of" )');
     }
 
+    // 2.8.0: one tool with two different stated diameters - the first was used
+    scanned.conflicts.forEach(function (c) {
+      warnings.push('( !! two diameters for ' + commentSafe(c) + ' - the first was used, check the tool )');
+    });
+
     return { usedPercent: usedPercent, programEnded: programEnded, warnings: warnings };
   }
-  return { read: read };
+  return { read: read, scanToolDiameters: scanToolDiameters };
 });

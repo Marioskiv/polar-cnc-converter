@@ -26,7 +26,9 @@
 - G53/G28/G30 retracts are replaced by the user's Safe retract Z (rejected if empty). X/Y parks (`G28 G91 X0 Y0`,
   `G53 G0 X.. Y..`) are skipped — not moving can hit nothing (2.5.0). G41/G42, G92/G52/G10 with XY,
   G90.1, G93 input, G18/G19 arcs, tapping/threading are rejected with the line number. Drilling cycles are expanded.
-- Tool diameter comes from CAM tool comments (Fusion `(T1 D=6. …)`); the page field is only a fallback. Tool length is
+- Tool diameter comes from CAM tool comments of any CAM (2.8.0, `scanToolDiameters`): a stated diameter (D=, DIA,
+  Diameter, TOOL/MILL, flute=) beats a size in a tool name; a bare `D1` is an offset register, never a diameter;
+  the page field is only a fallback. Tool length is
   never needed for XZC (LinuxCNC applies G43 H from its tool table). The tilting layout needs it (2.7.0): it reads the
   machine's own LinuxCNC `tool.tbl`; G43 stays valid (see `references/tilt-axis-research.md` §3).
 - Converter-written comments never nest (LinuxCNC: "Nested comment found"); a safety net strips inner parentheses.

@@ -1,5 +1,25 @@
 # Changelog
 
+## 2.8.0 — cutter diameter from the tool comments of any CAM
+
+### Added
+- The tool diameter is read from the tool comments of **any CAM**, not only Fusion and Kiri:Moto: Mastercam
+  (`TOOL DIA. - .25`), FreeCAD (`(TC: 5mm Endmill)`, `(Compensated Tool Path. Diameter: 5.0)`), CamBam-style
+  `( T1 : 6.0 )`, APT/CL `(TOOL/MILL,3.175,...)` (Carbide Create), generic `Tool Diameter: / DIA / Ø`, and a size
+  with a unit inside a tool name (`5mm`, `End Mill (6 mm)`, `1/4"`). A comment without a tool number belongs to the
+  tool change that follows it (before any motion), else to the tool already selected; a program that never selects a
+  tool uses the stated one. A stated diameter beats a size in a name; `( polar-cnc tool: ... - from the tool name "…" )`
+  marks the weaker source. Stock, part, hole and feed comments are ignored.
+- Warning `( !! two diameters for T.. )` when one tool is given two different diameters.
+
+### Fixed
+- Mastercam's `| D1 |` (the diameter OFFSET register) was read as a 1 mm diameter.
+- Tool numbers written with leading zeros (`T02` in a comment, `T2` in the code) now match.
+
+### Unchanged
+- Golden 144/144 identical, sweeps worst 0.0225 mm.
+
+
 ## 2.7.0 — layout "XZC + tilt": ball-end tools lean while cutting
 
 ### Added
