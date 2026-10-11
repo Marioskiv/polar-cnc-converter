@@ -1,5 +1,24 @@
 # Changelog
 
+## 2.11.2 — fixes found by the 2026-10-11 research (63 test cases from other polar projects)
+
+### Fixed
+- **Merge of very short moves (< 0.15 mm)** — affected every machine:
+  - a small Z step followed by an XY move became one ramp: a 0.1 mm step **up** cut 0.1 mm into the part, a 0.1 mm
+    plunge left 0.1 mm uncut (the merge check looked at XY only — it now checks X, Y and Z);
+  - the merged point was cut at the **next line's feed** (an F100 plunge at F1000, F50 at F3000) — points are no longer
+    merged across a feed change, and a waiting point is written at its own feed.
+- **Cutting side "Both sides" (Signed-X):** a Signed-X move shorter than 0.15 mm was still waiting when the return to
+  the pole was decided; one block then swung X through 0 while C turned ~159° (0.12 mm off; random near-pole sweep:
+  275/3000 over 0.026 mm → 9/3000, worst 0.0268, the same level as one side).
+- The comment "using Pocket Fill" was printed when no fill is done → "converted point by point, no fill".
+- The header showed the centre zone as "0.01 mm" when it is 0.0125 mm.
+
+### Golden baseline
+- 144/144 outputs changed **only in the header comment** (centre-zone number, e.g. `0.01` → `0.0125`, `3.00` → `3`);
+  motion identical (checked line by line). New tests: input 76 checks.
+
+
 ## 2.11.1 — the page shows its version; no stale cached files
 
 ### Added

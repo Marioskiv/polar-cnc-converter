@@ -1,4 +1,4 @@
-# Status — updated 2026-10-11 (converter v2.11.1)
+# Status — updated 2026-10-11 (converter v2.11.2)
 
 Session history: `LOG.md` (newest first).
 
@@ -65,8 +65,9 @@ trust the computer and tell Marios about the difference.
 - **v2.11.1 is on `main`** and on GitHub Pages (PRs #4, #5 merged by Marios 2026-10-11): Cutting side / X Axis Max
   required, no Safe retract Z, direction check, version in the header. Marios uses
   https://marioskiv.github.io/polar-cnc-converter/ (Pages deploys from `main`; Ctrl+F5 after an update).
-- **BUGS FOUND 2026-10-11 (fix prepared, waiting for Marios's yes):** merge of moves < 0.15 mm turns a small Z step into
-  a ramp (0.1 mm gouge) and uses the next line's feed; both-sides Signed-X short move 0.12 mm off. See research file part 2.
+- **v2.11.2** (branch `claude/youthful-goldberg-a6qv5t`, PR to `main`): fixes the two bugs found 2026-10-11 — merge of
+  moves < 0.15 mm (small Z step → ramp, 0.1 mm gouge; wrong feed) and both-sides Signed-X short move (0.12 mm off).
+  Still open: rare near-pole 0.0268 mm vs the 0.026 test limit (3/3000 one side).
 - **Research 2026-10-11** (`references/research-2026-10-11.md`) — proposals waiting for Marios's yes:
   (1) arcs centred on the chuck axis as exact X-constant blocks (now polygons, 127 blocks for R10);
   (2) dropped — line-length guard not wanted (DECISIONS);

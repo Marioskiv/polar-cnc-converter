@@ -164,4 +164,18 @@ ok(convert(fillProg, Object.assign({ autoStepover: false, centerStep: 1 }, fillO
 const two = convert('(T1 D=6)\n(T1 D=8)\nG21 G90\nM6 T1\nG0 X20 Y0 Z5\nG1 Z-1 F300\nM30', O);
 ok(/two diameters for T1/.test(two), 'two different diameters for one tool are reported');
 
+// 19. (2.11.2) The merge of short moves (found by the 2026-10-11 research).
+const { analyse } = require('./lib/replay.js');
+const g1s = p => convert('G21 G90 G17\n' + p + '\nM30', { xMin: 0, xMax: 113 }).split('\n').filter(l => /^G1 /.test(l));
+const plunge = g1s('G0 X20 Y0 Z5\nG1 Z0 F200\nG1 Z-0.1 F100\nG1 X30 Y0 F1000');
+ok(plunge.includes('G1 X20.0000 C0.0000 Z-0.1000 F1000.0000'), 'a 0.1 mm plunge is kept as a plunge, at its own feed (F100 -> 1/0.001 min)');
+const stepUp = 'G21 G90\nG0 X20 Y0 Z5\nG1 Z-1 F200\nG1 X10 Y0 F1000\nG1 Z-0.9 F1000\nG1 X5 Y0\nM30';
+ok(analyse('s', stepUp, convert(stepUp, { xMin: 0, xMax: 113 }), {}, true).maxDevG1 <= 0.026, 'a 0.1 mm step up is not merged into a ramp (was a 0.1 mm gouge)');
+ok(g1s('G0 X20 Y0 Z1\nG1 Z0 F100\nG1 X20.1 Y0 F50\nG1 X30 Y0 F3000').includes('G1 X20.1000 C0.0000 Z0.0000 F500.0000'),
+   'a short move keeps its own slow feed (F50 over 0.1 mm), not the next line\'s');
+const sx2 = 'G21 G90 G17\nG0 Z5\nG0 X-1 Y0\nG1 Z-1 F200\nG1 X0 Y0.01 F600\nG1 X0.1 Y0.02\nG1 X1 Y0.5\nG0 Z5\nM30';
+ok(analyse('x', sx2, convert(sx2, { xMin: -18, xMax: 113 }), {}, true).maxDevG1 <= 0.026, 'both sides: a short Signed-X move is unwound at the pole (was 0.12 mm off)');
+ok(/converted point by point, no fill/.test(convert('G21 G90\nG0 X-5 Y0.012 Z1\nG1 Z-1 F300\nG1 X5 Y0.012 F600\nM30', { xMin: 0, xMax: 113 })),
+   'the comment no longer claims a Pocket Fill that is not done');
+
 console.log(`input: ${n} checks passed`);

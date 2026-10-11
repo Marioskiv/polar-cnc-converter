@@ -5,6 +5,15 @@ Short and factual. Current state lives in `STATUS.md`, permanent decisions in `D
 
 ---
 
+## 2026-10-11 (10) — 2.11.2: the two bugs fixed (Marios: yes)
+
+**Done:** merge of short moves (3-D check, never across a feed change, waiting point at its own feed) and the both-sides
+Signed-X flush; "no fill" message; centre-zone number in the header. No line-length guard (his decision). Tests: input
+76 checks, golden 144/144 header comment only (explained in CHANGELOG), sweeps unchanged, near-pole both-sides sweep
+275 → 9 / 3000; his two FreeCAD programs unchanged (worst 0.0151 mm, feeds 278/557); Chromium page v2.11.2.
+
+---
+
 ## 2026-10-11 (9) — Bird re-checked, more polar printers, 63 test cases → 2 real bugs (fix waiting)
 
 **Marios:** re-check Bird and more polar printers ("many examples, the converter must be flawless"); is the 255 limit
