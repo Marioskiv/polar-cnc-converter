@@ -11,17 +11,16 @@ const assert = require('assert');
 const { convert } = require('../src/core/converter.js');
 const { parsePolarGCode } = require('../src/core/polar-parser.js');
 let n = 0; const ok = (c, m) => { n++; assert.ok(c, m); };
-const O = { xMin: -10, xMax: 125, retractZMachine: 590 };
+const O = { xMin: -10, xMax: 125 };
 
 // Fusion "LinuxCNC" and "grbl" style programs through the real converter.
 const fusion = '%\nG90 G94 G17\nG21\nG53 G0 Z0\nT1 M6\nG54\nG0 X40 Y0\nG0 Z15\nG0 Z5\nG1 Z-1 F300\nG1 X50 F500\nG0 Z15\nG53 G0 Z0\nM30\n%';
 const grbl = 'G90 G94\nG21\nG28 G91 Z0\nG90\nG0 X40 Y0\nG0 Z15\nG1 Z-1 F300\nG1 X50 F500\nG0 Z15\nG28 G91 Z0\nG28 G91 X0 Y0\nG90\nM30';
 for (const [name, prog] of [['fusion', fusion], ['grbl', grbl]]) {
   const t = parsePolarGCode(convert(prog, O));
-  const refs = t.filter(p => p.machineRef);
-  ok(refs.length >= 2, `${name}: retracts recognised as machine-reference moves`);
-  ok(refs.every(p => p.z >= 15), `${name}: G53/G28 retracts shown going UP, never down to work Z0`);
-  ok(!t.some(p => p.type === 'G1' && p.machineRef), `${name}: a retract is never shown as a cut`);
+  // 2.11.0: retracts are ordinary rapids up to the program's highest Z (15 here)
+  ok(t.filter(p => p.type === 'G0' && Math.abs(p.z - 15) < 1e-9).length >= 2, `${name}: retracts shown going UP to the program's highest Z`);
+  ok(!t.some(p => p.machineRef), `${name}: no machine-coordinate move left in the output`);
   const firstXY = t.find(p => Math.abs(p.r - 40) < 1e-9);
   ok(firstXY && firstXY.z >= 15, `${name}: first XY rapid shown at a safe height, not at the stock surface`);
 }

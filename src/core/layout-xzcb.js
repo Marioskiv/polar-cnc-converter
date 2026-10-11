@@ -254,16 +254,10 @@
       text: function (s) {
         if (/\bM0*6(?![.\d])/i.test(String(s).replace(/\([^)]*\)/g, '').replace(/;.*$/, ''))) reorient(0);
         out.push(s);
-        if (/^G53 G0 Z/.test(s)) {
-          // machine retract (written by the input stage): Z is now unknown;
-          // the router goes upright up there, the tip radius becomes the X it stood at
-          cur.z = null;
-          if (Math.abs(cur.b) > 5e-5) {
-            var X = machineX(cur.r, cur.b);
-            out.push('G0 ' + wb(0) + '  ( upright after the retract )');
-            lastB = 0; cur.b = 0; cur.r = X;
-          }
-        }
+        // 2.11.0: a machine retract is now an ordinary rapid up to the program's
+        // highest Z (input stage), followed by this marker: the router goes upright
+        // up there, keeping the tool tip where it is (Z is known).
+        if (s === '( polar-cnc: safe retract done )') reorient(0);
       },
       beforeEnd: function () { reorient(0); },
       finish: function () {

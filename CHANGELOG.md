@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.11.0 — no "Safe retract Z" setting: retracts go to the program's own highest Z
+
+### Changed
+- `G53 G0 Z…`, `G28 … Z…`, `G30 … Z…` retracts become `G0 Z<the highest Z of the program>` (work coordinates —
+  the CAM's own clearance height; drilling R planes count). Nothing about the machine is needed, so it is right on
+  any machine (Marios: the converter must stay universal). The setting, its field and the profile entries are gone.
+- The retract is an ordinary rapid that the machine layout handles; afterwards Z is known (it was unknown before).
+  An incremental mode set on the retract line (`G28 G91 Z0`) is switched off for the move and restored after it.
+- Tilt layout: the router turns upright after a retract at that height, keeping the tool tip in place (rapids).
+- A retract in a program with no Z of its own is rejected; `G28`/`G30` with no axis words still are.
+
+### Unchanged
+- Golden 144/144 identical (none of those programs has a machine retract), sweeps unchanged.
+
+
 ## 2.10.0 — machine X settings made plain and required
 
 ### Changed

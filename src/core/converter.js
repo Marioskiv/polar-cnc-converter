@@ -33,7 +33,6 @@
     autoStepover:  true,    //      pocket fill stepover = 50% of the tool diameter (from the program)
     centerStep:    1.0,     // mm   pocket fill stepover (0 = disable fill)
     centerRetract: 2.0,     // mm   pocket fill Z retract (0 = no retract)
-    retractZMachine: null,  // mm   machine-coordinate Z used for G53/G28 retracts (null = reject them)
     // ---- machine output profile: how the user's machine names and orients its axes ----
     rotaryAxis:    'C',     //      letter of the rotary axis: 'C' | 'A' | 'B'
     invertC:       false,   //      rotary turns the other way (else parts come out mirrored)
@@ -99,9 +98,6 @@
       autoStepover:  (o.autoStepover === undefined) ? D.autoStepover : !!o.autoStepover,
       centerStep:    Math.max(num(o.centerStep,    D.centerStep),    0),
       centerRetract: Math.max(num(o.centerRetract, D.centerRetract), 0),
-      // No default on purpose: a safe machine Z is machine-specific (see the
-      // G53/G28 handling in the converter loop).
-      retractZMachine: (function (v) { var p = parseFloat(v); return isFinite(p) ? p : null; })(o.retractZMachine),
       rotaryAxis:    ROTARY_AXES.indexOf(String(o.rotaryAxis || '').toUpperCase()) >= 0
                        ? String(o.rotaryAxis).toUpperCase() : D.rotaryAxis,
       invertC:       !!o.invertC,

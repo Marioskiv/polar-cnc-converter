@@ -32,7 +32,7 @@ linuxcnc polarlathe-sim.ini
 2. Once, in MDI, put work Z0 on the stock face of the model (`FACE_Z` in `polarlathe.py`):
    `G10 L2 P1 X0 Z-490 C0` — it is saved in `sim.var`.
 3. In the converter, **Load profile** `profiles/example-marioskiv-holzmann-xzc.polar-profile.json`
-   (X 0 / 113, one side; Safe retract Z 0). Convert, save, open the file in AXIS, run.
+   (X 0 / 113, one side). Convert, save, open the file in AXIS, run.
 
 ## What to look for
 

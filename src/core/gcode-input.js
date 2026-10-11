@@ -224,6 +224,32 @@
     var srcNo = lines.map(function (_, i) { return i + 1; });
     var isGen = lines.map(function () { return false; });   // line produced by a cycle expansion
 
+    // 2.11.0 (Marios): no "Safe retract Z" setting. A machine-coordinate retract
+    // (G53 G0 Z.., G28/G30 Z) goes to the program's OWN highest Z instead - the
+    // clearance height the CAM already uses above the part, in work coordinates.
+    // It needs nothing about the machine, so it is right on any machine. Found here
+    // from every absolute Z (and drilling R plane) outside machine-reference lines; mm.
+    var SAFE_Z_MM = (function () {
+      var best = null, sc = 1, inc = false;
+      lines.forEach(function (l) {
+        var c = l.replace(/\([^)]*\)/g, '').replace(/;.*$/, '').toUpperCase();
+        if (/G0*20(?![.\d])/.test(c)) sc = 25.4;
+        if (/G0*21(?![.\d])/.test(c)) sc = 1;
+        if (/G(?:53|0*28|0*30)(?![.\d])/.test(c)) return;
+        if (/G0*91(?![.\d])/.test(c)) inc = true;
+        if (/G0*90(?![.\d])/.test(c)) inc = false;
+        if (inc) return;
+        var zm = c.match(/Z\s*([-+]?(?:\d+\.?\d*|\.\d+))/);
+        if (zm) { var z = parseFloat(zm[1]) * sc; if (best === null || z > best) best = z; }
+        if (/G(?:8[1-9]|73)(?![.\d])/.test(c)) {
+          var rm = c.match(/R\s*([-+]?(?:\d+\.?\d*|\.\d+))/);
+          if (rm) { var r = parseFloat(rm[1]) * sc; if (best === null || r > best) best = r; }
+        }
+      });
+      return best;
+    })();
+    var RETRACT_MARK = '( polar-cnc: safe retract done )';
+
     // ─── NON-MOTION WORDS (2026-10-02) ─────────────────────────────────────────
     // A line can carry far more than a move: S, T, M3/M5/M8, G43 H, G54, G64 P,
     // comments... All of it must reach the machine. The converter rewrites only
@@ -342,7 +368,10 @@
       var ln = rawLine.replace(/\(.*?\)/g, '').replace(/;.*$/, '').trim().toUpperCase();
       // Comment-only lines are kept (they used to be replaced by blank lines,
       // which dropped the CAM's tool list, operation names and notes).
-      if (!ln) { emit(rawLine.trim()); continue; }
+      if (!ln) {
+        if (rawLine === RETRACT_MARK) sink.flush(camFeed);   // the retract move is out before the marker
+        emit(rawLine.trim()); continue;
+      }
       // '%' tape delimiters: LinuxCNC only honours % as the FIRST line of the
       // file. The converter writes its own header first, so a passed-through %
       // would land mid-file. Strip it here and re-wrap the output at the end.
@@ -467,14 +496,13 @@
       // toward the chuck. G28 is no better — its stored position (parameters
       // 5161-5169) is machine 0,0,0 unless set with G28.1.
       // Rule now: a machine-coordinate Z retract is replaced by
-      //   G53 G0 Z<retractZMachine>
+      //   G0 Z<the program's own highest Z>   (2.11.0; was a machine Z the user entered)
       // with a value the user has entered for THEIR machine. With no value set
       // the conversion stops. X/Y "park" moves are skipped (nothing moves), and
       // G28/G30 with no axis words are rejected.
-      var RETRACT_HELP = ' On a lathe conversion, machine Z0 can be at the CHUCK end, so the CAM\'s' +
-        ' machine-coordinate retract cannot be passed through. Either set the post\'s safe-retract' +
-        ' method to "clearance height", or enter "Safe retract Z (machine)" in the settings' +
-        ' (a machine Z near your Z home, far from the chuck) and convert again.';
+      var RETRACT_HELP = ' Machine coordinates differ from machine to machine (on a lathe conversion machine Z0 can' +
+        ' be at the CHUCK end), so such a retract is never passed through. Set the post\'s safe-retract' +
+        ' method to "clearance height" and post again.';
       if (gSet[53] || gSet[28] || gSet[30]) {
         sink.flush(camFeed);
         var refName = gSet[53] ? 'G53' : (gSet[28] ? 'G28' : 'G30');
@@ -499,10 +527,18 @@
           emit('( ' + refName + ' X/Y park skipped: the tool stays where it is )');
         }
         if (rz) {
-          if (O.retractZMachine === null)
-            inputError(li, rawLine, 'machine-coordinate retract (' + refName + ').' + RETRACT_HELP);
-          emit('G53 G0 Z' + O.retractZMachine.toFixed(4) + '  ( safe retract, replaces: ' + commentSafe(rawLine) + ' )');
-          zKnown = false;
+          // 2.11.0: up to the program's own highest Z (work coordinates), as an
+          // ordinary rapid that the machine layout handles like any other move.
+          if (SAFE_Z_MM === null)
+            inputError(li, rawLine, 'machine-coordinate retract (' + refName + '), but the program has no Z height of its own to retract to.' + RETRACT_HELP);
+          // an absolute height; an incremental mode in force (e.g. "G28 G91 Z0" sets G91)
+          // is switched off for this one move and restored after it
+          var gen2 = ['( safe retract to the program\'s highest Z, replaces: ' + commentSafe(rawLine) + ' )',
+                      'G0 Z' + (SAFE_Z_MM / unitScale).toFixed(4), RETRACT_MARK];
+          if (distIncremental) { distIncremental = false; gen2.push('G91'); }
+          Array.prototype.splice.apply(lines, [li + 1, 0].concat(gen2));
+          Array.prototype.splice.apply(srcNo, [li + 1, 0].concat(gen2.map(function () { return srcNo[li]; })));
+          Array.prototype.splice.apply(isGen, [li + 1, 0].concat(gen2.map(function () { return true; })));
         }
         continue;
       }

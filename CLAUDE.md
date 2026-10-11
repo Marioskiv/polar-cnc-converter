@@ -29,7 +29,8 @@ Read `docs/handoff/STATUS.md` first (what is installed on the real machine and w
 
 ## Safety facts that cost real mistakes before
 - G-code `G53 G0 Z0` goes to machine Z0. Which end of the lathe that is depends on the INSTALLED `.ini`
-  (see STATUS.md). The converter replaces G53/G28 retracts with "Safe retract Z" and rejects them if it is empty.
+  (see STATUS.md). The converter never passes G53/G28 through: since 2.11.0 they become `G0 Z<program's highest Z>`
+  (work coordinates; there is no Safe retract Z setting any more).
 - In LinuxCNC `G4 P` is **seconds** (a benchmark with `G04 P2000` would wait 33 minutes).
 - A mirrored part passes every software check (the validator uses the same convention as the converter). Only a
   physical asymmetric test cut ("F") proves C direction and X sign.

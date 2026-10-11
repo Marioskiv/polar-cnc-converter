@@ -16,7 +16,6 @@ var SETTINGS_FIELDS = {
   xMax:            'inpXMax',
   centerStep:      'inpCenterStep',
   centerRetract:   'inpCenterRetract',
-  retractZMachine: 'inpRetractZ',
   // 2.7.0: tilting router (layout XZC + B)
   tiltPivot:       'inpTiltPivot',
   tiltMin:         'inpTiltMin',

@@ -31,7 +31,6 @@ async function run(setup, machine = true) {
     chordTol: v('inpChordTol'), threshold: v('inpThreshold'), xMax: v('inpXMax'),
     // 2.10.0: cutting side is a choice with no default -> xMin null
     xMin: c('radCutOne') ? '0' : (c('radCutBoth') ? '-' + v('inpXBeyond') : ''),
-    retractZMachine: v('inpRetractZ'),
     rotaryAxis: v('selRotaryAxis'), xDiameter: v('selXMode') === 'diameter', invertC: c('chkInvertC'), invertX: c('chkInvertX'),
   };
   // Removed from the page: machine dynamics (2.2.0) and, 2026-10-04, the inert G93 button,

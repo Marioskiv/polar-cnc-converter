@@ -12,7 +12,7 @@ const assert = require('assert');
 const { convert } = require('../src/core/converter.js');
 const { parsePolarGCode } = require('../src/core/polar-parser.js');
 const { createMaterial } = require('../src/core/material.js');
-const O = { xMin: -10, xMax: 125, retractZMachine: 590, toolDia: 6 };
+const O = { xMin: -10, xMax: 125, toolDia: 6 };
 let n = 0; const ok = (c, m) => { n++; assert.ok(c, m); };
 function run(g, stockR) {
   const pts = parsePolarGCode(convert(g, O));

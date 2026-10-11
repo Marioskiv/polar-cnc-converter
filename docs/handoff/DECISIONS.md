@@ -25,7 +25,8 @@
 
 ## Input handling
 - Preserve every G-code word (G43 H, S, M, T, coolant, comments, tool changes) in the correct execution order.
-- G53/G28/G30 retracts are replaced by the user's Safe retract Z (rejected if empty). X/Y parks (`G28 G91 X0 Y0`,
+- G53/G28/G30 retracts: **2.11.0 (Marios chose "β")** → `G0 Z<the program's own highest Z>` in work coordinates;
+  no Safe retract Z setting (was: the user's machine Z, rejected if empty). Universal, needs no machine data. X/Y parks (`G28 G91 X0 Y0`,
   `G53 G0 X.. Y..`) are skipped — not moving can hit nothing (2.5.0). G41/G42, G92/G52/G10 with XY,
   G90.1, G93 input, G18/G19 arcs, tapping/threading are rejected with the line number. Drilling cycles are expanded.
 - Tool diameter comes from CAM tool comments of any CAM (2.8.0, `scanToolDiameters`): a stated diameter (D=, DIA,

@@ -123,10 +123,6 @@
               <label class="cvt-lbl">X Axis Max <span class="cvt-unit">mm</span> <span class="cvt-req">&#9888; required</span></label>
               <input type="number" id="inpXMax" class="cvt-inp" value="" placeholder="your X soft limit" step="1">
             </div>
-            <div class="cvt-field" title="Machine-coordinate Z (G53) used whenever the CAM program contains a G53 / G28 / G30 Z retract. There is deliberately NO default: a CAM post written for a mill assumes machine Z0 is the top of Z, but on many lathe conversions machine Z0 is at the CHUCK end, so passing G53 Z0 through could drive the tool into the work. Enter a machine Z that is safely away from the work on YOUR machine (for example your Z home position). Leave empty to have such programs rejected — or set the post's safe-retract method to clearance height.">
-              <label class="cvt-lbl">Safe retract Z <span class="cvt-unit">machine mm</span></label>
-              <input type="number" id="inpRetractZ" class="cvt-inp" value="" placeholder="your safe machine Z" step="1">
-            </div>
           </div>
         </div>
 

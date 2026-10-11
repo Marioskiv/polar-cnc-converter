@@ -5,6 +5,20 @@ Short and factual. Current state lives in `STATUS.md`, permanent decisions in `D
 
 ---
 
+## 2026-10-11 (5) — 2.11.0: Safe retract Z removed ("β"); directions asked
+
+**Marios:** Safe retract Z → (β); X Axis Max without default (done in 2.10.0); reminded that other machines will use
+the converter; asked whether the directions (Invert rotary / Invert X) can be known.
+**Done (2.11.0):** G53/G28/G30 Z retracts → `G0 Z<program's highest Z>` (pre-scan of absolute Z and cycle R, mm),
+spliced in as an ordinary rapid + marker; G91 on the retract line restored after; tilt layout turns upright at the
+marker (tip kept). Setting/field/profile entries removed. Tests updated (input 71, sim 12), golden unchanged, sweeps.
+**Answered on directions:** the converter cannot know them (they depend on wiring / `.ini` sign / which side the
+tool sits); LinuxCNC convention: +X away from the centre, +C counter-clockwise seen from the tool. A 1-minute
+check without cutting is possible (mark on the chuck, `G0 C90`; `G0 X50`) — proposed adding it to the page; final proof
+is the "F" test cut. Waiting for his answer.
+
+---
+
 ## 2026-10-11 (4) — 2.10.0: Cutting side + X Axis Max required; Safe retract Z explained
 
 **Marios** asked what X Axis Min / X Axis Max / Safe retract Z do, wants them plain, with ticks/choices and
