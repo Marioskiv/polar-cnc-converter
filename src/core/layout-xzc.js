@@ -422,11 +422,18 @@
     // lines) do not, and dropping them cut the corner (measured 0.0264 mm on
     // random arcs against 0.025).
     var _deferPts = [];
-    function _cart(r, c) { var a = c * Math.PI / 180; return [r * Math.cos(a), r * Math.sin(a)]; }
+    // FIX 2.11.2: the CAM feed of the waiting point. A point is merged only into a
+    // block cut at the SAME feed; otherwise it is written first, at its own feed
+    // (a short F100 plunge was written at the next line's F1000).
+    var _deferFeed = null;
+    // FIX 2.11.2: points carry Z. The merge check was XY-only, so a Z step under
+    // MIN_EMIT_DIST followed by an XY move became one ramp (0.1 mm gouge measured).
+    function _cart(r, c, z) { var a = c * Math.PI / 180; return [r * Math.cos(a), r * Math.sin(a), z]; }
     function _distSeg(p, a, b) {
-      var vx = b[0] - a[0], vy = b[1] - a[1], vv = vx * vx + vy * vy, t = 0;
-      if (vv > 1e-18) t = Math.max(0, Math.min(1, ((p[0] - a[0]) * vx + (p[1] - a[1]) * vy) / vv));
-      return Math.hypot(p[0] - (a[0] + vx * t), p[1] - (a[1] + vy * t));
+      var vx = b[0] - a[0], vy = b[1] - a[1], vz = b[2] - a[2], vv = vx * vx + vy * vy + vz * vz, t = 0;
+      if (vv > 1e-18) t = Math.max(0, Math.min(1, ((p[0] - a[0]) * vx + (p[1] - a[1]) * vy + (p[2] - a[2]) * vz) / vv));
+      return Math.sqrt(Math.pow(p[0] - (a[0] + vx * t), 2) + Math.pow(p[1] - (a[1] + vy * t), 2)
+                       + Math.pow(p[2] - (a[2] + vz * t), 2));
     }
 
     // ─── _doEmitG1 ────────────────────────────────────────────────────────────────────
@@ -436,7 +443,7 @@
     // G93 inverse time from the real 3D path length (radial + rotary arc +
     // axial) at the CAM feed: T = dist3D / F, F_g93 = 1/T (floor MIN_TIME, far
     // below one servo period). The controller enforces axis limits.
-    function _doEmitG1(r, outC, z) {
+    function _doEmitG1(r, outC, z, feedOverride) {
       _deferPts = [];
       var dR     = r - prevR;
       var dC_deg = outC - prevC;
@@ -448,7 +455,7 @@
       // the rotary axis, so the surface feed is the one the CAM asked for.
       // Nothing else is added: velocity and acceleration limits belong to the
       // controller, which stretches any block its axes cannot follow.
-      var feed   = Math.max(camFeed, 1.0);
+      var feed   = Math.max(feedOverride !== undefined && feedOverride !== null ? feedOverride : camFeed, 1.0);
       var rAvg   = (Math.abs(prevR) + Math.abs(r)) / 2;
       var arcLen = dC_rad * rAvg;                              // tangential arc (mm)
       var dist3D = Math.sqrt(dR * dR + arcLen * arcLen + dZ * dZ);
@@ -470,8 +477,10 @@
     // before every G0 rapid and at end-of-program to avoid losing trailing moves.
     function flushDeferred() {
       if (_deferR !== null) {
-        _doEmitG1(_deferR, _deferC, _deferZ);
-        _deferR = null;  _deferC = null;  _deferZ = null;
+        var fW = _deferFeed;
+        var wR0 = _deferR, wC0 = _deferC, wZ0 = _deferZ;
+        _deferR = null;  _deferC = null;  _deferZ = null;  _deferFeed = null;
+        _doEmitG1(wR0, wC0, wZ0, fW);
       }
     }
 
@@ -510,6 +519,10 @@
     // along the frozen C direction, steps 1 and 3 run over material that has
     // just been removed: nothing is gouged.
     function unwindSigned(isRapid) {
+      // FIX 2.11.2: a short Signed-X move may still be waiting in the merge buffer;
+      // write it first, or prevR still shows the old side and the return to the pole
+      // is skipped (one block then swung X through 0 while C turned 159 deg: 0.12 mm off).
+      if (!isRapid) flushDeferred();
       if (!(prevR < -1e-6)) return;
       var rOld  = prevR;
       var cFlip = prevC + (prevC > 0 ? -180 : 180);
@@ -529,7 +542,7 @@
     }
 
     function emitG1Forced(r, outC, z) {
-      _deferR = null;  _deferC = null;  _deferZ = null;
+      _deferR = null;  _deferC = null;  _deferZ = null;  _deferFeed = null;
       _doEmitG1(r, outC, z);
     }
 
@@ -548,8 +561,9 @@
       // lines passing 0.01-0.2 mm from the centre).
       var mergeOK = Math.abs(outC - prevC) <= 5.0 &&
                     jointChordErr(prevR, prevC, r, outC) <= ERR_BUDGET * 0.5;
+      if (_deferR !== null && _deferFeed !== camFeed) mergeOK = false;   // 2.11.2: never across a feed change
       if (_deferR !== null && _deferPts.length) {
-        var segA = _cart(prevR, prevC), segB = _cart(r, outC);
+        var segA = _cart(prevR, prevC, prevZ), segB = _cart(r, outC, z);
         for (var dp = 0; dp < _deferPts.length; dp++) {
           // Only the margin left over may be spent here: the arc chord may already
           // be tol/2 off the arc and the machine path up to 0.4 tol off the chord.
@@ -560,8 +574,8 @@
         // Too short — accumulate toward the latest endpoint.
         // The next call that crosses the threshold will emit from prevR directly
         // to that point, naturally consuming all intermediate tiny steps.
-        _deferR = r;  _deferC = outC;  _deferZ = z;
-        _deferPts.push(_cart(r, outC));
+        _deferR = r;  _deferC = outC;  _deferZ = z;  _deferFeed = camFeed;
+        _deferPts.push(_cart(r, outC, z));
       } else {
         // FIX 2.4.0: if a point is waiting and this block may NOT replace it
         // (it would leave the tolerance - typically near the pole, where C
@@ -569,15 +583,15 @@
         // last written point straight to this one (measured 0.0287 mm off on a
         // ramp 0.008 mm from the centre).
         if (_deferR !== null && !mergeOK) {
-          var wR = _deferR, wC = _deferC, wZ = _deferZ;
-          _deferR = null;  _deferC = null;  _deferZ = null;
-          _doEmitG1(wR, wC, wZ);
+          var wR = _deferR, wC = _deferC, wZ = _deferZ, wF = _deferFeed;
+          _deferR = null;  _deferC = null;  _deferZ = null;  _deferFeed = null;
+          _doEmitG1(wR, wC, wZ, wF);
           emitG1(r, outC, z);
           return;
         }
         // Large enough — emit directly, discard any pending deferred point
         // (it was on the same path and is now superseded by this point).
-        _deferR = null;  _deferC = null;  _deferZ = null;
+        _deferR = null;  _deferC = null;  _deferZ = null;  _deferFeed = null;
         _doEmitG1(r, outC, z);
       }
     }
@@ -588,7 +602,8 @@
       '( Polar G-code - G93 inverse time | radial X, rotary ' + ROT + ', axial Z )',
       '( Output profile: rotary ' + ROT + (O.invertC ? ' inverted' : '') + ', X ' + (O.xDiameter ? 'diameter' : 'radius')
         + (O.invertX ? ' inverted' : '') + '  |  X travel [' + O.xMin.toFixed(1) + ', ' + O.xMax.toFixed(1) + '] )',
-      '( Centre zone ' + THRESHOLD.toFixed(2) + ' mm, crossing: ' + CENTER_CROSS_MODE + ' )'
+      '( Centre zone ' + +THRESHOLD.toFixed(4) + ' mm, crossing: '   // 2.11.2: 0.0125 was shown as 0.01
+        + '' + CENTER_CROSS_MODE + ' )'
       ];
     }
 
@@ -860,8 +875,13 @@
                   out.push('( Signed-X would exceed X travel [' + X_MIN_LIMIT.toFixed(1)
                            + ', ' + X_MAX_LIMIT.toFixed(1) + '] \u2014 using Index at Pole for this line )');
                 } else {
+                  // FIX 2.11.2: say what really happens. The fill runs only in fill mode
+                  // or with a zone larger than the chord tolerance; otherwise the line
+                  // is converted point by point (the message used to claim a fill).
                   out.push('( Signed-X skipped: would exceed X travel [' + X_MIN_LIMIT.toFixed(1)
-                           + ', ' + X_MAX_LIMIT.toFixed(1) + '] \u2014 using Pocket Fill for this line )');
+                           + ', ' + X_MAX_LIMIT.toFixed(1) + '] \u2014 '
+                           + ((CENTER_CROSS_MODE === 'fill' || THRESHOLD > CHORD_TOL)
+                              ? 'using Pocket Fill for this line )' : 'converted point by point, no fill )'));
                 }
               }
             }

@@ -5,6 +5,42 @@ Short and factual. Current state lives in `STATUS.md`, permanent decisions in `D
 
 ---
 
+## 2026-10-11 (10) — 2.11.2: the two bugs fixed (Marios: yes)
+
+**Done:** merge of short moves (3-D check, never across a feed change, waiting point at its own feed) and the both-sides
+Signed-X flush; "no fill" message; centre-zone number in the header. No line-length guard (his decision). Tests: input
+76 checks, golden 144/144 header comment only (explained in CHANGELOG), sweeps unchanged, near-pole both-sides sweep
+275 → 9 / 3000; his two FreeCAD programs unchanged (worst 0.0151 mm, feeds 278/557); Chromium page v2.11.2.
+
+---
+
+## 2026-10-11 (9) — Bird re-checked, more polar printers, 63 test cases → 2 real bugs (fix waiting)
+
+**Marios:** re-check Bird and more polar printers ("many examples, the converter must be flawless"); is the 255 limit
+certain; centre-height compensation not needed (router base milled on the machine → DECISIONS).
+**Done:** two more searches (`references/research-2026-10-11.md` part 2). Line limit verified in LinuxCNC 2.9.10
+source: ≤ 252 chars (LF) / 251 (CR LF). **Bugs confirmed by me:** (1) merge of moves < 0.15 mm: Z step → ramp
+(0.1 mm gouge) and wrong feed; (2) both-sides Signed-X short move → 0.12 mm off. Fixes + messages + line-length
+guard prepared in a scratch copy: all tests pass, sweeps same, golden header comment only. **Not applied — waiting
+for his yes** (CLAUDE.md rule 1). Then Marios: leave the line length alone (practically never happens) → guard
+removed from the prepared fix (DECISIONS). Still open: rare 0.0268 mm near the pole.
+
+---
+
+## 2026-10-11 (8) — PR #5 merged; research: other projects, simulator, trixie, CAM
+
+**Marios:** PR #5 merged (v2.11.1 on `main`). Asked: where are the notes (answered: `docs/handoff/` in the repo,
+auto-loaded by `CLAUDE.md`; artifacts are not read by later sessions), open items, then serious research: more
+projects like Bird's, ideas for the simulator, what LinuxCNC on trixie needs, and again polar-inside-a-CAM.
+**Done:** four read-only searches → `references/research-2026-10-11.md`. Verified myself: arcs around the centre
+become polygons (R10 circle = 127 blocks, could be 8 exact); a CAM comment > 255 chars passes through (LinuxCNC limit).
+Corrected two wrong sub-report claims (convert() returns text; Kiri tool comments already read).
+**Proposals waiting for his yes (nothing changed):** exact arcs around the centre; 255-char guard; centre-offset
+compensation / warning; simulator deviation + axis-speed colouring, finer height map, line link, report;
+FreeCAD addon later. Branch restarted from `main`.
+
+---
+
 ## 2026-10-11 (7) — PR #4 merged; "nothing changed" = browser cache; 2.11.1 version on the page
 
 **Marios** merged PR #4, then opened https://marioskiv.github.io/polar-cnc-converter/ and still saw X Axis Min −1000 /
