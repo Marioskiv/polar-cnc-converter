@@ -1,4 +1,4 @@
-# Status — updated 2026-10-11 (converter v2.11.0)
+# Status — updated 2026-10-11 (converter v2.11.1)
 
 Session history: `LOG.md` (newest first).
 
@@ -61,8 +61,10 @@ trust the computer and tell Marios about the difference.
 ## Open items — software
 - **v2.9.0 is on `main`** (PR #3 merged by Marios 2026-10-11, CI green): 2.8.0 tool diameter from any CAM,
   2.9.0 Tool Diameter setting removed. (PR #2 = 2.4.1 – 2.7.0, merged 2026-10-07.)
-- **v2.10.0** (Cutting side choice, X Axis Max required, no −1000/1000 defaults) and **v2.11.0** (Safe retract Z
-  removed: G53/G28 → program's highest Z, Marios chose "β") on branch `claude/youthful-goldberg-a6qv5t`, not merged.
+- **v2.11.0 is on `main`** and on GitHub Pages (PR #4 merged by Marios 2026-10-11): 2.10.0 Cutting side / X Axis
+  Max required, 2.11.0 no Safe retract Z + direction check. Marios uses the page at
+  https://marioskiv.github.io/polar-cnc-converter/ (Pages deploys from `main`).
+- **v2.11.1** (version in the header, `?v=` cache-busting) on branch `claude/youthful-goldberg-a6qv5t`, not merged.
 - Direction check written on the page (2026-10-11). For Marios: X settled 2026-10-04; **C still to be checked** with
   it (chuck must turn clockwise seen from the cutter on `G0 C90`), then the F cut.
 - FreeCAD programs: the Tool Controller feeds must be set (default 0 → no F → refused). FreeCAD Z0 = stock bottom.

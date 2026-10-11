@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.11.1 — the page shows its version; no stale cached files
+
+### Added
+- The header shows the converter version (`v2.11.1`), so it is clear which version is open (Marios saw the old page
+  from his browser's cache on GitHub Pages after 2.11.0 was published).
+- Every script and stylesheet is loaded with `?v=<version>`: after a new release the browser fetches the new files
+  instead of mixing cached old ones with the new page. `tests/ui.test.js` checks they all equal `package.json`.
+
+
 ## 2.11.0 — no "Safe retract Z" setting: retracts go to the program's own highest Z
 
 ### Changed
