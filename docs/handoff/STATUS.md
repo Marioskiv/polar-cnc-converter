@@ -1,16 +1,16 @@
-# Status — updated 2026-10-11 (converter v2.9.0)
+# Status — updated 2026-10-11 (converter v2.11.0)
 
 Session history: `LOG.md` (newest first).
 
 The real machine is the source of truth. Where this file and the files on the LinuxCNC computer disagree,
 trust the computer and tell Marios about the difference.
 
-## !! Safe retract Z depends on which .ini is installed
+## !! Machine Z0 is at the CHUCK end until the mill-style .ini is installed
 - A mill-style Z numbering `.ini` was delivered 2026-10-04 but is **NOT installed yet** (Marios will install it later).
-  With the currently installed `.ini`, machine Z0 is at the CHUCK end, so `G53 G0 Z0` would rapid toward the chuck.
-  Until the new `.ini` is installed: converter **Safe retract Z = 590**, and do not load
-  `profiles/example-marioskiv-holzmann-xzc` (it has 0).
-- After installing it: Safe retract Z = 0, and touch off Z again (the G54 Z offset shifts by 590).
+  With the currently installed `.ini`, machine Z0 is at the CHUCK end, so `G53 G0 Z0` typed in MDI would rapid toward
+  the chuck. **The converter no longer needs this (2.11.0):** it never outputs G53; CAM retracts become
+  `G0 Z<program's highest Z>`. (2.10.0 and older: Safe retract Z had to be 590.)
+- After installing it: touch off Z again (the G54 Z offset shifts by 590).
 
 ## Machine
 - Holzmann lathe converted to a CNC face-milling machine. Chuck = C (rotary), router on the X cross-slide, Z axial.
@@ -46,7 +46,8 @@ trust the computer and tell Marios about the difference.
 - Stale comments to correct on the REAL files (not urgent): `.ini` header "HOME_OFFSET is set to 135"
   (it is -20); `.hal` Z comment "coordinate 600" (10 with the mill-style `.ini`).
 - Align the router on the chuck centre at X0 after Home, in X AND height (dial indicator, or V-bit on a centre dot).
-- Check C+ direction (else mirrored parts); `G0 C3600` then `G0 C0` must return exactly (else lower C speed to 105/90).
+- Check C+ direction with the page's Direction check: `G0 C90` → chuck clockwise seen from the cutter (else mirrored
+  parts; fix the C `STEP_SCALE` sign); `G0 C3600` then `G0 C0` must return exactly (else lower C speed to 105/90).
 - C soft limits ±99,999° allow only ~277 chuck turns per program — raise them in `[AXIS_C]`/`[JOINT_2]`.
 - Mount and wire the chuck encoder. Confirm the gamepad layout (if X drifts: read `input.0.abs-ry-position` at rest).
 - Measure real vs predicted cycle time (LinuxCNC `tp.c` does not blend moves that involve a rotary axis).
@@ -58,9 +59,12 @@ trust the computer and tell Marios about the difference.
 - Fusion post: LinuxCNC, compensation "in computer", expanded drilling cycles, no G18/G19 arcs, mm, clearance-height retracts.
 
 ## Open items — software
-- **v2.7.0 is on `main`** (PR #2 merged 2026-10-07 at Marios's request, CI green): 2.4.1 – 2.7.0 and all notes.
-- **v2.8.0** (tool diameter from any CAM's comments) and **v2.9.0** (Tool Diameter setting removed) on branch
-  `claude/youthful-goldberg-a6qv5t`, not merged yet (Marios: "not yet").
+- **v2.9.0 is on `main`** (PR #3 merged by Marios 2026-10-11, CI green): 2.8.0 tool diameter from any CAM,
+  2.9.0 Tool Diameter setting removed. (PR #2 = 2.4.1 – 2.7.0, merged 2026-10-07.)
+- **v2.10.0** (Cutting side choice, X Axis Max required, no −1000/1000 defaults) and **v2.11.0** (Safe retract Z
+  removed: G53/G28 → program's highest Z, Marios chose "β") on branch `claude/youthful-goldberg-a6qv5t`, not merged.
+- Direction check written on the page (2026-10-11). For Marios: X settled 2026-10-04; **C still to be checked** with
+  it (chuck must turn clockwise seen from the cutter on `G0 C90`), then the F cut.
 - FreeCAD programs: the Tool Controller feeds must be set (default 0 → no F → refused). FreeCAD Z0 = stock bottom.
 - Future router tilt axis (rotates continuously during a program; Marios calls it A, conventional letter in the X-Z
   plane would be B). Plan, each step only with his go-ahead:

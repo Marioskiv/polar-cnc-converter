@@ -11,7 +11,6 @@
     "autoStepover": true,
     "centerStep": 1,
     "centerRetract": 2,
-    "retractZMachine": 0,
     "rotaryAxis": "C",
     "invertC": false,
     "invertX": false,

@@ -5,6 +5,64 @@ Short and factual. Current state lives in `STATUS.md`, permanent decisions in `D
 
 ---
 
+## 2026-10-11 (6) — direction check added to the page
+
+**Marios:** yes to the written direction check; reminded we already settled his axis directions. **Checked the notes:**
+X was settled 2026-10-04 (`STEP_SCALE -400`, "+" moves away from the switch = away from the centre, confirmed on the
+machine). **C has never been checked on the machine** (STATUS open item). **Done:** a folding "Direction check"
+under the Invert boxes (X away from centre; mark on chuck, `G0 C90` → chuck turns clockwise seen from the cutter;
+fix in the controller rather than with the boxes; F test cut). His profile keeps both boxes unticked.
+
+---
+
+## 2026-10-11 (5) — 2.11.0: Safe retract Z removed ("β"); directions asked
+
+**Marios:** Safe retract Z → (β); X Axis Max without default (done in 2.10.0); reminded that other machines will use
+the converter; asked whether the directions (Invert rotary / Invert X) can be known.
+**Done (2.11.0):** G53/G28/G30 Z retracts → `G0 Z<program's highest Z>` (pre-scan of absolute Z and cycle R, mm),
+spliced in as an ordinary rapid + marker; G91 on the retract line restored after; tilt layout turns upright at the
+marker (tip kept). Setting/field/profile entries removed. Tests updated (input 71, sim 12), golden unchanged, sweeps.
+**Answered on directions:** the converter cannot know them (they depend on wiring / `.ini` sign / which side the
+tool sits); LinuxCNC convention: +X away from the centre, +C = the CHUCK turns clockwise seen from the cutter
+(tool counter-clockwise relative to the part; checked: CAM point (0,10) → C90). A 1-minute
+check without cutting is possible (mark on the chuck, `G0 C90`; `G0 X50`) — proposed adding it to the page; final proof
+is the "F" test cut. Waiting for his answer.
+
+---
+
+## 2026-10-11 (4) — 2.10.0: Cutting side + X Axis Max required; Safe retract Z explained
+
+**Marios** asked what X Axis Min / X Axis Max / Safe retract Z do, wants them plain, with ticks/choices and
+"required" warnings. Proposed first; his answers: **X Axis Max: keep, required. X Axis Min: yes, make it clear.
+Safe retract Z: asked why his machine is "opposite" to a mill** — answered: only the installed `.ini` numbers Z like a
+lathe (Z0 at the chuck end); the mill-style `.ini` (delivered 2026-10-04, in `machine-config/`) makes `G53 G0 Z0` go
+up to home like any mill (then Safe retract Z = 0, touch off Z again). **No change to Safe retract Z yet** — waiting
+for his choice: keep it (explained better) or replace G53/G28 with the program's own highest Z.
+**Done (2.10.0):** "Cutting side" radio (one side / both + distance), X Axis Max required, no −1000/1000 defaults,
+old saved defaults dropped, generic profiles without X travel. Not merged to `main` yet.
+
+---
+
+## 2026-10-11 (3) — second FreeCAD program + his converted output checked
+
+**Marios** sent a revised FreeCAD program (MillFace001 first at −2, Profile at −5/−8/−10 with 4 rings 0.4 mm apart,
+four 20 mm pockets at −5/−8/−10) and the output he made on the page. **Checked:** his output's motion is identical to
+ours; worst G1 deviation 0.0151 mm, real feed exactly 278/557 mm/min, X 1.00 … 67.74 (no negative X), depth −10.
+**Found:** his page still had the DEFAULT X travel −1000 … 1000 (header line) — harmless for this program (never
+crosses the centre) but must be set to X min 0 / X max 113 (and Safe retract Z 590) before real programs.
+Told him: face-first fixed; plunges still straight down (3 mm into faced stock at 278 mm/min) — slower plunge or helix;
+first profile ring is a full 5 mm slot 3–5 mm deep; innermost facing circles are C-speed limited (slower than shown).
+
+---
+
+## 2026-10-11 (2) — PR #3 merged
+
+**Marios** asked to update GitHub with all changes. Opened PR #3 (2.8.0 + 2.9.0), CI green; my merge call was blocked
+by the session's safety check (no merge to `main` without a human), so **Marios merged it himself** (merge commit
+`9e24f2e`). `main` = v2.9.0. Branch restarted from `main` for later work.
+
+---
+
 ## 2026-10-11 — his FreeCAD program checked; 2.9.0: Tool Diameter setting removed
 
 **Marios:** made a rough FreeCAD CAM (5 mm 2-flute Izar, T2, profile + 5 pockets + facing, feeds 278/557) and asked

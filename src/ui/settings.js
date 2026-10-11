@@ -13,11 +13,9 @@
 var SETTINGS_FIELDS = {
   chordTol:        'inpChordTol',
   threshold:       'inpThreshold',
-  xMin:            'inpXMin',
   xMax:            'inpXMax',
   centerStep:      'inpCenterStep',
   centerRetract:   'inpCenterRetract',
-  retractZMachine: 'inpRetractZ',
   // 2.7.0: tilting router (layout XZC + B)
   tiltPivot:       'inpTiltPivot',
   tiltMin:         'inpTiltMin',
@@ -48,6 +46,7 @@ function hasControl(key) {
   if (SETTINGS_CHECKS[key]) return !!document.getElementById(SETTINGS_CHECKS[key]);
   if (SETTINGS_SELECTS[key]) return !!document.getElementById(SETTINGS_SELECTS[key]);
   if (key === 'xDiameter') return !!document.getElementById('selXMode');
+  if (key === 'xMin') return !!document.getElementById('radCutOne');
   if (key === 'centerMode') return !!document.getElementById(CENTER_MODE_BUTTONS.auto);
   return false;
 }
@@ -69,6 +68,12 @@ function readConverterOptions() {
   });
   var xm = document.getElementById('selXMode');
   if (xm) o.xDiameter = (xm.value === 'diameter');
+  // 2.10.0: cutting side -> xMin (0 = one side; -distance = both sides; null = not chosen)
+  var one = document.getElementById('radCutOne'), both = document.getElementById('radCutBoth');
+  if (one && both) {
+    var beyond = parseFloat((document.getElementById('inpXBeyond') || {}).value);
+    o.xMin = one.checked ? 0 : (both.checked && isFinite(beyond) && beyond > 0 ? -beyond : null);
+  }
   if (hasControl('centerMode')) {
     o.centerMode = 'auto';
     ['signed', 'index', 'fill'].forEach(function (mode) {
@@ -85,6 +90,10 @@ function applyConverterOptions(o) {
   // makes lines passing near the centre cut up to ~4 mm off their path, so it
   // is upgraded to the new automatic zone. Any other value is respected.
   if (o && Number(o.threshold) === 2) { o = Object.assign({}, o); delete o.threshold; }
+  // MIGRATION 2.10.0: X -1000 / 1000 were the old DEFAULTS ("no limit"), stored
+  // without anyone choosing them. They are dropped, so the page asks for real values.
+  if (o && Number(o.xMin) === -1000) { o = Object.assign({}, o); delete o.xMin; }
+  if (o && Number(o.xMax) === 1000) { o = Object.assign({}, o); delete o.xMax; }
   profileExtras = {};
   Object.keys(o).forEach(function (k) { if (!hasControl(k)) profileExtras[k] = o[k]; });
   Object.keys(SETTINGS_FIELDS).forEach(function (key) {
@@ -103,6 +112,7 @@ function applyConverterOptions(o) {
     if (el && o[key]) el.value = o[key];
   });
   showTiltFields();
+  setCutSide(o.xMin);
   var xm = document.getElementById('selXMode');
   if (xm && 'xDiameter' in o) xm.value = o.xDiameter ? 'diameter' : 'radius';
   if (o.centerMode && CENTER_MODE_BUTTONS[o.centerMode]) {
@@ -111,6 +121,22 @@ function applyConverterOptions(o) {
       if (b) b.classList.toggle('active', m === o.centerMode);
     });
   }
+}
+
+// 2.10.0: cutting side radios <-> xMin (0 = one side, < 0 = both, null/absent = not chosen)
+function setCutSide(xMin) {
+  var one = document.getElementById('radCutOne'), both = document.getElementById('radCutBoth');
+  var bey = document.getElementById('inpXBeyond');
+  if (!one || !both) return;
+  var v = parseFloat(xMin);
+  one.checked = isFinite(v) && v === 0;
+  both.checked = isFinite(v) && v < 0;
+  if (bey) bey.value = (isFinite(v) && v < 0) ? String(-v) : '';
+  showCutSideFields();
+}
+function showCutSideFields() {
+  var both = document.getElementById('radCutBoth'), f = document.getElementById('xBeyondField');
+  if (both && f) f.style.display = both.checked ? '' : 'none';
 }
 
 // Browser storage is best-effort: it can be unavailable (privacy mode, files
@@ -137,6 +163,11 @@ function showTiltFields() {
   showTiltFields();
   var lay = document.getElementById('selLayout');
   if (lay) lay.addEventListener('change', showTiltFields);
+  ['radCutOne', 'radCutBoth'].forEach(function (id) {
+    var r = document.getElementById(id);
+    if (r) r.addEventListener('change', showCutSideFields);
+  });
+  showCutSideFields();
   // Load the machine's own LinuxCNC tool table (tool lengths for the tilt).
   var bTbl = document.getElementById('btnLoadToolTable'), fTbl = document.getElementById('fileToolTable');
   if (bTbl && fTbl) {

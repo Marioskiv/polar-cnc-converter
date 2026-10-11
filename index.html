@@ -109,17 +109,19 @@
         <div class="cvt-card">
           <div class="cvt-subhead">&#128207; Machine</div>
           <div class="cvt-grid">
-            <div class="cvt-field" title="Minimum X the machine may go to (in its own X units, as written to the file). This also chooses the MACHINING SIDE: 0 = one side of the centre only (X never negative; cuts through the centre turn the chuck 180 deg at the centre instead). A negative value = both sides: the tool may cross the centre by up to that many mm, but only on cuts that pass exactly through the centre (Signed X). Set it to your machine's real limit, never beyond it.">
-              <label class="cvt-lbl">X Axis Min <span class="cvt-unit">mm &middot; 0 = one side</span></label>
-              <input type="number" id="inpXMin" class="cvt-inp" value="-1000" step="1">
+            <!-- 2.10.0: "X Axis Min" became a plain choice; X Axis Max is required (no default). -->
+            <div class="cvt-field" title="Where may the cutter work? ONE SIDE: X never goes below 0 - when a cut passes through the centre, the chuck turns instead and the cutter stays on its side (right for a lathe cross-slide). BOTH SIDES: the cutter may cross the centre to the other side, up to the distance you enter. Which side is physically left or right is set by your machine (and Invert X direction), not here.">
+              <label class="cvt-lbl">Cutting side <span class="cvt-req">&#9888; required</span></label>
+              <label class="cvt-radio"><input type="radio" name="cutSide" id="radCutOne" value="one"> One side of the centre only</label>
+              <label class="cvt-radio"><input type="radio" name="cutSide" id="radCutBoth" value="both"> Both sides (cutter crosses the centre)</label>
+              <div id="xBeyondField" style="display:none">
+                <label class="cvt-lbl">How far past the centre <span class="cvt-unit">mm</span></label>
+                <input type="number" id="inpXBeyond" class="cvt-inp" value="" placeholder="e.g. 18" min="0" step="1">
+              </div>
             </div>
-            <div class="cvt-field" title="Maximum X (largest radius) the machine can reach, in its own X units (as written to the file). Set it to your machine's soft limit.">
-              <label class="cvt-lbl">X Axis Max <span class="cvt-unit">mm</span></label>
-              <input type="number" id="inpXMax" class="cvt-inp" value="1000" step="1">
-            </div>
-            <div class="cvt-field" title="Machine-coordinate Z (G53) used whenever the CAM program contains a G53 / G28 / G30 Z retract. There is deliberately NO default: a CAM post written for a mill assumes machine Z0 is the top of Z, but on many lathe conversions machine Z0 is at the CHUCK end, so passing G53 Z0 through could drive the tool into the work. Enter a machine Z that is safely away from the work on YOUR machine (for example your Z home position). Leave empty to have such programs rejected — or set the post's safe-retract method to clearance height.">
-              <label class="cvt-lbl">Safe retract Z <span class="cvt-unit">machine mm</span></label>
-              <input type="number" id="inpRetractZ" class="cvt-inp" value="" placeholder="your safe machine Z" step="1">
+            <div class="cvt-field" title="The largest X your machine can reach (its X soft limit, in the units written to the file). The converter warns when a program needs more, so you find out before the machine stops half-way.">
+              <label class="cvt-lbl">X Axis Max <span class="cvt-unit">mm</span> <span class="cvt-req">&#9888; required</span></label>
+              <input type="number" id="inpXMax" class="cvt-inp" value="" placeholder="your X soft limit" step="1">
             </div>
           </div>
         </div>
@@ -153,6 +155,22 @@
               <input type="checkbox" id="chkInvertX"> Invert X direction
             </label>
           </div>
+          <!-- ADDED 2.11.0: the converter cannot know a machine's directions; a one-minute
+               check on the machine (no cutting) tells whether these boxes must be ticked. -->
+          <details class="cvt-note" id="dirCheck" style="margin-top:6px;font-size:11px;">
+            <summary style="cursor:pointer;">&#129517; Direction check &mdash; once per machine, no cutting</summary>
+            <ol style="margin:6px 0 4px 18px;padding:0;line-height:1.45;">
+              <li><b>X:</b> from <code>X0</code>, <code>G0 X50</code> must move the cutter <b>away from the chuck centre</b>.</li>
+              <li><b>Rotary:</b> mark the chuck face right under the cutter, then <code>G0 C90</code> (C0 first).
+                Looking at the chuck face <b>from the cutter's side</b>, the mark must turn <b>clockwise</b>
+                (the part turns, so the cutter moves counter-clockwise over it &mdash; the ISO / LinuxCNC rule).</li>
+              <li>Both right &rarr; leave both boxes <b>unticked</b>. One wrong &rarr; best fix it in your controller
+                (e.g. the sign of <code>STEP_SCALE</code> in the LinuxCNC <code>.ini</code>), so jogging matches too;
+                tick the box only if you cannot.</li>
+              <li>A mirrored part passes every software check. Prove it once with an <b>asymmetric test cut</b>
+                (e.g. the letter F) before a real part.</li>
+            </ol>
+          </details>
           <div class="cvt-note" style="margin-top:6px;font-size:11px;opacity:.75;">
             Axis velocities and accelerations are not set here: your controller enforces its own limits on every move.
           </div>

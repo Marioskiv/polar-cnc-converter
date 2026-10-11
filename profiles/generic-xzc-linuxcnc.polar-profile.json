@@ -6,12 +6,9 @@
   "options": {
     "chordTol": 0.025,
     "centerMode": "auto",
-    "xMin": -1000,
-    "xMax": 1000,
     "autoStepover": true,
     "centerStep": 1,
     "centerRetract": 2,
-    "retractZMachine": null,
     "rotaryAxis": "C",
     "invertC": false,
     "invertX": false,

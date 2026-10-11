@@ -17,7 +17,7 @@ const { intendedPath, distPtSeg } = require('./lib/replay.js');
 let n = 0; const ok = (c, m) => { n++; assert.ok(c, m); };
 
 const TOOLS = 'T1 P1 Z40 D6 ;6 mm ball\nT2 P2 Z35 D6 ;6 mm flat';
-const BASE = { layout: 'xzcb', xMin: 0, xMax: 113, retractZMachine: 0, tiltPivot: 60, tiltMin: -30, tiltMax: 60,
+const BASE = { layout: 'xzcb', xMin: 0, xMax: 113, tiltPivot: 60, tiltMin: -30, tiltMax: 60,
                tiltLean: 20, toolTable: TOOLS };
 
 // Nearest-segment search through a grid of 2 mm cells (the path has thousands
@@ -79,7 +79,7 @@ function replay(prog, out, letters) {
 
 // 1. lean 0: the tilt layout gives the XZC motion, no B words
 const P1 = '(T1 D=6. CR=3.)\nG21 G90\nT1 M6\nG0 X40 Y0 Z5\nG1 Z-1 F600\nG1 X10 Y20\nG2 X-15.6205 Y8 I-10 J-12\nG0 Z5\nM30';
-const xzc = convert(P1, { xMin: 0, xMax: 113, retractZMachine: 0 }).split('\n').filter(l => /^G[01] /.test(l));
+const xzc = convert(P1, { xMin: 0, xMax: 113 }).split('\n').filter(l => /^G[01] /.test(l));
 const b0 = convert(P1, Object.assign({}, BASE, { tiltLean: 0 })).split('\n').filter(l => /^G[01] /.test(l));
 ok(JSON.stringify(xzc) === JSON.stringify(b0), 'lean 0 = the XZC motion, line for line');
 ok(!b0.some(l => / B/.test(l)), 'lean 0 writes no B');
@@ -134,7 +134,10 @@ const tc = '(T1 D=6.)\nG21 G90\nT1 M6\nG0 X50 Y0 Z5\nG1 Z-1 F500\nG1 X20 Y10\nG0
 const tco = convert(tc, BASE).split('\n');
 const bAt = i => { let b = 0; for (let k = 0; k <= i; k++) { const m = tco[k].match(/^G[01] .*\bB(-?[\d.]+)/) || tco[k].match(/^G0 B(-?[\d.]+)/); if (m) b = parseFloat(m[1]); } return b; };
 tco.forEach((l, i) => { if (/^T\d+ M6/.test(l)) ok(Math.abs(bAt(i)) < 1e-4, 'B is 0 at the tool change line ' + (i + 1)); });
-ok(tco.some(l => /^G0 B0\.0000 +\( upright after the retract \)/.test(l)), 'upright after the machine retract');
+// 2.11.0: the retract is a rapid up to the program's highest Z; the router turns upright up there
+const rd = tco.findIndex(l => /safe retract done/.test(l));
+const upr = tco.slice(rd + 1).findIndex(l => /^G0 .*B0\.0000/.test(l));
+ok(rd > 0 && upr >= 0 && tco.slice(rd + 1, rd + 1 + upr).every(l => /^G0 /.test(l)), 'upright after the machine retract (rapids only, at the top)');
 const endIdx = tco.findIndex(l => /^G94 /.test(l));
 ok(Math.abs(bAt(endIdx)) < 1e-4, 'B is 0 at the program end');
 ok(replay(tc, tco.join('\n')).worstG1 <= 0.026, 'tool changes: ball centre still on the path');

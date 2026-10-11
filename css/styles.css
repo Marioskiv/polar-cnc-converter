@@ -210,6 +210,8 @@ header p  { font-size: 0.75rem; color: var(--dim); }
   white-space: normal;
   line-height: 1.3;
 }
+.cvt-req { color: #ffb020; font-weight: 600; font-size: 10px; margin-left: 4px; }   /* 2.10.0: required field */
+.cvt-radio { display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer; margin: 2px 0; }
 .cvt-lbl .cvt-unit {
   color: #445555;
   font-size: 0.62rem;

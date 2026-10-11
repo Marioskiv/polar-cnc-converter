@@ -19,7 +19,8 @@ class Loader extends ResourceLoader {
 }
 const PAGE = path.join(__dirname, '..', 'index.html');
 const PROG = 'G21 G90\nG0 X50 Y0 Z2\nG1 Z-1 F300\nG1 X-50 Y0 F500\nG1 X-50 Y3\nG1 X50 Y3 F500\nG0 Z5\nM30';
-async function run(setup) {
+const M = { xMin: 0, xMax: 113 };   // the machine filled in by run()
+async function run(setup, machine = true) {
   const errors = [];
   const vc = new VirtualConsole(); vc.on('jsdomError', e => errors.push(e.message));
   const dom = await JSDOM.fromFile(PAGE, { runScripts: 'dangerously', resources: new Loader(), pretendToBeVisual: true, virtualConsole: vc });
@@ -27,8 +28,9 @@ async function run(setup) {
   const d = dom.window.document;
   const v = id => d.getElementById(id).value, c = id => d.getElementById(id).checked;
   const defaults = {
-    chordTol: v('inpChordTol'), threshold: v('inpThreshold'), xMin: v('inpXMin'), xMax: v('inpXMax'),
-    retractZMachine: v('inpRetractZ'),
+    chordTol: v('inpChordTol'), threshold: v('inpThreshold'), xMax: v('inpXMax'),
+    // 2.10.0: cutting side is a choice with no default -> xMin null
+    xMin: c('radCutOne') ? '0' : (c('radCutBoth') ? '-' + v('inpXBeyond') : ''),
     rotaryAxis: v('selRotaryAxis'), xDiameter: v('selXMode') === 'diameter', invertC: c('chkInvertC'), invertX: c('chkInvertX'),
   };
   // Removed from the page: machine dynamics (2.2.0) and, 2026-10-04, the inert G93 button,
@@ -37,6 +39,8 @@ async function run(setup) {
     'btnCenterSignedX', 'btnCenterAuto', 'btnCenterPocket', 'btnCenterIndex',
     'inpCenterStep', 'inpCenterRetract', 'chkAutoStep'].filter(id => d.getElementById(id));
   d.getElementById('cartInput').value = PROG;
+  // a user's machine (2.10.0: required, no defaults) - setups below may change it
+  if (machine) { d.getElementById('radCutOne').checked = true; d.getElementById('inpXMax').value = '113'; }
   if (setup) setup(d);
   d.getElementById('btnConvert').click();
   await new Promise(r => setTimeout(r, 300));
@@ -53,16 +57,23 @@ async function run(setup) {
   }
   assert.deepStrictEqual(a.removed, [], 'removed controls must be gone from the page');
   assert.ok(!/C-vel/.test(a.info), 'no velocity check on the page');
-  assert.strictEqual(a.out, convert(PROG, {}), 'Convert button output != converter output');
+  assert.strictEqual(a.out, convert(PROG, M), 'Convert button output != converter output');
   assert.ok(/pts/.test(a.info), 'simulator did not parse the toolpath');
-  const b = await run(d => { d.getElementById('inpXMin').value = '0'; });
-  assert.strictEqual(b.out, convert(PROG, { xMin: 0 }), 'X Min (machining side) not wired through');
+  const b = await run(d => { d.getElementById('radCutBoth').checked = true; d.getElementById('inpXBeyond').value = '18'; });
+  assert.strictEqual(b.out, convert(PROG, { xMin: -18, xMax: 113 }), 'cutting side "both sides" not wired through');
+  // 2.10.0: nothing filled in -> refused with a clear message, no output
+  const e = await run(null, false);
+  assert.ok(/Cutting side is not set/.test(e.info) && !/^G1 /m.test(e.out), 'missing cutting side must be refused on the page');
+  const e2 = await run(d => { d.getElementById('inpXMax').value = ''; });
+  assert.ok(/X Axis Max is not set/.test(e2.info), 'missing X Axis Max must be refused on the page');
+  const e3 = await run(d => { d.getElementById('radCutBoth').checked = true; d.getElementById('inpXBeyond').value = ''; });
+  assert.ok(/Cutting side is not set/.test(e3.info), '"both sides" without a distance must be refused');
   // A profile that sets options with NO control on the page must still be honoured.
-  const hidden = { centerMode: 'fill', centerStep: 0, centerRetract: 0, autoStepover: false, xMin: -10 };
+  const hidden = { centerMode: 'fill', centerStep: 0, centerRetract: 0, autoStepover: false, xMin: -10, xMax: 113 };
   const hp = await run(d => d.defaultView.applyProfile({ format: 'polar-cnc-profile', version: 1, name: 't', options: hidden }));
   assert.strictEqual(hp.out, convert(PROG, hidden), 'profile options without a control on the page were lost');
   const pr = await run(d => { d.getElementById('selRotaryAxis').value = 'A'; d.getElementById('chkInvertC').checked = true; });
-  assert.strictEqual(pr.out, convert(PROG, { rotaryAxis: 'A', invertC: true }), 'profile settings not wired through the page');
+  assert.strictEqual(pr.out, convert(PROG, Object.assign({ rotaryAxis: 'A', invertC: true }, M)), 'profile settings not wired through the page');
   // Machine profiles: every shipped profile loads into the form through applyProfile.
   const fs = require('fs');
   const profDir = path.join(__dirname, '..', 'profiles');
@@ -73,6 +84,8 @@ async function run(setup) {
       d.getElementById('cartInput').value = 'G21 G90\nG0 X20 Y0 Z2\nG1 Z-1 F300\nG1 X30 F500\nG0 Z5\nM30';
     });
     assert.deepStrictEqual(p.errors, [], `profile ${f}: page errors`);
+    // 2.10.0: a generic profile has no X travel - it blanks the fields and the page asks for them
+    if (!('xMax' in prof.options)) { assert.ok(/is not set/.test(p.info), `profile ${f}: must ask for the X travel`); continue; }
     assert.strictEqual(p.out, convert('G21 G90\nG0 X20 Y0 Z2\nG1 Z-1 F300\nG1 X30 F500\nG0 Z5\nM30', prof.options),
                        `profile ${f}: the form did not reproduce the profile's options`);
   }

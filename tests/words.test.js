@@ -13,7 +13,7 @@ const assert = require('assert');
 const { convert } = require('../src/core/converter.js');
 const { parsePolarGCode } = require('../src/core/polar-parser.js');
 let n = 0; const ok = (c, m) => { n++; assert.ok(c, m); };
-const O = { xMin: -10, xMax: 125, retractZMachine: 590 };
+const O = { xMin: -10, xMax: 125 };
 const L = (g, o) => convert(g, Object.assign({}, O, o || {})).split('\n').map(l => l.trim()).filter(Boolean);
 const idx = (arr, re) => arr.findIndex(l => re.test(l));
 

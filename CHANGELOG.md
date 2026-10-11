@@ -1,5 +1,40 @@
 # Changelog
 
+## 2.11.0 — no "Safe retract Z" setting: retracts go to the program's own highest Z
+
+### Changed
+- `G53 G0 Z…`, `G28 … Z…`, `G30 … Z…` retracts become `G0 Z<the highest Z of the program>` (work coordinates —
+  the CAM's own clearance height; drilling R planes count). Nothing about the machine is needed, so it is right on
+  any machine (Marios: the converter must stay universal). The setting, its field and the profile entries are gone.
+- The retract is an ordinary rapid that the machine layout handles; afterwards Z is known (it was unknown before).
+  An incremental mode set on the retract line (`G28 G91 Z0`) is switched off for the move and restored after it.
+- Tilt layout: the router turns upright after a retract at that height, keeping the tool tip in place (rapids).
+- A retract in a program with no Z of its own is rejected; `G28`/`G30` with no axis words still are.
+
+### Added
+- **Direction check** on the page (folding note under the Invert boxes): X must move away from the centre on
+  `G0 X50`; on `G0 C90` the chuck must turn clockwise seen from the cutter (ISO / LinuxCNC); fix a wrong one in the
+  controller rather than with the boxes; prove with an asymmetric test cut.
+
+### Unchanged
+- Golden 144/144 identical (none of those programs has a machine retract), sweeps unchanged.
+
+
+## 2.10.0 — machine X settings made plain and required
+
+### Changed
+- **X Axis Min → "Cutting side"** (Marios): a choice *One side of the centre only* / *Both sides* (+ how far past the
+  centre), with no default. The option `xMin` is unchanged (0 or −distance), so profiles keep working.
+- **X Axis Max is required**: no default. Missing → the conversion stops with a message.
+- The old defaults −1000 / 1000 ("no limit", kept by users who never set them) are gone: `convert()` refuses when
+  `xMin` or `xMax` is missing; saved browser settings with exactly −1000 / 1000 are dropped so the page asks again;
+  the two generic example profiles no longer carry them (a generic profile cannot know a machine's travel).
+- Required fields are marked ⚠ on the page.
+
+### Unchanged
+- Motion: golden 144/144 identical, sweeps unchanged (all test programs state their X travel).
+
+
 ## 2.9.0 — no Tool Diameter setting: the diameter comes only from the program
 
 ### Removed

@@ -77,13 +77,13 @@ const real = {
     'G98 G81 X30 Y10 Z-5 R2 F100 (drill)\nG80 (cancel)\nG0 Z15\nG28 G91 Z0 (home z)\nG90\nM5 (stop)\nM30 (end)\n%',
 };
 for (const [name, g] of Object.entries(real)) {
-  const p = lintProgram(convert(g, { xMin: 0, xMax: 113, retractZMachine: 590 }));
+  const p = lintProgram(convert(g, { xMin: 0, xMax: 113 }));
   programs++;
   ok(p.length === 0, `${name}: ${p.join(' | ')}`);
 }
 
 // 2b. (2.7.0) The tilting layout XZC + B: every golden program, ball-end tool leaning.
-const TILT = { layout: 'xzcb', retractZMachine: 0, tiltPivot: 60, tiltMin: -30, tiltMax: 60, tiltLean: 25,
+const TILT = { layout: 'xzcb', tiltPivot: 60, tiltMin: -30, tiltMax: 60, tiltLean: 25,
                toolTable: 'T1 P1 Z40 D6 ;ball', ballTools: '1' };
 for (const pn of Object.keys(G.programs)) {
   for (const xr of [{ xMin: 0, xMax: 113 }, { xMin: -20, xMax: 125 }]) {

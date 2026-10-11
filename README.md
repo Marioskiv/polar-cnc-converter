@@ -6,7 +6,7 @@ typically a lathe conversion where the chuck turns the part and a spindle on the
 
 It is **machine-independent**: the rotary axis can be C, A or B, X can be output as radius or diameter, either
 axis can be inverted, and all of it is saved as a **machine profile** (a small JSON file you can share). Output
-uses only widely supported codes (`G0/G1`, `G93/G94`, `G53`, comments) and has been checked against the
+uses only widely supported codes (`G0/G1`, `G93/G94`, comments) and has been checked against the
 LinuxCNC interpreter source and the Mach3 G-code list; other controllers that support G93 inverse time should
 work — check yours before the first cut.
 
@@ -48,7 +48,7 @@ This project solves both:
   passing 0.05 mm from the centre — is converted **exactly**; near the centre the chuck must turn fast, so the
   controller slows the move — the same way Fanuc and Siemens controls behave. (Until 2.3 the zone was 2 mm, and
   lines passing 0.05–2 mm from the centre were cut up to 3.8 mm off their path.) The strategy is chosen
-  automatically (Auto); **X Axis Min** decides whether the tool may cross to the other side of the centre.
+  automatically (Auto); the **Cutting side** setting decides whether the tool may cross to the other side of the centre.
   A profile can still fix one strategy (`centerMode`). The four strategies:
   - **Signed X** — freeze C and let X sweep through zero into negative values (X<0 at a fixed C is the same
     point as +|X| at C+180°), so a cut through the centre needs **no C rotation at all**. Used only when it is
@@ -218,7 +218,7 @@ Plain `<script>` files are used rather than ES modules on purpose: the tool keep
 2. Paste Cartesian G-code (X/Y/Z, G0/G1/G2/G3) into **Step 1**.
 3. Click **Convert &amp; Simulate**.
 4. Set up your machine once under **Converter Settings → Machine Output Profile** (rotary axis letter, X as
-   radius or diameter, directions, X travel, safe retract Z) — or **Load profile** from `profiles/`. Settings
+   radius or diameter, directions, cutting side, X travel) — or **Load profile** from `profiles/`. Settings
    are remembered by the browser; **Save profile** writes them to a file.
 5. Export the Polar G-code (`.nc`) from **Step 2**, or watch it run in the 3D simulator below.
 
@@ -232,7 +232,7 @@ The converter reads ordinary 3-axis milling G-code. Use a LinuxCNC (or grbl) pos
 | Absolute `G90` or incremental `G91` | `G91` is converted to absolute; output is always `G90` |
 | Feed `G94` (units/min) | Required — the converter computes `G93` itself. `G93` input is rejected |
 | Arcs in the XY plane (`G17`, incremental I/J) | Converted. Arcs in `G18`/`G19` planes are rejected — set the post to output them as lines |
-| `G53 G0 Z…`, `G28 G91 Z0`, `G30 G91 Z0` retracts | Replaced by `G53 G0 Z<Safe retract Z>` — see below. Rejected if that setting is empty |
+| `G53 G0 Z…`, `G28 G91 Z0`, `G30 G91 Z0` retracts | Replaced by `G0 Z<the program's own highest Z>` (work coordinates) — see below |
 | `G28 G91 X0 Y0`, `G53 G0 X… Y…` (park) | Skipped — the tool stays where it is |
 | `%` delimiters | Kept as the first and last line, as LinuxCNC requires |
 | `G54`–`G59` | Passed through. **Your work offset must have X = 0 at the chuck centre** |
@@ -249,17 +249,17 @@ A dwell `G4 P` of 60 or more is kept but flagged with a warning: in LinuxCNC P i
 Fanuc-style posts write milliseconds.
 
 **Machine-coordinate retracts are machine-specific.** A mill's post emits `G53 G0 Z0` because on a
-mill machine Z0 is the top of Z. On many lathe conversions the Z home switch is at the tailstock end
-and machine Z0 is at the **chuck** end (the author's machine too, until its mill-style Z numbering is
-installed) — passing `G53 G0 Z0` through would rapid the carriage toward
-the chuck. `G28` is no safer: its stored position is machine 0,0,0 unless set with `G28.1`. So the
-converter never passes these through. Either set the post's safe-retract method to **clearance
-height** (then no machine-coordinate moves appear at all), or enter **Safe retract Z (machine)** —
-a machine Z far from the chuck, such as the Z home park position — and every such retract becomes
-`G53 G0 Z<that value>`. With the setting empty, such programs are rejected.
+mill machine Z0 is the top of Z. On many lathe conversions machine Z0 is at the **chuck** end — passing
+`G53 G0 Z0` through would rapid the carriage toward the chuck. `G28` is no safer: its stored position is
+machine 0,0,0 unless set with `G28.1`. So the converter never passes these through. **Since 2.11.0 there is no
+setting for it:** every such retract becomes `G0 Z<the highest Z of the program itself>` — the clearance height
+the CAM already uses above the part, in work coordinates — so it is right on any machine. A program with no Z of
+its own is rejected. At the very start of a program this move can go *down* to that height if the tool was
+higher; start with the tool clear of the part. For a tool change the router stays at that clearance height —
+jog it up if you need room.
 
-After a retract or a tool change the converter treats Z (and, after a park, X/C) as
-unknown: the next rapid moves X/C at the current height first, then lowers Z — never inventing a
+After a tool change the converter treats Z as unknown (a retract now leaves Z known — at the
+program's highest Z): the next rapid moves X/C at the current height first, then lowers Z — never inventing a
 Z value. **Home the C axis before each program**, since part orientation follows the C position.
 
 ## The simulator
@@ -267,8 +267,8 @@ Z value. **Home the C axis before each program**, since part orientation follows
 The 3D view in **rotary mode** shows what the machine does: the chuck turns, the tool only moves radially
 (X, both sides of centre) and in depth (Z). Each block is interpolated in joint space, as a controller does
 with plain axes, so the tool follows the real curve, not an idealised one. The machine profile is applied in
-reverse, so the view is right whatever axis letters and directions you use. Retracts (`G53`, `G28`) are shown
-at a symbolic safe height, because machine coordinates are not known to the simulator.
+reverse, so the view is right whatever axis letters and directions you use. Retracts (`G53`, `G28`) are
+ordinary rapids up to the program's highest Z (2.11.0).
 
 **Timing is the program's own** (G93 times; rapids at a nominal display speed). Near the centre a real
 machine may be slower, because its controller limits the chuck speed. The info line shows the **peak chuck
@@ -316,9 +316,8 @@ The page shows only what you must set for your machine. Everything else has a sa
 
 | Setting | Meaning |
 |---|---|
-| X Axis Min | Smallest X the machine may go to. **Also the machining side: `0` = one side of the centre only**; a negative value lets the tool cross the centre by up to that many mm, only on cuts that pass exactly through it |
-| X Axis Max | Largest X (radius) the machine can reach — its soft limit |
-| Safe retract Z | Machine-coordinate Z for `G53`/`G28` retracts; empty = such programs are rejected |
+| Cutting side ⚠ required | **One side of the centre only** (X never below 0; a cut through the centre turns the chuck instead) or **Both sides** + how far past the centre the cutter may go (only on cuts that pass exactly through it). No default. (Option `xMin`: 0 or −distance.) Which side is physically left or right is set by the machine and *Invert X direction* |
+| X Axis Max ⚠ required | Largest X (radius) the machine can reach — its soft limit. No default; a program that needs more is flagged before it reaches the machine |
 
 **Machine output profile** — rotary axis letter (C/A/B), X as radius or diameter, invert rotary, invert X,
 and **Save / Load profile**.

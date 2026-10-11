@@ -11,7 +11,7 @@
 // and everything that must be REJECTED rather than converted wrongly.
 const assert = require('assert');
 const { convert } = require('../src/core/converter.js');
-const O = { xMin: -10, xMax: 125, retractZMachine: 590 };   // 590 = this machine's Z home park
+const O = { xMin: -10, xMax: 125 };
 const lines = g => convert(g, O).split('\n').map(l => l.trim()).filter(Boolean);
 const motion = g => lines(g).filter(l => /^G[01] /.test(l));
 let n = 0; const ok = (c, m) => { n++; assert.ok(c, m); };
@@ -21,17 +21,20 @@ const fusion = '%\nN10 G90 G94 G17\nN15 G21\nN20 G53 G0 Z0\nN25 T1 M6\nN30 S1800
 const fl = lines(fusion);
 ok(fl[0] === '%' && fl[fl.length - 1] === '%', '% must be the first and last line');
 ok(fl.filter(l => l === '%').length === 2, 'no % in the middle of the file');
-ok(fl.filter(l => /^G53 G0 Z590\.0000/.test(l)).length === 2, 'both G53 retracts go to the configured safe machine Z');
-ok(!fl.some(l => /^G53 G0 Z0\.0000/.test(l)), 'the CAM\'s G53 Z0 (chuck end on this machine) never reaches the machine');
+// 2.11.0: a machine retract goes to the program's own highest Z (here 15), never to a machine coordinate
+ok(fl.filter(l => /safe retract to the program's highest Z/.test(l)).length === 2, 'both G53 retracts are replaced');
+ok(fl[fl.findIndex(l => /replaces: N20 G53/.test(l)) + 1] === 'G0 Z15.0000', 'the first retract rises to the program\'s highest Z');
+ok(!fl.some(l => /^G53/.test(l)), 'no machine-coordinate move reaches the machine');
 ok(fl.includes('N35 G54'), 'work offset G54 preserved');
 const fm = motion(fusion);
-ok(fm[0] === 'G0 X40.0000 C0.0000', 'first XY rapid must carry NO Z while Z is unknown');
+ok(fm[0] === 'G0 Z15.0000' && fm[1] === 'G0 X40.0000 C0.0000', 'Z rises first (safe retract), then the XY rapid at that height');
 ok(!fl.some(l => /^G[01] .*Z0\.0000/.test(l) && !/^G53/.test(l)), 'never a work-coordinate move to Z0');
 
 // 2. Fusion "grbl" post: G28 G91 Z0 / G28 G91 X0 Y0.
 const grbl = 'G90 G94\nG17\nG21\nG28 G91 Z0\nG90\nG0 X40 Y0\nG0 Z15\nG1 Z-1 F300\nG1 X50 F500\nG0 Z15\nG28 G91 Z0\nG28 G91 X0 Y0\nG90\nM30';
 const gl = lines(grbl);
-ok(gl.filter(l => /^G53 G0 Z590\.0000/.test(l)).length === 2, 'G28 G91 Z0 becomes the configured safe retract');
+ok(gl.filter(l => /safe retract to the program's highest Z/.test(l)).length === 2, 'G28 G91 Z0 becomes the safe retract');
+ok(gl.includes('G0 Z15.0000'), 'G28 G91 Z0 rises to the program\'s highest Z (absolute, despite its G91)');
 ok(!gl.some(l => /^G28\b/.test(l)), 'no G28 reaches the machine (its stored position defaults to machine 0,0,0)');
 ok(gl.some(l => /park skipped/.test(l)), 'G28 G91 X0 Y0 park is skipped, not executed');
 ok(!gl.some(l => /^G91\b/.test(l)), 'a bare G91 must never reach the machine');
@@ -83,10 +86,10 @@ for (const [name, g] of Object.entries(rejects)) {
   ok(msg && /^Line \d+ /.test(msg), `${name} must be rejected with a line number (got: ${msg})`);
 }
 
-// 6b. Without a configured safe machine Z, machine-coordinate retracts are rejected.
-for (const g of ['G21 G90\nG53 G0 Z0', 'G21 G90\nG0 X20 Y0 Z5\nG28 G91 Z0', 'G21 G90\nG0 X20 Y0 Z5\nG28']) {
+// 6b. (2.11.0) A retract with no Z of the program's own to go to, or G28 with no axis, is rejected.
+for (const g of ['G21 G90\nG53 G0 Z0', 'G21 G90\nG0 X20 Y0 Z5\nG28']) {
   let msg = null; try { convert(g, { xMin: -10, xMax: 125 }); } catch (e) { msg = e.message; }
-  ok(msg && /CHUCK|stored position/.test(msg), 'retract without a safe machine Z must be rejected: ' + g.split('\n').pop());
+  ok(msg && /no Z height of its own|stored position/.test(msg), 'retract must be rejected: ' + g.split('\n').pop());
 }
 
 // 7. Harmless header codes produce no warnings.
@@ -94,8 +97,8 @@ ok(!lines('G90 G17\nG21\nG0 X20 Y0 Z2\nM30').some(l => /WARNING/.test(l)), 'G17 
 
 // 8. After a home retract, unwinding a Signed-X state must not invent a Z.
 const sx = 'G21 G90\nG0 X50 Y0 Z2\nG1 Z-1 F300\nG1 X-8 Y0 F500\nG28 G91 Z0\nG90\nG0 X50 Y2\nM30';
-const after = lines(sx); const k = after.findIndex(l => /^G53 G0 Z590/.test(l)) - 1;
-ok(after.slice(k + 2).filter(l => /^G0 /.test(l)).every(l => !/ Z/.test(l)), 'no invented Z after G28 retract');
+const after = lines(sx); const k = after.findIndex(l => /safe retract done/.test(l));
+ok(after.slice(k + 1).filter(l => /^G0 /.test(l)).every(l => !/ Z/.test(l) || / Z2\.0000/.test(l)), 'no invented Z after G28 retract (stays at the retract height)');
 
 // 9. X Min = 0 means ONE side: no output X may be negative, rapids included.
 for (const g of ['G21 G90\nG0 X100 Y0 Z5\nG0 X-100 Y0 Z5\nG1 Z-1 F300\nG1 X-90 Y0 F500\nG0 Z5\nM30',
@@ -126,7 +129,7 @@ ok(!lines('G21 G90\nG0 X20 Y0 Z5\nG4 P0.5\nM30').some(l => /dwell of/.test(l)), 
 // 13. (2.5.0) Fusion's optional end park "G53 G0 X0 Y0" is skipped like the G28 park.
 const park = lines('G21 G90\nG0 X20 Y0 Z5\nG1 Z-1 F300\nG1 X30 F500\nG53 G0 Z0\nG53 G0 X0 Y0\nM30');
 ok(park.some(l => /G53 X\/Y park skipped/.test(l)) && !park.some(l => /^G53 G0 X/.test(l)), 'G53 G0 X0 Y0 park is skipped');
-ok(park.filter(l => /^G53 G0 Z590/.test(l)).length === 1, 'the G53 Z retract still becomes the safe retract');
+ok(park.filter(l => /safe retract to the program's highest Z/.test(l)).length === 1, 'the G53 Z retract still becomes the safe retract');
 // 14. (2.5.0) Cutter diameter from Kiri:Moto's tool list ("; tool#=N flute=D ... unit=...").
 const kiri = (body) => lines('; --- tools ---\n; tool#=2 flute=3.175 len=20 unit=metric\n; tool#=5 flute=0.25 len=1 unit=imperial\nG21 G90\n' + body + '\nG0 X20 Y0 Z5\nG1 Z-1 F300\nM30');
 ok(kiri('M6 T2').some(l => /polar-cnc tool: T2 D=3\.1750 \)/.test(l)), 'Kiri metric tool diameter read');
