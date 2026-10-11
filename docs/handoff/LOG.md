@@ -5,6 +5,18 @@ Short and factual. Current state lives in `STATUS.md`, permanent decisions in `D
 
 ---
 
+## 2026-10-11 (7) — PR #4 merged; "nothing changed" = browser cache; 2.11.1 version on the page
+
+**Marios** merged PR #4, then opened https://marioskiv.github.io/polar-cnc-converter/ and still saw X Axis Min −1000 /
+X Axis Max 1000 / Safe retract Z −2. **Checked:** `main` has 2.11.0 and the "pages build and deployment" run
+(18:57, from `main` 2b64747) succeeded — he saw the **old page from his browser cache**; −2 was never a default, it is
+a value his browser had saved. (The sandbox cannot reach github.io to look.) **Done (2.11.1, his yes):** version shown
+in the header; `?v=<version>` on every script/css so a new release never mixes with cached files; test checks it.
+Told him: Ctrl+F5 once. **Note for releases:** bump the `?v=` in `index.html` with `package.json` (the UI test fails
+otherwise).
+
+---
+
 ## 2026-10-11 (6) — direction check added to the page
 
 **Marios:** yes to the written direction check; reminded we already settled his axis directions. **Checked the notes:**

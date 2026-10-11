@@ -49,6 +49,12 @@ async function run(setup, machine = true) {
   return res;
 }
 (async () => {
+  // 2.11.1: the version shown on the page and every "?v=" cache-buster match package.json
+  const fs0 = require('fs');
+  const html = fs0.readFileSync(PAGE, 'utf8'), ver = require('../package.json').version;
+  const tags = html.match(/\?v=[\d.]+/g) || [];
+  assert.ok(tags.length >= 12 && tags.every(t => t === '?v=' + ver), 'every script/css ?v= must be ' + ver);
+  assert.ok(html.includes('id="appVersion"') && html.includes('>v' + ver + '</span>'), 'page must show v' + ver);
   const a = await run();
   assert.deepStrictEqual(a.errors, [], 'page raised script errors');
   for (const [k, val] of Object.entries(a.defaults)) {
