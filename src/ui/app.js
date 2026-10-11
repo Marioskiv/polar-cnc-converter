@@ -92,7 +92,7 @@ btnConvert.addEventListener('click', function() {
       }
 
       // Step C - build 3D scene from toolpath bounds
-      simToolDia = simProfile.toolDia;
+      simToolDia = null;   // 2.9.0: the diameter comes only from the program
       buildScene(toolpath);
       doReset();
       elTL.min      = 0;
@@ -145,7 +145,9 @@ btnConvert.addEventListener('click', function() {
       if (materialStats) {
         elInfo.textContent += '  |  depth ' + materialStats.minZ.toFixed(2) + ' mm'
           + (rapidCut ? '  \u26A0 RAPID CUTS MATERIAL at output line(s) '
-                        + materialStats.rapidLines.slice(0, 8).join(', ') + ' \u2014 shown red' : '');
+                        + materialStats.rapidLines.slice(0, 8).join(', ') + ' \u2014 shown red' : '')
+          // 2.9.0: no Tool Diameter setting - say when the program did not state one
+          + (materialStats.unknownToolSegs > 0 ? '  |  \u26A0 tool diameter not in the program: material map shows the tool centre path only' : '');
       }
       elInfo.className = (xLimitExceeded || rapidCut) ? 'warn' : 'ok';
     } catch (e) {

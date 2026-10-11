@@ -31,7 +31,10 @@
   function createMaterial(cfg) {
     var R = Math.max(cfg.stockR || 1, 1);
     var surfaceZ = cfg.surfaceZ || 0;
-    var defaultToolR = Math.max((cfg.toolDia || 6) / 2, 0.05);
+    // 2.9.0: no Tool Diameter setting. A segment whose tool diameter is unknown
+    // is stamped as the centre path only (one cell wide) and counted, so the
+    // page can say so instead of showing a made-up cutter.
+    var defaultToolR = cfg.toolDia > 0 ? cfg.toolDia / 2 : null;
     var n = Math.min(cfg.maxCells || 300, Math.max(20, Math.ceil(2 * R / 0.2)));
     var cell = 2 * R / n;
     var x0 = -R + cell / 2;                       // centre of cell (0, *)
@@ -55,7 +58,7 @@
       rapidHit.fill(0);
       done = -1;
       changed = true;
-      stats = { cutCells: 0, rapidCutCells: 0, rapidLines: [], minZ: surfaceZ };
+      stats = { cutCells: 0, rapidCutCells: 0, rapidLines: [], minZ: surfaceZ, unknownToolSegs: 0 };
     }
 
     function stamp(x, y, tz, isRapid, lineNum, toolR) {
@@ -93,6 +96,7 @@
     // (point.toolD, from the converter's tool-change comments), else the default.
     function stampSegment(a, b) {
       var tr = (b.toolD > 0) ? b.toolD / 2 : defaultToolR;
+      if (tr === null) { tr = cell * 0.5; stats.unknownToolSegs++; }
       if (Math.max(a.z3, b.z3) >= surfaceZ - EPS && Math.min(a.z3, b.z3) >= surfaceZ - EPS) return;
       var isRapid = b.type === 'G0';
       var len = Math.sqrt((b.x3 - a.x3) * (b.x3 - a.x3) + (b.y3 - a.y3) * (b.y3 - a.y3) + (b.z3 - a.z3) * (b.z3 - a.z3));

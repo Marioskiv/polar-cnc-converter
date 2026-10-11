@@ -27,4 +27,5 @@ assert.strictEqual(n({ rotaryAxis: 'Q' }).rotaryAxis, 'C', 'unknown rotary lette
 assert.strictEqual(n({ invertC: true, invertX: 1, xDiameter: 'yes' }).invertX, true, 'profile flags are booleans');
 assert.strictEqual(n({ centerMode: 'bogus' }).centerMode, 'auto', 'unknown mode -> auto');
 assert.strictEqual(n({ autoStepover: false }).autoStepover, false);
+assert.strictEqual(n({ toolDia: 4 }).toolDia, null, '2.9.0: no Tool Diameter setting (old profiles are ignored)');
 console.log('options: all checks passed');

@@ -17,9 +17,14 @@ const FILE = path.join(__dirname, 'fixtures', 'golden.json');
 const G = JSON.parse(fs.readFileSync(FILE, 'utf8'));
 const update = process.argv.includes('--update');
 let same = 0, changed = [];
+// 2.9.0: the Tool Diameter setting was removed (the diameter comes only from the
+// program). The diameter each option set used to give through the setting is now
+// stated in the program, as a CAM tool comment; the outputs gained exactly the two
+// tool comment lines and are otherwise byte-for-byte the same (checked at the change).
+const DIA = { real: 6, wide: 6, alt: 10 };
 for (const key of Object.keys(G.outputs)) {
   const [on, mode, pn] = key.split('|');
-  const got = convert(G.programs[pn], Object.assign({ centerMode: mode }, G.options[on]));
+  const got = convert('(T1 D=' + DIA[on] + ')\n' + G.programs[pn], Object.assign({ centerMode: mode }, G.options[on]));
   if (got === G.outputs[key]) same++; else { changed.push(key); if (update) G.outputs[key] = got; }
 }
 if (update) { fs.writeFileSync(FILE, JSON.stringify(G)); console.log(`golden: updated ${changed.length} outputs`); process.exit(0); }

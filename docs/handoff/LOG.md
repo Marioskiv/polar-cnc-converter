@@ -5,6 +5,73 @@ Short and factual. Current state lives in `STATUS.md`, permanent decisions in `D
 
 ---
 
+## 2026-10-11 — his FreeCAD program checked; 2.9.0: Tool Diameter setting removed
+
+**Marios:** made a rough FreeCAD CAM (5 mm 2-flute Izar, T2, profile + 5 pockets + facing, feeds 278/557) and asked
+whether it converts correctly; the program states the diameter, so **remove the diameter option** from the converter.
+**Checked his program:** converts without errors; T2 D=5 read; worst G1 deviation 0.0151 mm; real feed along the
+path exactly 278/557 mm/min; X 0.30 … 66.74; depth −17; C up to ~9,400° (limit 99,999). The page asks up to 289 rpm
+of the chuck on the innermost facing circle (r 0.3 mm) — LinuxCNC will slow those (C max 120 °/s delivered), so the
+~23.5 min estimate is optimistic. **Told him (FreeCAD set-up, not converter):** step-downs are large (profile 0 → −7
+in one pass, pockets 5 mm per step, straight plunges), and the facing (−2) runs LAST after everything else — face
+first; use ramp/helix entry; check G43 H2 has T2's length in `tool.tbl`.
+**Done (2.9.0):** Tool Diameter field/option/profile entries removed; missing diameter → "no diameter in the program",
+material map shows centre path + note, Pocket Fill auto-stepover refused, tilt ball needs a diameter. Golden: inputs
+now carry `(T1 D=..)`; 144/144 outputs gained exactly two comment lines, otherwise identical. Tests 70 input checks,
+sweeps worst 0.0225 mm, Chromium check, release zip tested. Not merged to `main` (he said "not yet" on 2026-10-08).
+**Still open:** his answer on FreeCAD vs Kiri:Moto.
+
+---
+
+## 2026-10-08 (2) — FreeCAD or Kiri:Moto as the home of the converter?
+
+**Marios:** not merging 2.8.0 yet. Asked whether the converter should go into FreeCAD rather than Kiri:Moto; he
+believes being part of a CAM computes all operations better.
+**Answered (no decision yet):** partly right — inside a CAM the operations can be planned for polar (no centre
+crossing, spiral facing, feed limited by C speed near the pole, tilt from the surface, machine simulation); as a post
+it only transforms. The transform math is the same either way. Recommended **FreeCAD** as the long-term home (he
+uses it, CAD + CAM, official post-processor extension, large community, its CAM is building a rotary machine model
+and RotarySurface) with a thin **FreeCAD post that calls our converter** first (one codebase, no permission needed);
+Kiri `gcodeProc` stays the cheap JS proof. Costs said plainly: Python vs our JavaScript, LGPL for code inside
+FreeCAD, slow core review, FreeCAD CAM sim is 3-axis. Real test cuts first. **Waiting for his choice.**
+
+---
+
+## 2026-10-08 — 2.8.0: cutter diameter from any CAM
+
+**Marios said:** yes — read the tool diameters from all CAMs.
+**Done (2.8.0):** `scanToolDiameters()` in `gcode-input.js` reads Fusion/HSM, Mastercam, FreeCAD, Kiri:Moto, CamBam-style,
+APT `TOOL/MILL` (Carbide Create), generic `Tool Diameter:/DIA/Ø` and a size with a unit in a tool name. Untagged
+comments bind to the next tool change (before motion) or the current tool. Stated diameter beats a name size (marked
+in the output comment). Conflicting diameters → warning. **Bug found and fixed:** Mastercam `| D1 |` (offset register)
+was read as D = 1 mm; tool numbers with leading zeros did not match. Web research on CAM formats was thin (forums
+blocked); formats taken from forum snippets — Vectric/Estlcam/SheetCam exact output unverified, covered by the generic
+rules. Tests: input 67 checks (+10), golden 144/144 unchanged, sweeps worst 0.0225 mm. His FreeCAD program now gives
+`T1 D=5`. **Still needed from him:** feed rates in the FreeCAD Tool Controller.
+
+---
+
+## 2026-10-07 (end, 2) — FreeCAD program refused: no feed rate
+
+**Marios** converted a FreeCAD program (post `linuxcnc_post`, tool "TC: 5mm Endmill") and got "Line 25 … cutting
+move without a feed rate". **Cause:** the program has no F word anywhere: the FreeCAD Tool Controller feeds are 0
+(the default), so the post writes no F. The refusal is correct (2.4.1 rule; LinuxCNC itself refuses a G1 without F).
+Checked: the same program with `F600` on the first G1 converts cleanly (no warnings, radius up to ~70.6 mm, fits X).
+**Told him:** set Horizontal/Vertical Feed (and spindle speed) in the Tool Controller and post again.
+**Noticed, not changed:** FreeCAD tool comments `(TC: 5mm Endmill)` / `(Compensated Tool Path. Diameter: 5.0)` are
+not read (the page's Tool diameter, default 6, is used — set it to 5); FreeCAD Z0 is the stock bottom (Z positive,
+clearance Z40) → touch off accordingly. **Offered (waiting for his yes):** read the FreeCAD diameter comment.
+
+---
+
+## 2026-10-07 (end) — PR #2 merged
+
+**Marios** pressed the PR button in the app and asked what it is and to update the repository in his account.
+Explained the PR; CI green and no conflicts → merged PR #2 into `main` (merge commit `3c79a11`). His GitHub
+repository now has v2.7.0. Branch `claude/youthful-goldberg-a6qv5t` restarted from `main` for later work.
+
+---
+
 ## 2026-10-07 (late night, 6) — 2.7.0: layout XZC + tilt (ball-end lean)
 
 **Marios said:** the router may not reach 90° (X travel) and big parts cannot be machined on the periphery — then chose

@@ -72,7 +72,7 @@ var g0LineObj      = null;
 var sceneObjects   = [];
 var sceneMaxR      = 60;   // updated by buildScene; used for camera snap
 // Material removal (depth map) — see src/core/material.js
-var simToolDia     = 6;      // set from the converter settings before buildScene
+var simToolDia     = null;   // 2.9.0: none - each point carries its tool's diameter from the program
 var matSim         = null;   // progressive depth map driven by the animation
 var matPos         = null;   // Float32Array: mesh vertex positions we own
 var matCol         = null;   // Float32Array: mesh vertex colours we own

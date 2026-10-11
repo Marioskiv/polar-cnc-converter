@@ -28,7 +28,7 @@ async function run(setup) {
   const v = id => d.getElementById(id).value, c = id => d.getElementById(id).checked;
   const defaults = {
     chordTol: v('inpChordTol'), threshold: v('inpThreshold'), xMin: v('inpXMin'), xMax: v('inpXMax'),
-    toolDia: v('inpToolDia'), retractZMachine: v('inpRetractZ'),
+    retractZMachine: v('inpRetractZ'),
     rotaryAxis: v('selRotaryAxis'), xDiameter: v('selXMode') === 'diameter', invertC: c('chkInvertC'), invertX: c('chkInvertX'),
   };
   // Removed from the page: machine dynamics (2.2.0) and, 2026-10-04, the inert G93 button,

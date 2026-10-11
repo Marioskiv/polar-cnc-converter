@@ -27,8 +27,8 @@
     centerMode:    'auto',  //      'auto' | 'signed' | 'index' | 'fill'
     xMin:          -1000,   // mm   X travel limit in MACHINE units (as output), <= 0
     xMax:          1000,    // mm   X travel limit in MACHINE units (as output), >= 0
-    toolDia:       6.0,     // mm   fallback cutter diameter when the program does not state one
-    autoStepover:  true,    //      pocket fill stepover = 50% of toolDia
+    toolDia:       null,    //      2.9.0: no setting - the diameter comes only from the program's tool comments
+    autoStepover:  true,    //      pocket fill stepover = 50% of the tool diameter (from the program)
     centerStep:    1.0,     // mm   pocket fill stepover (0 = disable fill)
     centerRetract: 2.0,     // mm   pocket fill Z retract (0 = no retract)
     retractZMachine: null,  // mm   machine-coordinate Z used for G53/G28 retracts (null = reject them)
@@ -91,7 +91,9 @@
       centerMode:    CENTER_MODES.indexOf(o.centerMode) >= 0 ? o.centerMode : D.centerMode,
       xMin:          Math.min(num(o.xMin, D.xMin), 0),
       xMax:          Math.max(num(o.xMax, D.xMax), 0),
-      toolDia:       Math.max(pos(o.toolDia,    D.toolDia),    0.1),
+      // REMOVED 2.9.0 (Marios): no Tool Diameter setting. The diameter comes only
+      // from the program's tool comments; null = not stated (see gcode-input.js).
+      toolDia:       null,
       autoStepover:  (o.autoStepover === undefined) ? D.autoStepover : !!o.autoStepover,
       centerStep:    Math.max(num(o.centerStep,    D.centerStep),    0),
       centerRetract: Math.max(num(o.centerRetract, D.centerRetract), 0),

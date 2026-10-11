@@ -8,7 +8,6 @@
     "centerMode": "auto",
     "xMin": -1000,
     "xMax": 1000,
-    "toolDia": 6,
     "autoStepover": true,
     "centerStep": 1,
     "centerRetract": 2,

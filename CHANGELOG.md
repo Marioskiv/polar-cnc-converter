@@ -1,5 +1,44 @@
 # Changelog
 
+## 2.9.0 — no Tool Diameter setting: the diameter comes only from the program
+
+### Removed
+- The **Tool Diameter** field (page, profiles, `toolDia` option; old saved values are ignored). Marios: the CAM states
+  the diameter, so the converter takes it from the program. The motion never depended on it.
+
+### Changed
+- No diameter in the program → `( polar-cnc tool: T1 - no diameter in the program )`; the material map stamps the
+  tool centre path and the page says so; Pocket Fill with Auto Stepover is refused (a fixed Fill Step still works,
+  starting at r = 0.1 mm); the tilt layout refuses a ball tool with no diameter in `tool.tbl` or the program.
+- Golden baseline: the test programs now state their diameter as a CAM comment (`(T1 D=6)`, `alt`: 10) instead of
+  the setting. All 144 outputs gained exactly two comment lines (`(T1 D=6)` and `( polar-cnc tool: T1 D=6.0000 - the
+  only tool listed, no tool change )`) and are otherwise byte-for-byte unchanged.
+
+### Checked
+- Marios's FreeCAD program (5 mm tool, profile, 5 pockets, concentric facing): T2 D=5 read, worst G1 deviation
+  0.0151 mm, real feed along the path exactly 278 / 557 mm/min, X 0.30 … 66.74 (inside 0 … 113).
+
+
+## 2.8.0 — cutter diameter from the tool comments of any CAM
+
+### Added
+- The tool diameter is read from the tool comments of **any CAM**, not only Fusion and Kiri:Moto: Mastercam
+  (`TOOL DIA. - .25`), FreeCAD (`(TC: 5mm Endmill)`, `(Compensated Tool Path. Diameter: 5.0)`), CamBam-style
+  `( T1 : 6.0 )`, APT/CL `(TOOL/MILL,3.175,...)` (Carbide Create), generic `Tool Diameter: / DIA / Ø`, and a size
+  with a unit inside a tool name (`5mm`, `End Mill (6 mm)`, `1/4"`). A comment without a tool number belongs to the
+  tool change that follows it (before any motion), else to the tool already selected; a program that never selects a
+  tool uses the stated one. A stated diameter beats a size in a name; `( polar-cnc tool: ... - from the tool name "…" )`
+  marks the weaker source. Stock, part, hole and feed comments are ignored.
+- Warning `( !! two diameters for T.. )` when one tool is given two different diameters.
+
+### Fixed
+- Mastercam's `| D1 |` (the diameter OFFSET register) was read as a 1 mm diameter.
+- Tool numbers written with leading zeros (`T02` in a comment, `T2` in the code) now match.
+
+### Unchanged
+- Golden 144/144 identical, sweeps worst 0.0225 mm.
+
+
 ## 2.7.0 — layout "XZC + tilt": ball-end tools lean while cutting
 
 ### Added
