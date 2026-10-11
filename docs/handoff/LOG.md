@@ -13,7 +13,8 @@ certain; centre-height compensation not needed (router base milled on the machin
 source: ≤ 252 chars (LF) / 251 (CR LF). **Bugs confirmed by me:** (1) merge of moves < 0.15 mm: Z step → ramp
 (0.1 mm gouge) and wrong feed; (2) both-sides Signed-X short move → 0.12 mm off. Fixes + messages + line-length
 guard prepared in a scratch copy: all tests pass, sweeps same, golden header comment only. **Not applied — waiting
-for his yes** (CLAUDE.md rule 1). Still open: rare 0.0268 mm near the pole.
+for his yes** (CLAUDE.md rule 1). Then Marios: leave the line length alone (practically never happens) → guard
+removed from the prepared fix (DECISIONS). Still open: rare 0.0268 mm near the pole.
 
 ---
 
