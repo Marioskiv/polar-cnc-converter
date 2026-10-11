@@ -1,4 +1,4 @@
-# Status — updated 2026-10-11 (converter v2.9.0)
+# Status — updated 2026-10-11 (converter v2.10.0)
 
 Session history: `LOG.md` (newest first).
 
@@ -60,6 +60,9 @@ trust the computer and tell Marios about the difference.
 ## Open items — software
 - **v2.9.0 is on `main`** (PR #3 merged by Marios 2026-10-11, CI green): 2.8.0 tool diameter from any CAM,
   2.9.0 Tool Diameter setting removed. (PR #2 = 2.4.1 – 2.7.0, merged 2026-10-07.)
+- **v2.10.0** (Cutting side choice, X Axis Max required, no −1000/1000 defaults) on branch
+  `claude/youthful-goldberg-a6qv5t`, not merged. **Open:** Safe retract Z — keep (better explained) or replace
+  G53/G28 with the program's highest Z? Marios to decide.
 - FreeCAD programs: the Tool Controller feeds must be set (default 0 → no F → refused). FreeCAD Z0 = stock bottom.
 - Future router tilt axis (rotates continuously during a program; Marios calls it A, conventional letter in the X-Z
   plane would be B). Plan, each step only with his go-ahead:

@@ -48,7 +48,7 @@ This project solves both:
   passing 0.05 mm from the centre — is converted **exactly**; near the centre the chuck must turn fast, so the
   controller slows the move — the same way Fanuc and Siemens controls behave. (Until 2.3 the zone was 2 mm, and
   lines passing 0.05–2 mm from the centre were cut up to 3.8 mm off their path.) The strategy is chosen
-  automatically (Auto); **X Axis Min** decides whether the tool may cross to the other side of the centre.
+  automatically (Auto); the **Cutting side** setting decides whether the tool may cross to the other side of the centre.
   A profile can still fix one strategy (`centerMode`). The four strategies:
   - **Signed X** — freeze C and let X sweep through zero into negative values (X<0 at a fixed C is the same
     point as +|X| at C+180°), so a cut through the centre needs **no C rotation at all**. Used only when it is
@@ -316,8 +316,8 @@ The page shows only what you must set for your machine. Everything else has a sa
 
 | Setting | Meaning |
 |---|---|
-| X Axis Min | Smallest X the machine may go to. **Also the machining side: `0` = one side of the centre only**; a negative value lets the tool cross the centre by up to that many mm, only on cuts that pass exactly through it |
-| X Axis Max | Largest X (radius) the machine can reach — its soft limit |
+| Cutting side ⚠ required | **One side of the centre only** (X never below 0; a cut through the centre turns the chuck instead) or **Both sides** + how far past the centre the cutter may go (only on cuts that pass exactly through it). No default. (Option `xMin`: 0 or −distance.) Which side is physically left or right is set by the machine and *Invert X direction* |
+| X Axis Max ⚠ required | Largest X (radius) the machine can reach — its soft limit. No default; a program that needs more is flagged before it reaches the machine |
 | Safe retract Z | Machine-coordinate Z for `G53`/`G28` retracts; empty = such programs are rejected |
 
 **Machine output profile** — rotary axis letter (C/A/B), X as radius or diameter, invert rotary, invert X,

@@ -5,6 +5,19 @@ Short and factual. Current state lives in `STATUS.md`, permanent decisions in `D
 
 ---
 
+## 2026-10-11 (4) — 2.10.0: Cutting side + X Axis Max required; Safe retract Z explained
+
+**Marios** asked what X Axis Min / X Axis Max / Safe retract Z do, wants them plain, with ticks/choices and
+"required" warnings. Proposed first; his answers: **X Axis Max: keep, required. X Axis Min: yes, make it clear.
+Safe retract Z: asked why his machine is "opposite" to a mill** — answered: only the installed `.ini` numbers Z like a
+lathe (Z0 at the chuck end); the mill-style `.ini` (delivered 2026-10-04, in `machine-config/`) makes `G53 G0 Z0` go
+up to home like any mill (then Safe retract Z = 0, touch off Z again). **No change to Safe retract Z yet** — waiting
+for his choice: keep it (explained better) or replace G53/G28 with the program's own highest Z.
+**Done (2.10.0):** "Cutting side" radio (one side / both + distance), X Axis Max required, no −1000/1000 defaults,
+old saved defaults dropped, generic profiles without X travel. Not merged to `main` yet.
+
+---
+
 ## 2026-10-11 (3) — second FreeCAD program + his converted output checked
 
 **Marios** sent a revised FreeCAD program (MillFace001 first at −2, Profile at −5/−8/−10 with 4 rings 0.4 mm apart,

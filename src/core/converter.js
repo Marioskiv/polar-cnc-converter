@@ -25,8 +25,10 @@
     chordTol:      0.025,   // mm   chordal deviation per segment
     threshold:     null,    // mm   centre zone radius; null = automatic (half the chord tolerance)
     centerMode:    'auto',  //      'auto' | 'signed' | 'index' | 'fill'
-    xMin:          -1000,   // mm   X travel limit in MACHINE units (as output), <= 0
-    xMax:          1000,    // mm   X travel limit in MACHINE units (as output), >= 0
+    // 2.10.0 (Marios): NO defaults - the old -1000 / 1000 meant "no limit" and was
+    // silently kept by users who never set it. Both must be given, else refused.
+    xMin:          null,    // mm   cutting side: 0 = one side of the centre only, < 0 = both sides (how far past it)
+    xMax:          null,    // mm   X travel of the machine (largest X, as written to the file), > 0
     toolDia:       null,    //      2.9.0: no setting - the diameter comes only from the program's tool comments
     autoStepover:  true,    //      pocket fill stepover = 50% of the tool diameter (from the program)
     centerStep:    1.0,     // mm   pocket fill stepover (0 = disable fill)
@@ -89,8 +91,8 @@
                        return (isFinite(p) && p > 0) ? Math.max(p, 0.001) : tol * 0.5;
                      })(o.threshold, Math.max(pos(o.chordTol, D.chordTol), 0.001)),
       centerMode:    CENTER_MODES.indexOf(o.centerMode) >= 0 ? o.centerMode : D.centerMode,
-      xMin:          Math.min(num(o.xMin, D.xMin), 0),
-      xMax:          Math.max(num(o.xMax, D.xMax), 0),
+      xMin:          (function (v) { var p = parseFloat(v); return isFinite(p) ? Math.min(p, 0) : null; })(o.xMin),
+      xMax:          (function (v) { var p = parseFloat(v); return (isFinite(p) && p > 0) ? p : null; })(o.xMax),
       // REMOVED 2.9.0 (Marios): no Tool Diameter setting. The diameter comes only
       // from the program's tool comments; null = not stated (see gcode-input.js).
       toolDia:       null,
@@ -158,6 +160,11 @@
 
   function convertCartesianToPolar(text, options) {
     var O = normalizeOptions(options);
+    // 2.10.0: the machine's X travel and cutting side are required - no guessing.
+    if (O.xMin === null)
+      throw new Error('Cutting side is not set. Choose "one side of the centre" or "both sides" (Machine settings).');
+    if (O.xMax === null)
+      throw new Error('X Axis Max is not set. Enter the largest X your machine can reach (its X soft limit).');
     var out = [];
     var layout = LAYOUTS[O.layout].create(O, out);
     Array.prototype.push.apply(out, layout.header());

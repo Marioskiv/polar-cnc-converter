@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.10.0 — machine X settings made plain and required
+
+### Changed
+- **X Axis Min → "Cutting side"** (Marios): a choice *One side of the centre only* / *Both sides* (+ how far past the
+  centre), with no default. The option `xMin` is unchanged (0 or −distance), so profiles keep working.
+- **X Axis Max is required**: no default. Missing → the conversion stops with a message.
+- The old defaults −1000 / 1000 ("no limit", kept by users who never set them) are gone: `convert()` refuses when
+  `xMin` or `xMax` is missing; saved browser settings with exactly −1000 / 1000 are dropped so the page asks again;
+  the two generic example profiles no longer carry them (a generic profile cannot know a machine's travel).
+- Required fields are marked ⚠ on the page.
+
+### Unchanged
+- Motion: golden 144/144 identical, sweeps unchanged (all test programs state their X travel).
+
+
 ## 2.9.0 — no Tool Diameter setting: the diameter comes only from the program
 
 ### Removed
