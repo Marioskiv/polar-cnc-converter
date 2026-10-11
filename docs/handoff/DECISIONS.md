@@ -44,6 +44,8 @@
 - The "rotary axis letter" option is only a rename (C/A/B) of the same machine; it is not a second axis.
 
 ## Machine decisions
+- **No centre-height (router offset) compensation** (Marios 2026-10-11): the router base will be milled on the
+  machine with the chuck, so the cutter is on the chuck axis by construction.
 - C driver stays at 3200 steps/rev. X/Z are not sped up (the 2 mm screw is the limit, not the settings).
 - Machine Z numbered like a mill (Z0 = home park, negative toward the chuck) — delivered, install pending.
 - The `.ini` and `.hal` are never regenerated with PNCconf.

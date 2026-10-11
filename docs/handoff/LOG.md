@@ -5,6 +5,18 @@ Short and factual. Current state lives in `STATUS.md`, permanent decisions in `D
 
 ---
 
+## 2026-10-11 (9) — Bird re-checked, more polar printers, 63 test cases → 2 real bugs (fix waiting)
+
+**Marios:** re-check Bird and more polar printers ("many examples, the converter must be flawless"); is the 255 limit
+certain; centre-height compensation not needed (router base milled on the machine → DECISIONS).
+**Done:** two more searches (`references/research-2026-10-11.md` part 2). Line limit verified in LinuxCNC 2.9.10
+source: ≤ 252 chars (LF) / 251 (CR LF). **Bugs confirmed by me:** (1) merge of moves < 0.15 mm: Z step → ramp
+(0.1 mm gouge) and wrong feed; (2) both-sides Signed-X short move → 0.12 mm off. Fixes + messages + line-length
+guard prepared in a scratch copy: all tests pass, sweeps same, golden header comment only. **Not applied — waiting
+for his yes** (CLAUDE.md rule 1). Still open: rare 0.0268 mm near the pole.
+
+---
+
 ## 2026-10-11 (8) — PR #5 merged; research: other projects, simulator, trixie, CAM
 
 **Marios:** PR #5 merged (v2.11.1 on `main`). Asked: where are the notes (answered: `docs/handoff/` in the repo,

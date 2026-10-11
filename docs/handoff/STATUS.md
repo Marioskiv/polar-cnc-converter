@@ -65,10 +65,12 @@ trust the computer and tell Marios about the difference.
 - **v2.11.1 is on `main`** and on GitHub Pages (PRs #4, #5 merged by Marios 2026-10-11): Cutting side / X Axis Max
   required, no Safe retract Z, direction check, version in the header. Marios uses
   https://marioskiv.github.io/polar-cnc-converter/ (Pages deploys from `main`; Ctrl+F5 after an update).
+- **BUGS FOUND 2026-10-11 (fix prepared, waiting for Marios's yes):** merge of moves < 0.15 mm turns a small Z step into
+  a ramp (0.1 mm gouge) and uses the next line's feed; both-sides Signed-X short move 0.12 mm off. See research file part 2.
 - **Research 2026-10-11** (`references/research-2026-10-11.md`) — proposals waiting for Marios's yes:
   (1) arcs centred on the chuck axis as exact X-constant blocks (now polygons, 127 blocks for R10);
   (2) guard against output lines ≥ 255 chars (LinuxCNC refuses them; long CAM comments pass through today);
-  (3) centre-offset (router height error) compensation or at least a "centre pin" warning;
+  (3) dropped — router base will be milled on the machine (DECISIONS);
   (4) simulator: deviation colouring, axis-speed colouring, finer height map, line link, report export;
   (5) long term: FreeCAD addon "Polar XZC" (machine `.fcm` + Python port of the core), after real test cuts.
 - LinuxCNC on trixie: stay on 2.9.x (≥ 2.9.9 on 6.12 kernels), `linux-image-rt-amd64`, `linuxcnc-uspace`, install
