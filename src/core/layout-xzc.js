@@ -114,7 +114,7 @@
     // TOOLS (2026-10-02): the cutter matters, so it follows the program. The
     // diameter of the ACTIVE tool (after T.. M6) is taken from the CAM's tool
     // comments when present — e.g. Fusion writes "(T2 D=3. CR=0. ...)" — and
-    // otherwise from the Tool Diameter setting. The pocket fill uses it, and a
+    // (2.9.0: no setting any more - null when the program does not state it). The pocket fill uses it, and a
     // machine-readable "( polar-cnc tool: T2 D=3.0000 )" comment is written
     // after each tool change so the simulator's material map uses it too.
     var TOOL_DIA  = O.toolDia;                 // diameter of the ACTIVE tool (mm)
@@ -329,6 +329,11 @@
     // This produces clean spiral-in pocket motion, physically correct speed
     // profile throughout, and complete coverage of the entire centre disk.
     function insertCenterFill(z) {
+      // 2.9.0: the Tool Diameter setting is gone. Auto stepover needs the diameter
+      // from the program; without it the fill cannot be planned - refuse, do not guess.
+      if (TOOL_DIA === null && AUTO_STEP && CENTER_STEP_SETTING > 0)
+        throw new Error('Pocket Fill with Auto Stepover needs the cutter diameter, and the program does not state it. '
+                        + 'Add the tool diameter in the CAM (tool comment), or untick Auto Stepover and set the Fill Step.');
       var CENTER_STEPOVER = centerStepover();
       if (CENTER_STEPOVER <= 0) return;
       var feedFill = camFeed > 0 ? camFeed : 500;  // mm/min
@@ -336,7 +341,7 @@
       // TOOL_DIA/2, so the first concentric circle only has to start there — not
       // at one stepover. Circles are then only needed to cover the annulus from
       // TOOL_DIA/2 out to THRESHOLD, which is what nCircles now counts.
-      var rStart   = Math.min(Math.max(TOOL_DIA * 0.5, 0.1), THRESHOLD);
+      var rStart   = Math.min(Math.max((TOOL_DIA || 0) * 0.5, 0.1), THRESHOLD);   // unknown diameter: start at 0.1 (covers more)
       var nCircles = Math.max(1, Math.ceil(Math.max(THRESHOLD - rStart, 0) / CENTER_STEPOVER) + 1);
       var zSafe    = z + CENTER_RETRACT;
 

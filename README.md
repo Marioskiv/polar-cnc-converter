@@ -84,9 +84,10 @@ This project solves both:
   Mastercam `(T1 | ... | TOOL DIA. - .25)`, FreeCAD `(TC: 5mm Endmill)` / `(... Diameter: 5.0)`, Kiri:Moto
   `; tool#=2 flute=3 ... unit=metric`, CamBam-style `(T1 : 6.0)`, APT `(TOOL/MILL,3.175,...)` (Carbide Create),
   generic `(Tool Diameter: 6.35)`, or a size in the tool name (`End Mill (6 mm)`, `1/4" ball`). A stated diameter
-  beats a size in a name; the output comment `( polar-cnc tool: ... )` says which was used. Otherwise the
-  **Tool Diameter** setting is used. The diameter serves the centre pocket fill, the material map and (tilt layout)
-  the ball radius when `tool.tbl` has none.
+  beats a size in a name; the output comment `( polar-cnc tool: ... )` says which was used. **There is no Tool
+  Diameter setting (2.9.0):** if the program states no diameter, the output says `- no diameter in the program`,
+  the simulator's material map shows the tool centre path only (with a note), Pocket Fill with Auto Stepover is
+  refused, and the tilt layout needs the diameter in `tool.tbl`. The motion itself never needs the diameter.
 - **Drilling cycles expanded.** `G81, G82, G83, G73, G85, G89` with `G98/G99`, `R`, `Q`, `P` become plain
   moves — in polar, a hole is just a position (X, C) followed by Z moves.
 - **Rejected with the line number** (never converted wrongly): cutter compensation `G41/G42`, tapping and
@@ -318,7 +319,6 @@ The page shows only what you must set for your machine. Everything else has a sa
 | X Axis Min | Smallest X the machine may go to. **Also the machining side: `0` = one side of the centre only**; a negative value lets the tool cross the centre by up to that many mm, only on cuts that pass exactly through it |
 | X Axis Max | Largest X (radius) the machine can reach — its soft limit |
 | Safe retract Z | Machine-coordinate Z for `G53`/`G28` retracts; empty = such programs are rejected |
-| Tool Diameter | Fallback cutter diameter, used when the program does not state one in its tool comments |
 
 **Machine output profile** — rotary axis letter (C/A/B), X as radius or diameter, invert rotary, invert X,
 and **Save / Load profile**.

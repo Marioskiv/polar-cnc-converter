@@ -33,8 +33,9 @@ ok(idx(g1, /^M0$/) > idx(g1, /^G1 X30\.0000/) && idx(g1, /^M0$/) < idx(g1, /^G1 
 
 // --- tools ---------------------------------------------------------------------
 ok(t.includes('( polar-cnc tool: T1 D=6.0000 )') && t.includes('( polar-cnc tool: T2 D=3.0000 )'), 'tool diameters read from the CAM comments');
+// 2.9.0: no Tool Diameter setting - a missing diameter is reported, never invented
 const noDia = L('G21 G90\nT5 M6\nG0 X20 Y0 Z2\nM30', { toolDia: 4 });
-ok(noDia.some(l => /polar-cnc tool: T5 D=4\.0000 - from settings/.test(l)), 'missing diameter falls back to the setting, and says so');
+ok(noDia.includes('( polar-cnc tool: T5 - no diameter in the program )'), 'missing diameter is reported, the old toolDia option is ignored');
 const pts = parsePolarGCode(convert(tc, O), O);
 ok(pts.some(p => p.toolD === 6) && pts.some(p => p.toolD === 3), 'the simulator follows the active tool');
 // pocket fill uses the active cutter: first fill circle at r = D/2 (or the threshold)

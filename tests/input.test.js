@@ -151,7 +151,13 @@ ok(dia(prog('( T1 : 6.0 )\nM6 T1')) === 6, 'CamBam-style "T1 : 6.0"');
 ok(dia(prog('(Tool: 102)\n(TOOL/MILL,3.175, 0.00, 0.00, 0.00)\nM6 T102')) === 3.175, 'APT TOOL/MILL (Carbide Create)');
 ok(dia(prog('(Tools: 1 = End Mill (1/8"))\nT1 M6')) === 3.175, 'Vectric-style name with inch size and nested parentheses');
 ok(dia(prog('(Tool: End Mill 6 mm)')) === 6, 'program with no tool number: the stated tool is used');
-ok(dia(prog('(Stock 100mm x 50mm)\n(Part diameter: 80)\n(Feed 600mm/min)\nM6 T1')) === 6, 'stock / part / feed comments are not tool diameters (setting used)');
+ok(dia(prog('(Stock 100mm x 50mm)\n(Part diameter: 80)\n(Feed 600mm/min)\nM6 T1')) === null, 'stock / part / feed comments are not tool diameters');
+// 18. (2.9.0) No Tool Diameter setting: Pocket Fill with auto stepover needs the program's diameter.
+const fillO = Object.assign({ centerMode: 'fill' }, O);
+const fillProg = 'G21 G90\nM6 T1\nG0 X-20 Y0 Z5\nG1 Z-1 F300\nG1 X20 Y0 F500\nM30';
+assert.throws(() => convert(fillProg, fillO), /Pocket Fill with Auto Stepover needs the cutter diameter/); n++;
+ok(/polar-cnc tool: T1 D=6/.test(convert('(T1 D=6)\n' + fillProg, fillO)), 'with the diameter in the program the fill runs');
+ok(convert(fillProg, Object.assign({ autoStepover: false, centerStep: 1 }, fillO)).length > 0, 'fixed fill step works without a diameter');
 const two = convert('(T1 D=6)\n(T1 D=8)\nG21 G90\nM6 T1\nG0 X20 Y0 Z5\nG1 Z-1 F300\nM30', O);
 ok(/two diameters for T1/.test(two), 'two different diameters for one tool are reported');
 

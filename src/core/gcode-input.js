@@ -271,10 +271,11 @@
     function noteToolChange() {
       if (nextTool === null) return;
       activeTool = nextTool;
-      TOOL_DIA = (activeTool in toolDiaRaw) ? toolDiaMM(activeTool) : O.toolDia;
+      TOOL_DIA = (activeTool in toolDiaRaw) ? toolDiaMM(activeTool) : null;   // 2.9.0: no setting to fall back on
       sink.tool(TOOL_DIA, activeTool);
-      emit('( polar-cnc tool: T' + activeTool + ' D=' + TOOL_DIA.toFixed(4)
-               + ((activeTool in toolDiaRaw) ? toolNote(activeTool) : ' - from settings, no diameter in the program') + ' )');
+      emit('( polar-cnc tool: T' + activeTool + ((activeTool in toolDiaRaw)
+               ? ' D=' + TOOL_DIA.toFixed(4) + toolNote(activeTool)
+               : ' - no diameter in the program') + ' )');
     }
     // ADDED 2.5.0: a program with ONE tool in its list and no tool change at all
     // (e.g. Kiri:Moto with "initial tool change" off) used that tool's

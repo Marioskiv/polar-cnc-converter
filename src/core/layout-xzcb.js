@@ -108,7 +108,10 @@
       }
       if (!t || t.len === null)
         throw new Error('Tilt layout: tool T' + n + ' has no length in the tool table (needed to tilt it).');
-      var rad = (t.dia !== null ? t.dia : dia) / 2;
+      var d = t.dia !== null ? t.dia : dia;
+      if (d === null || d === undefined)
+        throw new Error('Tilt layout: tool T' + n + ' has no diameter in the tool table or in the program (needed for the ball radius).');
+      var rad = d / 2;
       K = O.tiltPivot + t.len - rad;
       if (!(K > 0)) throw new Error('Tilt layout: tool T' + n + ' gives a pivot-to-ball-centre distance <= 0.');
       leanOn = true;

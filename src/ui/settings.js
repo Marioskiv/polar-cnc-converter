@@ -15,7 +15,6 @@ var SETTINGS_FIELDS = {
   threshold:       'inpThreshold',
   xMin:            'inpXMin',
   xMax:            'inpXMax',
-  toolDia:         'inpToolDia',
   centerStep:      'inpCenterStep',
   centerRetract:   'inpCenterRetract',
   retractZMachine: 'inpRetractZ',

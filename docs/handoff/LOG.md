@@ -5,6 +5,24 @@ Short and factual. Current state lives in `STATUS.md`, permanent decisions in `D
 
 ---
 
+## 2026-10-11 — his FreeCAD program checked; 2.9.0: Tool Diameter setting removed
+
+**Marios:** made a rough FreeCAD CAM (5 mm 2-flute Izar, T2, profile + 5 pockets + facing, feeds 278/557) and asked
+whether it converts correctly; the program states the diameter, so **remove the diameter option** from the converter.
+**Checked his program:** converts without errors; T2 D=5 read; worst G1 deviation 0.0151 mm; real feed along the
+path exactly 278/557 mm/min; X 0.30 … 66.74; depth −17; C up to ~9,400° (limit 99,999). The page asks up to 289 rpm
+of the chuck on the innermost facing circle (r 0.3 mm) — LinuxCNC will slow those (C max 120 °/s delivered), so the
+~23.5 min estimate is optimistic. **Told him (FreeCAD set-up, not converter):** step-downs are large (profile 0 → −7
+in one pass, pockets 5 mm per step, straight plunges), and the facing (−2) runs LAST after everything else — face
+first; use ramp/helix entry; check G43 H2 has T2's length in `tool.tbl`.
+**Done (2.9.0):** Tool Diameter field/option/profile entries removed; missing diameter → "no diameter in the program",
+material map shows centre path + note, Pocket Fill auto-stepover refused, tilt ball needs a diameter. Golden: inputs
+now carry `(T1 D=..)`; 144/144 outputs gained exactly two comment lines, otherwise identical. Tests 70 input checks,
+sweeps worst 0.0225 mm, Chromium check, release zip tested. Not merged to `main` (he said "not yet" on 2026-10-08).
+**Still open:** his answer on FreeCAD vs Kiri:Moto.
+
+---
+
 ## 2026-10-08 (2) — FreeCAD or Kiri:Moto as the home of the converter?
 
 **Marios:** not merging 2.8.0 yet. Asked whether the converter should go into FreeCAD rather than Kiri:Moto; he

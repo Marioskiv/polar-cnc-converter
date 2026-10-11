@@ -28,7 +28,8 @@
   G90.1, G93 input, G18/G19 arcs, tapping/threading are rejected with the line number. Drilling cycles are expanded.
 - Tool diameter comes from CAM tool comments of any CAM (2.8.0, `scanToolDiameters`): a stated diameter (D=, DIA,
   Diameter, TOOL/MILL, flute=) beats a size in a tool name; a bare `D1` is an offset register, never a diameter;
-  the page field is only a fallback. Tool length is
+  **2.9.0 (Marios): there is NO Tool Diameter setting** — the diameter comes only from the program; when missing
+  it is reported, never invented (fill auto-stepover and tilt ball refuse; material map shows the centre path). Tool length is
   never needed for XZC (LinuxCNC applies G43 H from its tool table). The tilting layout needs it (2.7.0): it reads the
   machine's own LinuxCNC `tool.tbl`; G43 stays valid (see `references/tilt-axis-research.md` §3).
 - Converter-written comments never nest (LinuxCNC: "Nested comment found"); a safety net strips inner parentheses.

@@ -62,7 +62,7 @@ const ok = (c, m) => { n++; assert.ok(c, m); };
 const G = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'golden.json'), 'utf8'));
 for (const key of Object.keys(G.outputs)) {
   const [on, mode, pn] = key.split('|');
-  const p = lintProgram(convert(G.programs[pn], Object.assign({ centerMode: mode }, G.options[on])));
+  const p = lintProgram(convert('(T1 D=' + ({ real: 6, wide: 6, alt: 10 })[on] + ')\n' + G.programs[pn], Object.assign({ centerMode: mode }, G.options[on])));   // 2.9.0: diameter in the program
   programs++;
   ok(p.length === 0, `${key}: ${p.slice(0, 3).join(' | ')}`);
 }
