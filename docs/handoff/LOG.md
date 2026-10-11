@@ -5,6 +5,14 @@ Short and factual. Current state lives in `STATUS.md`, permanent decisions in `D
 
 ---
 
+## 2026-10-11 (2) — PR #3 merged
+
+**Marios** asked to update GitHub with all changes. Opened PR #3 (2.8.0 + 2.9.0), CI green; my merge call was blocked
+by the session's safety check (no merge to `main` without a human), so **Marios merged it himself** (merge commit
+`9e24f2e`). `main` = v2.9.0. Branch restarted from `main` for later work.
+
+---
+
 ## 2026-10-11 — his FreeCAD program checked; 2.9.0: Tool Diameter setting removed
 
 **Marios:** made a rough FreeCAD CAM (5 mm 2-flute Izar, T2, profile + 5 pockets + facing, feeds 278/557) and asked

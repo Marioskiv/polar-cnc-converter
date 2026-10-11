@@ -58,9 +58,8 @@ trust the computer and tell Marios about the difference.
 - Fusion post: LinuxCNC, compensation "in computer", expanded drilling cycles, no G18/G19 arcs, mm, clearance-height retracts.
 
 ## Open items — software
-- **v2.7.0 is on `main`** (PR #2 merged 2026-10-07 at Marios's request, CI green): 2.4.1 – 2.7.0 and all notes.
-- **v2.8.0** (tool diameter from any CAM's comments) and **v2.9.0** (Tool Diameter setting removed) on branch
-  `claude/youthful-goldberg-a6qv5t`, not merged yet (Marios: "not yet").
+- **v2.9.0 is on `main`** (PR #3 merged by Marios 2026-10-11, CI green): 2.8.0 tool diameter from any CAM,
+  2.9.0 Tool Diameter setting removed. (PR #2 = 2.4.1 – 2.7.0, merged 2026-10-07.)
 - FreeCAD programs: the Tool Controller feeds must be set (default 0 → no F → refused). FreeCAD Z0 = stock bottom.
 - Future router tilt axis (rotates continuously during a program; Marios calls it A, conventional letter in the X-Z
   plane would be B). Plan, each step only with his go-ahead:
