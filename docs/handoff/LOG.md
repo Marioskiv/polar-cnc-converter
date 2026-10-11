@@ -5,6 +5,18 @@ Short and factual. Current state lives in `STATUS.md`, permanent decisions in `D
 
 ---
 
+## 2026-10-11 (3) — second FreeCAD program + his converted output checked
+
+**Marios** sent a revised FreeCAD program (MillFace001 first at −2, Profile at −5/−8/−10 with 4 rings 0.4 mm apart,
+four 20 mm pockets at −5/−8/−10) and the output he made on the page. **Checked:** his output's motion is identical to
+ours; worst G1 deviation 0.0151 mm, real feed exactly 278/557 mm/min, X 1.00 … 67.74 (no negative X), depth −10.
+**Found:** his page still had the DEFAULT X travel −1000 … 1000 (header line) — harmless for this program (never
+crosses the centre) but must be set to X min 0 / X max 113 (and Safe retract Z 590) before real programs.
+Told him: face-first fixed; plunges still straight down (3 mm into faced stock at 278 mm/min) — slower plunge or helix;
+first profile ring is a full 5 mm slot 3–5 mm deep; innermost facing circles are C-speed limited (slower than shown).
+
+---
+
 ## 2026-10-11 (2) — PR #3 merged
 
 **Marios** asked to update GitHub with all changes. Opened PR #3 (2.8.0 + 2.9.0), CI green; my merge call was blocked
