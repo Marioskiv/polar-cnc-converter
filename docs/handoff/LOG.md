@@ -5,6 +5,20 @@ Short and factual. Current state lives in `STATUS.md`, permanent decisions in `D
 
 ---
 
+## 2026-10-11 (8) — PR #5 merged; research: other projects, simulator, trixie, CAM
+
+**Marios:** PR #5 merged (v2.11.1 on `main`). Asked: where are the notes (answered: `docs/handoff/` in the repo,
+auto-loaded by `CLAUDE.md`; artifacts are not read by later sessions), open items, then serious research: more
+projects like Bird's, ideas for the simulator, what LinuxCNC on trixie needs, and again polar-inside-a-CAM.
+**Done:** four read-only searches → `references/research-2026-10-11.md`. Verified myself: arcs around the centre
+become polygons (R10 circle = 127 blocks, could be 8 exact); a CAM comment > 255 chars passes through (LinuxCNC limit).
+Corrected two wrong sub-report claims (convert() returns text; Kiri tool comments already read).
+**Proposals waiting for his yes (nothing changed):** exact arcs around the centre; 255-char guard; centre-offset
+compensation / warning; simulator deviation + axis-speed colouring, finer height map, line link, report;
+FreeCAD addon later. Branch restarted from `main`.
+
+---
+
 ## 2026-10-11 (7) — PR #4 merged; "nothing changed" = browser cache; 2.11.1 version on the page
 
 **Marios** merged PR #4, then opened https://marioskiv.github.io/polar-cnc-converter/ and still saw X Axis Min −1000 /

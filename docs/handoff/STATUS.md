@@ -50,7 +50,8 @@ trust the computer and tell Marios about the difference.
   parts; fix the C `STEP_SCALE` sign); `G0 C3600` then `G0 C0` must return exactly (else lower C speed to 105/90).
 - C soft limits ±99,999° allow only ~277 chuck turns per program — raise them in `[AXIS_C]`/`[JOINT_2]`.
 - Mount and wire the chuck encoder. Confirm the gamepad layout (if X drifts: read `input.0.abs-ry-position` at rest).
-- Measure real vs predicted cycle time (LinuxCNC `tp.c` does not blend moves that involve a rotary axis).
+- Measure real vs predicted cycle time (LinuxCNC `tp.c` gives moves with a rotary axis no blend arc / tangent merge;
+  plain G64 blending may still apply). Verify whether `[TRAJ] MAX_ANGULAR_VELOCITY` is used (documented only in `[DISPLAY]`).
 
 ## Open items — testing before a real part
 - vismach simulation (`examples/linuxcnc-vismach-xzc-lathe`, synced to the new X layout and mill-style Z; sim only).
@@ -61,10 +62,17 @@ trust the computer and tell Marios about the difference.
 ## Open items — software
 - **v2.9.0 is on `main`** (PR #3 merged by Marios 2026-10-11, CI green): 2.8.0 tool diameter from any CAM,
   2.9.0 Tool Diameter setting removed. (PR #2 = 2.4.1 – 2.7.0, merged 2026-10-07.)
-- **v2.11.0 is on `main`** and on GitHub Pages (PR #4 merged by Marios 2026-10-11): 2.10.0 Cutting side / X Axis
-  Max required, 2.11.0 no Safe retract Z + direction check. Marios uses the page at
-  https://marioskiv.github.io/polar-cnc-converter/ (Pages deploys from `main`).
-- **v2.11.1** (version in the header, `?v=` cache-busting) on branch `claude/youthful-goldberg-a6qv5t`, not merged.
+- **v2.11.1 is on `main`** and on GitHub Pages (PRs #4, #5 merged by Marios 2026-10-11): Cutting side / X Axis Max
+  required, no Safe retract Z, direction check, version in the header. Marios uses
+  https://marioskiv.github.io/polar-cnc-converter/ (Pages deploys from `main`; Ctrl+F5 after an update).
+- **Research 2026-10-11** (`references/research-2026-10-11.md`) — proposals waiting for Marios's yes:
+  (1) arcs centred on the chuck axis as exact X-constant blocks (now polygons, 127 blocks for R10);
+  (2) guard against output lines ≥ 255 chars (LinuxCNC refuses them; long CAM comments pass through today);
+  (3) centre-offset (router height error) compensation or at least a "centre pin" warning;
+  (4) simulator: deviation colouring, axis-speed colouring, finer height map, line link, report export;
+  (5) long term: FreeCAD addon "Polar XZC" (machine `.fcm` + Python port of the core), after real test cuts.
+- LinuxCNC on trixie: stay on 2.9.x (≥ 2.9.9 on 6.12 kernels), `linux-image-rt-amd64`, `linuxcnc-uspace`, install
+  `iptables` for hm2_eth, NIC static + RX coalescing 0, run latency-histogram (see the research file §3).
 - Direction check written on the page (2026-10-11). For Marios: X settled 2026-10-04; **C still to be checked** with
   it (chuck must turn clockwise seen from the cutter on `G0 C90`), then the F cut.
 - FreeCAD programs: the Tool Controller feeds must be set (default 0 → no F → refused). FreeCAD Z0 = stock bottom.
