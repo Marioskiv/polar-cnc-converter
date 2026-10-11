@@ -11,6 +11,11 @@
 - Tilt layout: the router turns upright after a retract at that height, keeping the tool tip in place (rapids).
 - A retract in a program with no Z of its own is rejected; `G28`/`G30` with no axis words still are.
 
+### Added
+- **Direction check** on the page (folding note under the Invert boxes): X must move away from the centre on
+  `G0 X50`; on `G0 C90` the chuck must turn clockwise seen from the cutter (ISO / LinuxCNC); fix a wrong one in the
+  controller rather than with the boxes; prove with an asymmetric test cut.
+
 ### Unchanged
 - Golden 144/144 identical (none of those programs has a machine retract), sweeps unchanged.
 

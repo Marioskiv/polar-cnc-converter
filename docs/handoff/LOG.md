@@ -5,6 +5,16 @@ Short and factual. Current state lives in `STATUS.md`, permanent decisions in `D
 
 ---
 
+## 2026-10-11 (6) — direction check added to the page
+
+**Marios:** yes to the written direction check; reminded we already settled his axis directions. **Checked the notes:**
+X was settled 2026-10-04 (`STEP_SCALE -400`, "+" moves away from the switch = away from the centre, confirmed on the
+machine). **C has never been checked on the machine** (STATUS open item). **Done:** a folding "Direction check"
+under the Invert boxes (X away from centre; mark on chuck, `G0 C90` → chuck turns clockwise seen from the cutter;
+fix in the controller rather than with the boxes; F test cut). His profile keeps both boxes unticked.
+
+---
+
 ## 2026-10-11 (5) — 2.11.0: Safe retract Z removed ("β"); directions asked
 
 **Marios:** Safe retract Z → (β); X Axis Max without default (done in 2.10.0); reminded that other machines will use
@@ -13,7 +23,8 @@ the converter; asked whether the directions (Invert rotary / Invert X) can be kn
 spliced in as an ordinary rapid + marker; G91 on the retract line restored after; tilt layout turns upright at the
 marker (tip kept). Setting/field/profile entries removed. Tests updated (input 71, sim 12), golden unchanged, sweeps.
 **Answered on directions:** the converter cannot know them (they depend on wiring / `.ini` sign / which side the
-tool sits); LinuxCNC convention: +X away from the centre, +C counter-clockwise seen from the tool. A 1-minute
+tool sits); LinuxCNC convention: +X away from the centre, +C = the CHUCK turns clockwise seen from the cutter
+(tool counter-clockwise relative to the part; checked: CAM point (0,10) → C90). A 1-minute
 check without cutting is possible (mark on the chuck, `G0 C90`; `G0 X50`) — proposed adding it to the page; final proof
 is the "F" test cut. Waiting for his answer.
 

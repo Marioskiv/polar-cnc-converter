@@ -155,6 +155,22 @@
               <input type="checkbox" id="chkInvertX"> Invert X direction
             </label>
           </div>
+          <!-- ADDED 2.11.0: the converter cannot know a machine's directions; a one-minute
+               check on the machine (no cutting) tells whether these boxes must be ticked. -->
+          <details class="cvt-note" id="dirCheck" style="margin-top:6px;font-size:11px;">
+            <summary style="cursor:pointer;">&#129517; Direction check &mdash; once per machine, no cutting</summary>
+            <ol style="margin:6px 0 4px 18px;padding:0;line-height:1.45;">
+              <li><b>X:</b> from <code>X0</code>, <code>G0 X50</code> must move the cutter <b>away from the chuck centre</b>.</li>
+              <li><b>Rotary:</b> mark the chuck face right under the cutter, then <code>G0 C90</code> (C0 first).
+                Looking at the chuck face <b>from the cutter's side</b>, the mark must turn <b>clockwise</b>
+                (the part turns, so the cutter moves counter-clockwise over it &mdash; the ISO / LinuxCNC rule).</li>
+              <li>Both right &rarr; leave both boxes <b>unticked</b>. One wrong &rarr; best fix it in your controller
+                (e.g. the sign of <code>STEP_SCALE</code> in the LinuxCNC <code>.ini</code>), so jogging matches too;
+                tick the box only if you cannot.</li>
+              <li>A mirrored part passes every software check. Prove it once with an <b>asymmetric test cut</b>
+                (e.g. the letter F) before a real part.</li>
+            </ol>
+          </details>
           <div class="cvt-note" style="margin-top:6px;font-size:11px;opacity:.75;">
             Axis velocities and accelerations are not set here: your controller enforces its own limits on every move.
           </div>
