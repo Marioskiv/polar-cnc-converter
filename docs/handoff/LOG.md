@@ -5,6 +5,19 @@ Short and factual. Current state lives in `STATUS.md`, permanent decisions in `D
 
 ---
 
+## 2026-10-12 (3) — full check of the converter (no code changed); FreeCAD addon postponed
+
+**Marios:** not the addon yet — keep it as a future item; first he wants to know the converter works flawlessly.
+**Done (all on v2.11.2, repo code unchanged):** `npm test` all pass (golden 144/144); `tools/sweeps.js` 0 over 0.026
+(worst 0.0225); about 75 tricky cases, both cutting sides: all pass, the 8 expected refusals refuse; G93 time = length/feed
+checked by hand on the 5 cases the old checker flagged (checker artifacts: G91, other feeds); his 3 FreeCAD programs:
+worst 0.0222 / 0.0151 / 0.0151 mm, no missing F, no nested comments, no line > 251. Near-pole stress 3000 polylines:
+3 (one side) / 9 (both) at 0.0268 mm. **Cause found** (`SIGNED_EXACT_R = CHORD_TOL`), fix tried in a scratch copy:
+`CHORD_TOL * 0.25` → 0/3000, all tests and sweeps pass, golden unchanged, his programs identical. Waiting for his yes.
+**Not proven by software:** C direction and X sign (only the asymmetric "F" cut), real machine dynamics.
+
+---
+
 ## 2026-10-12 (2) — FreeCAD addon: feasibility proven on real FreeCAD 26.3 (no repo code changed)
 
 **Marios:** has FreeCAD 1.1, tries 26.3; wants it done properly as an addon, first for himself, idea to FreeCAD later;

@@ -67,7 +67,11 @@ trust the computer and tell Marios about the difference.
   https://marioskiv.github.io/polar-cnc-converter/ (Pages deploys from `main`; Ctrl+F5 after an update).
 - **v2.11.2** (branch `claude/youthful-goldberg-a6qv5t`, PR to `main`): fixes the two bugs found 2026-10-11 — merge of
   moves < 0.15 mm (small Z step → ramp, 0.1 mm gouge; wrong feed) and both-sides Signed-X short move (0.12 mm off).
-  Still open: rare near-pole 0.0268 mm vs the 0.026 test limit (3/3000 one side).
+  Still open: rare near-pole 0.0268 mm vs the 0.026 test limit (3/3000 one side, 9/3000 both sides).
+  **Cause found 2026-10-12:** `SIGNED_EXACT_R = CHORD_TOL` accepts a line as "on the pole axis" when it is up to
+  0.025 mm off it, so its end point is written up to 0.02 mm off; the next block adds its own error. Proposed
+  fix (one line, waiting for Marios's yes): `CHORD_TOL * 0.25` → 0/3000 both sides, worst 0.0225; all tests,
+  sweeps, golden 144/144 unchanged; his FreeCAD programs give identical output (one input test needs a new line).
 - **Research 2026-10-11** (`references/research-2026-10-11.md`) — proposals waiting for Marios's yes:
   (1) arcs centred on the chuck axis as exact X-constant blocks (now polygons, 127 blocks for R10);
   (2) dropped — line-length guard not wanted (DECISIONS);
@@ -75,7 +79,8 @@ trust the computer and tell Marios about the difference.
   (4) simulator: deviation colouring, axis-speed colouring, finer height map, line link, report export;
   (5) long term: FreeCAD addon "Polar XZC" (machine `.fcm` + Python port of the core), after real test cuts.
       **Feasibility proven 2026-10-12 on real FreeCAD 26.3** (`references/freecad-addon-feasibility-2026-10-12.md`);
-      Marios wants it as an addon (26.3+, not 1.1), first for himself. Not started — waiting for his go.
+      Marios wants it as an addon (26.3+, not 1.1), first for himself. **2026-10-12 Marios: FUTURE item — not now;**
+      first the converter must be proven flawless (tests + real cuts). Prototype tarball only in the session scratchpad.
 - LinuxCNC on trixie: stay on 2.9.x (≥ 2.9.9 on 6.12 kernels), `linux-image-rt-amd64`, `linuxcnc-uspace`, install
   `iptables` for hm2_eth, NIC static + RX coalescing 0, run latency-histogram (see the research file §3).
 - Direction check written on the page (2026-10-11). For Marios: X settled 2026-10-04; **C still to be checked** with
