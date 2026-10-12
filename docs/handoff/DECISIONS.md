@@ -29,7 +29,11 @@
   no Safe retract Z setting (was: the user's machine Z, rejected if empty). Universal, needs no machine data. X/Y parks (`G28 G91 X0 Y0`,
   `G53 G0 X.. Y..`) are skipped — not moving can hit nothing (2.5.0). **2.12.1 (Marios: A, B, C):** Fanuc `G16`
   is CONVERTED in its certain form (G17, G90, both X=radius and Y=angle per line, pole = work origin; G15/G16 removed);
-  G91 in G16, missing radius/angle, arcs in G16 → refused. Polar interpolation input (G12.1/G112) and `@ ^` stay
+  G91 in G16, missing radius/angle, arcs in G16 → refused. **2.12.2 (E, Fanuc B-63534EN §8.2):** a left-out
+  radius/angle keeps its last value; `G91 Y` (angle only) turns the angle; G91 with a radius and a first point
+  without both values stay refused. **2.12.2: only KNOWN G codes are read** (a whitelist, not a list of bad codes);
+  anything else stops with the line number. Also refused: `G4 X`, `,C ,R`, block delete `/`, `G08 P`, G91 on a cycle
+  line. A Fanuc `O1000` program number becomes a comment. Polar interpolation input (G12.1/G112) and `@ ^` stay
   refused (2.11.4). Arcs with both R and I/J → refused like LinuxCNC. Radial rapids = one block.
   **D (Marios):** subprograms (M98/M99, o-word sub/call), o-word loops/conditions and parameters/expressions
   (`#`, `[ ]`) → refused (were passed through / converted out of order).

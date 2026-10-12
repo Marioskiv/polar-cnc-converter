@@ -227,8 +227,8 @@ ok(/C0\.0000 Z-1\.0000/.test(convert(P('(a @ and ^ inside a comment)\nG1 Z-1 F10
   ok(mv(pol) === mv(car), 'G16 bolt circle = the same holes in X/Y');
   ok(!convert(pol, { xMin: 0, xMax: 113 }).split('\n').some(l => /\bG1[56]\b/.test(l.replace(/\([^)]*\)/g, ''))), 'G15/G16 removed from the output');
   const Q = b => 'G21 G90 G17\nG0 X10 Y0 Z5\n' + b + '\nM30';
-  assert.throws(() => convert(Q('G16\nG91 G0 X10 Y30'), { xMin: 0, xMax: 113 }), /incremental G91 in polar/); n++;
-  assert.throws(() => convert(Q('G16\nG0 X20'), { xMin: 0, xMax: 113 }), /both the radius \(X\) and the angle \(Y\)/); n++;
+  assert.throws(() => convert(Q('G16\nG91 G0 X10 Y30'), { xMin: 0, xMax: 113 }), /incremental G91 with a radius in polar/); n++;
+  assert.throws(() => convert(Q('G16\nG0 X20'), { xMin: 0, xMax: 113 }), /first point after G16 must give both/); n++;
   assert.throws(() => convert(Q('G16 X6 Y6\nG0 X5 Y30'), { xMin: 0, xMax: 113 }), /G16 line itself/); n++;
   assert.throws(() => convert(Q('G1 Z-1 F100\nG16\nG3 X20 Y90 R20'), { xMin: 0, xMax: 113 }), /arcs in polar coordinate mode/); n++;
   ok(/G0 X20\.0000 C90\.0000/.test(convert(Q('G16\nG0 X20 Y90 ; side comment'), { xMin: 0, xMax: 113 })), 'G16 line with a ; comment');
@@ -270,6 +270,51 @@ assert.throws(() => convert('G21 G90 G17\nG0 X10 Y0 Z1\nG1 Z-1 F100\nG3 X0 Y10 I
      'an input G8 is removed (only the header G8 remains)');
   ok(!/G7/.test(convert('G21 G90\nG0 X10 Y0 Z5\nG73 Z-3 R1 Q1 F100\nG80\nM30', { xMin: 0, xMax: 113 }).split('\n').filter(l => /^G7/.test(l)).join('')),
      'G73 (peck cycle) is not mistaken for G7');
+}
+
+// 28. (2.12.2, E) Fanuc B-63534EN section 8.2: in G16 a missing radius or angle keeps its last value,
+// and G91 with only an angle turns the angle (radius and pole kept). Same motion as the X/Y version.
+{
+  const mv = g => convert(g, { xMin: 0, xMax: 113 }).split('\n').filter(l => /^G[01] /.test(l)).join('\n');
+  const P = (a, r) => 'X' + (r * Math.cos(a * Math.PI / 180)).toFixed(6) + ' Y' + (r * Math.sin(a * Math.PI / 180)).toFixed(6);
+  const head = 'G90 G21 G17\nG0 X0 Y0 Z50\n';
+  // the manual's example 1: N2 G81 X100 Y30 ..., N3 Y150, N4 Y270
+  ok(mv(head + 'G16\nG81 X100 Y30 Z-20 R-5 F200\nY150\nY270\nG15 G80\nM30')
+     === mv(head + 'G81 ' + P(30, 100) + ' Z-20 R-5 F200\n' + P(150, 100) + '\n' + P(270, 100) + '\nG80\nM30'),
+     'G16: a line with only the angle keeps the radius (Fanuc example 1)');
+  ok(mv(head + 'G16\nG0 X100 Y30\nX50\nG15\nM30') === mv(head + 'G0 ' + P(30, 100) + '\n' + P(30, 50) + '\nM30'),
+     'G16: a line with only the radius keeps the angle');
+  // the manual's example 2 with plain moves: G91 Y120 twice = +120 degrees, radius 100
+  ok(mv(head + 'G16\nG0 X100 Y30\nG91 Y120\nY120\nG90 G15\nM30')
+     === mv(head + 'G0 ' + P(30, 100) + '\n' + P(150, 100) + '\n' + P(270, 100) + '\nM30'),
+     'G16: G91 Y120 turns the angle by +120 degrees (Fanuc example 2)');
+  const Q = b => () => convert('G21 G90 G17\nG0 X10 Y0 Z5\n' + b + '\nM30', { xMin: 0, xMax: 113 });
+  assert.throws(Q('G16\nG91 G0 Y30'), /before a radius and angle are known/); n++;
+  assert.throws(Q('G16\nG0 X20 Y10\nG15\nG16\nG0 Y20'), /first point after G16/); n++;
+}
+
+// 29. (2.12.2) Only known G codes are read; others stop with the line number. Found by reading the
+// whole Fanuc 16i/18i-MB manual: these used to pass through or have their X/Y taken as a move.
+{
+  const R = b => () => convert('G21 G90 G17\nG0 X10 Y0 Z5\nG1 Z-1 F100\n' + b + '\nG1 X12 Y3\nM30', { xMin: 0, xMax: 113 });
+  for (const c of ['G05 P10000', 'G5.1 Q1', 'G06.2 P3 K0 X10 Y5 R1', 'G02.2 X5 Y5 I1 J1 R2', 'G43.4 H1', 'G43.5 I0 J0 K1',
+                   'G41.2 D1', 'G02.4 X1 Y1 Z1', 'G54.2 P1', 'G10.6 Z5', 'G60 X5 Y5', 'G51 X0 Y0 P2', 'G50.1 X0',
+                   'G29 X0', 'G65 P9010', 'G66 P9010', 'G22 X10 Y10', 'G45 X5 D1', 'G39', 'G33 Z-5 F1', 'G95 G1 X20 F0.1', 'G96 S100'])
+    { assert.throws(R(c), /is not converted \(the converter reads only/, c); n++; }
+  assert.throws(R('G4 X1'), /dwell G4 with an axis word/); n++;
+  assert.throws(R('G1 X20 Y0 ,R2'), /chamfer \/ corner rounding/); n++;
+  assert.throws(R('G1 X20 Y0 ,C2'), /chamfer \/ corner rounding/); n++;
+  assert.throws(R('/G1 X20 Y0'), /block delete/); n++;
+  assert.throws(R('G1 X20 /Y5'), /block delete/); n++;
+  assert.throws(R('G08 P1'), /G08 P \(advanced preview/); n++;
+  // FIX: a G91 on the cycle's own line was not seen (holes at absolute X5)
+  assert.throws(() => convert('G21 G90 G17\nG0 X10 Y0 Z5\nG91 G81 X5 Y0 Z-3 R-2 F50\nG90 G80\nM30', { xMin: 0, xMax: 113 }), /canned cycles in incremental mode/); n++;
+  // still fine: what LinuxCNC posts write
+  const ok1 = convert('G17 G21 G90 G94 G40 G49 G80 G54 G64 P0.02\nG91.1\nT1 M6\nG43 H1\nS10000 M3\nG0 X10 Y0 Z5\nG1 Z-1 F100\nG2 X0 Y10 I-10 J0\nG4 P0.5\nG99 G81 X20 Y0 Z-3 R2 F50\nG98 G83 X30 Y0 Z-5 R2 Q1\nG80\nG28 G91 Z0\nG90\nG53 G0 Z0\nG61\nG61.1\nG64\nG97 M5\nM30', { xMin: 0, xMax: 113 });
+  ok(/G2|G1/.test(ok1), 'a normal LinuxCNC program is still converted');
+  // a Fanuc program number, alone or with moves, becomes a comment
+  const o = convert('O1000\nO1001 G21 G90 G0 X10 Y0 Z5\nM30', { xMin: 0, xMax: 113 });
+  ok(!o.split('\n').some(l => /^O\d/i.test(l)) && /program O1000/.test(o) && /G0 X10\.0000/.test(o), 'program number O1000 kept as a comment');
 }
 
 console.log(`input: ${n} checks passed`);

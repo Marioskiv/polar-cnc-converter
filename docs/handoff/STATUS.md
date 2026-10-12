@@ -1,4 +1,4 @@
-# Status — updated 2026-10-12 (converter v2.12.1)
+# Status — updated 2026-10-12 (converter v2.12.2)
 
 Session history: `LOG.md` (newest first).
 
@@ -112,9 +112,15 @@ trust the computer and tell Marios about the difference.
 - **D DONE in 2.12.1 (Marios: yes):** M98/M99, o-word sub/call/if/while/repeat, `#` parameters and `[ ]`
   expressions refused (all passed through before); also G12.2/G13.2, G7.1, G107. **F DONE (Marios: both parts):** header
   `G8`/`G7` (rotary C only), input G7 refused, input G8 removed; golden 144/144 changed by exactly that one line.
-  **Waiting:** (E) in G16 keep the last radius/angle when a line omits one
-  (Machining Doctor example) — needs a firm source; refused today. Fixed inside 2.12.1 (unmerged PR #10): X/Y on the
+  **E DONE in 2.12.2** (source: Fanuc B-63534EN §8.2): a left-out radius/angle keeps its last value; `G91 Y` turns
+  the angle; G91 with a radius still refused. Fixed inside 2.12.1 (unmerged PR #10): X/Y on the
   G16 line itself refused (pole vs first point differs between sources).
+- **v2.12.2** (Marios: "if they matter, do them", 2026-10-12), after reading the whole Fanuc 16i/18i-MB manual
+  (`references/fanuc-b63534en.md`): only known G codes are read (unknown → line number; before, `G4 X1` moved to X1,
+  `G51/G50.1/G22/G29/G45/G60` X/Y became moves, NURBS/involute became lines, `G33`/`G95` passed); `G91` on a cycle's
+  own line refused (holes were at absolute X); `/`, `,C ,R`, `G08 P` refused; `O1000` kept as a comment; E (above).
+  Golden 144/144 identical, input 152, sweeps unchanged, FreeCAD programs identical. In PR #10.
+  Manual stored in the PRIVATE repo `Marioskiv/cnc-manuals` (copyright FANUC — never in this public repo).
 - **Research 2026-10-11** (`references/research-2026-10-11.md`) — proposals waiting for Marios's yes:
   (1) DONE 2.12.0 — arcs centred on the chuck axis as exact X-constant blocks;
   (2) dropped — line-length guard not wanted (DECISIONS);
@@ -156,6 +162,9 @@ trust the computer and tell Marios about the difference.
   operations inside the CAM, no post-editing. He wants the **user experience of a professional program**. Consequence: step 2 (restructure) must make the converter a clean
   machine-layout **library** usable both by our page and inside Kiri (see `references/kirimoto.md` §6, §10). Agreed direction proposed: the CAM (Fusion, Kiri:Moto, …) makes the toolpaths, the
   converter is the universal **machine-layout** stage (like Fusion's machine definition + post).
+- Ideas from the Fanuc manual (not built): import Fanuc `G12.1` lathe programs (p.59-62: angle 0 = tool position at
+  `G12.1`, X/C' Cartesian mm about the C centre, arcs I/J or R — convertible with certainty); a warning for Fanuc
+  `G4 P` in ms / integer coordinates without a decimal point (Fanuc `X3025` = 3.025 mm on most machines).
 - Ideas not built: overcut difference map, polar-native operations (spiral facing, bolt circles, radial and concentric
   grooves), a "pole governor" warning (feed near the centre is limited by C speed: v = ω·d — the Fanuc manual
   B-63524EN gives the same rule: F < L × R × π/180, L = closest distance of the tool centre to the centre, R = max C

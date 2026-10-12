@@ -168,6 +168,7 @@
     var distIncremental = false;  // input is in G91
     var unitScale = 1.0;          // 25.4 while the input is in inches (G20)
     var polarMode = false;        // 2.12.1: inside Fanuc G16 polar coordinate mode
+    var polarR = null, polarA = null; // 2.12.2: last radius / angle given in G16 (Fanuc keeps them)
     var plane = 17;               // active arc plane of the input
     var usedPercent = false;      // input used % tape delimiters
     // FIX (2026-10-04): an input line copied INTO one of the converter's own
@@ -373,9 +374,22 @@
       // X is a radius (or a diameter only through the profile), and a G7 passed to a LinuxCNC lathe
       // configuration halved the part. G8 (radius mode) is removed: the header states the mode.
       if (!isGen[li]) {
+        // 2.12.2: a Fanuc program number ("O1000", also with moves on the same line, B-63534EN
+        // p.248) is not a LinuxCNC command - LinuxCNC reads "O1000" as an o-word without a
+        // keyword. It is kept as a comment. O-word subroutines/loops are refused further down.
+        var onum = rawLine.match(/^\s*O\s*(\d+)(?!\d)/i);
+        if (onum && !/^\s*O\s*\d+\s*(SUB|ENDSUB|CALL|RETURN|IF|ELSEIF|ELSE|ENDIF|WHILE|ENDWHILE|DO|REPEAT|ENDREPEAT|BREAK|CONTINUE)\b/i.test(rawLine)) {
+          rawLine = rawLine.slice(onum[0].length).trim();
+          rawLine = (rawLine ? rawLine + ' ' : '') + '( program O' + onum[1] + ' )';
+          lines[li] = rawLine;
+        }
         var g78 = rawLine.replace(/\([^)]*\)/g, ' ').replace(/;.*$/, '');
         if (/\bG0*7(?![.\d])/i.test(g78))
           inputError(li, rawLine, 'lathe diameter mode (G7) is not converted: the converter writes X itself (radius, or diameter through the output profile). Remove G7 from the post.');
+        // 2.12.2: Fanuc "G08 P1" is advanced preview control (B-63534EN p.476), not LinuxCNC's
+        // G8 radius mode; removing the G8 left a stray "P1" line. Refused with its own reason.
+        if (/\bG0*8(?![.\d])/i.test(g78) && /P\s*[-+]?[\d.]/i.test(g78))
+          inputError(li, rawLine, 'Fanuc G08 P (advanced preview control) is not a LinuxCNC command. Remove it from the post (LinuxCNC blends with G64).');
         if (/\bG0*8(?![.\d])/i.test(g78) && rawLine.indexOf(';') < 0) {
           rawLine = rawLine.replace(/\bG0*8(?![.\d])/gi, '').replace(/\s{2,}/g, ' ').trim() + ' ( G8 removed: the header sets the X mode )';
           lines[li] = rawLine;
@@ -401,6 +415,7 @@
           var pnote = [];
           if (hasG15) { polarMode = false; pnote.push('G15 removed: polar coordinates off'); }
           if (hasG16) { polarMode = true;  pnote.push('G16 polar coordinates on - X = radius, Y = angle, converted to X/Y'); }
+          if (hasG15 || hasG16) { polarR = null; polarA = null; }
           pcode = pcode.replace(/\bG0*1[56](?![.\d])/gi, ' ');
           if (polarMode) {
             var pc = pcode.toUpperCase();
@@ -416,13 +431,33 @@
             // "G16 X5 Y6" puts the pole at X5 Y6), others a first polar point - not certain, refused.
             if (hasG16 && (px || py))
               inputError(li, rawLine, 'X/Y on the G16 line itself is read differently by different controls (pole position or first point). Put G16 alone on its line, with the pole at the work origin.');
+            // 2.12.2 (Marios: E, from the Fanuc 16i/18i-MB manual B-63534EN/02 section 8.2, p.138-140):
+            // a radius or angle left out keeps its last value in G16 ("N3 Y150.0 ; a distance of
+            // 100 mm and an angle of 150 degrees"), and "G91 Y120.0" turns the angle by +120 degrees
+            // with the same radius and the pole still at the work origin. G91 WITH a radius moves
+            // the pole to the current position (p.138) - still refused. The first polar point after
+            // G16 must give both, because nothing is kept from before G16.
             if (px || py) {
-              if (pInc) inputError(li, rawLine, 'incremental G91 in polar coordinate mode (G16) is not converted (the pole would be the current position). Use G90 with the radius and angle from the work origin.');
-              if (!px || !py) inputError(li, rawLine, 'in polar coordinate mode (G16) write both the radius (X) and the angle (Y) on every line that moves in X/Y.');
-              var pr = parseFloat(px[1]), pa = parseFloat(py[1]) * Math.PI / 180;
+              var pr, paDeg;
+              if (pInc) {
+                if (px) inputError(li, rawLine, 'incremental G91 with a radius in polar coordinate mode (G16) is not converted (Fanuc then takes the pole at the current position). Use G90 with the radius and angle from the work origin; G91 with only an angle (Y) is converted.');
+                if (polarR === null || polarA === null || !xyKnown) inputError(li, rawLine, 'incremental angle (G91 Y) in polar coordinate mode (G16) before a radius and angle are known. Give the first point with G90 X(radius) Y(angle).');
+                pr = polarR; paDeg = polarA + parseFloat(py[1]);
+              } else {
+                pr = px ? parseFloat(px[1]) : polarR;
+                paDeg = py ? parseFloat(py[1]) : polarA;
+                if (pr === null || paDeg === null) inputError(li, rawLine, 'the first point after G16 must give both the radius (X) and the angle (Y); later lines may leave one out (it keeps its last value).');
+              }
+              polarR = pr; polarA = paDeg;
+              var pa = paDeg * Math.PI / 180;
               var cxp = pr * Math.cos(pa), cyp = pr * Math.sin(pa);
-              pcode = pcode.replace(/X\s*[-+]?(?:\d+\.?\d*|\.\d+)/i, 'X' + cxp.toFixed(6)).replace(/Y\s*[-+]?(?:\d+\.?\d*|\.\d+)/i, 'Y' + cyp.toFixed(6));
-              pnote.push('G16 X' + px[1] + ' Y' + py[1] + ' = radius ' + px[1] + ' at ' + py[1] + ' deg');
+              // In G91 the line stays incremental (the G91 code further down adds the current
+              // position), so the Cartesian step is written; in G90 the absolute point.
+              var oxp = pInc ? cxp - curX : cxp, oyp = pInc ? cyp - curY : cyp;
+              pcode = pcode.replace(/X\s*[-+]?(?:\d+\.?\d*|\.\d+)/i, ' ').replace(/Y\s*[-+]?(?:\d+\.?\d*|\.\d+)/i, ' ')
+                .replace(/\s+$/, '') + ' X' + oxp.toFixed(6) + ' Y' + oyp.toFixed(6);
+              pnote.push('G16 ' + (px ? 'X' + px[1] + ' ' : '') + (py ? (pInc ? 'G91 ' : '') + 'Y' + py[1] : '')
+                + ' = radius ' + +pr.toFixed(6) + ' at ' + +paDeg.toFixed(6) + ' deg');
             }
           }
           var ptext = pcmt.concat(pnote).filter(function (t) { return t; }).join(' / ').replace(/[()]/g, '');
@@ -491,6 +526,39 @@
       if (/[@^]/.test(ln))
         inputError(li, rawLine, 'polar words (@ radius, ^ angle) are not supported. Post the job with Cartesian X/Y; the converter makes the polar output itself.');
 
+      // ADDED 2.12.2 (Marios: "if they matter, do them"), after reading the whole Fanuc 16i/18i-MB
+      // manual B-63534EN/02 and testing its codes on the converter. Until 2.12.1 only a LIST of
+      // known-bad codes was refused and everything else passed: "G4 X1" (Fanuc dwell 1 s) moved the
+      // tool to X1; the X/Y of G51 (scaling centre), G50.1 (mirror axis), G22 (stroke area), G29,
+      // G45 and G60 became moves; NURBS (G6.2), involute (G2.2) and 3-D arcs (G2.4) became straight
+      // lines; threading G33 became a plain G1; G5/G5.1 (Fanuc high-speed modes, LinuxCNC splines),
+      // G43.4/G43.5, G65/G66 (macro calls) passed through. Now only the codes below are read; any
+      // other G code stops with the line number. Codes refused with their own reason further down
+      // are listed too, so that reason is the one shown.
+      var G_READ = [0, 1, 2, 3, 4, 10, 17, 18, 19, 20, 21, 28, 30, 40, 43, 49, 52, 53,
+                    54, 55, 56, 57, 58, 59, 59.1, 59.2, 59.3, 61, 61.1, 64, 73, 80, 81, 82, 83, 85, 89,
+                    90, 91, 91.1, 92, 92.1, 92.2, 92.3, 94, 97, 98, 99];
+      var G_OWN_REASON = [27, 31, 37, 38.2, 38.3, 38.4, 38.5, 41, 42, 41.1, 42.1, 68,
+                          74, 76, 84, 86, 87, 88, 90.1, 93];
+      for (var gk in gSet) {
+        var gv = parseFloat(gk);
+        if (G_READ.indexOf(gv) < 0 && G_OWN_REASON.indexOf(gv) < 0)
+          inputError(li, rawLine, 'G' + gk + ' is not converted (the converter reads only plain 3-axis milling: G0-G3, G4 P, cycles G73/G81-G83/G85/G89, G17-G21, G28/G30/G53, G40/G43/G49, G54-G59, G61/G64, G80, G90/G91, G94, G98/G99). Post the job for LinuxCNC as a 3-axis mill.');
+      }
+      // Fanuc writes the dwell as "G4 X1.5" (seconds) as well as "G4 P" (B-63534EN p.114);
+      // LinuxCNC only knows G4 P. An axis word on a G4 line was read as a move.
+      if (gSet[4] && (('X' in words) || ('Y' in words) || ('Z' in words)))
+        inputError(li, rawLine, 'dwell G4 with an axis word (Fanuc "G4 X" = seconds) is not converted. Write the dwell as G4 P<seconds>, on its own line.');
+      // Fanuc optional chamfer / corner rounding ",C" ",R" (p.243): the comma word was read as the
+      // C axis, and ",R" was ignored, leaving a sharp corner instead of the rounding.
+      if (/,\s*[A-Z]/.test(ln))
+        inputError(li, rawLine, 'chamfer / corner rounding words (,C ,R) are not converted. Post the job with the chamfers and roundings as plain moves.');
+      // Block delete "/": LinuxCNC skips the line when the switch is on, but the converter splits
+      // one input line into many output lines, and the "/" ended up on a line of its own - the
+      // move then ran ALWAYS. A "/" inside a line (Fanuc: skip the rest) was dropped too.
+      if (ln.indexOf('/') >= 0)
+        inputError(li, rawLine, 'block delete "/" (optional skip) is not converted. Post the job without block-delete lines.');
+
       // The input must be plain XYZ milling G-code: a rotary or secondary
       // linear axis word means the program was posted for a different machine.
       ['A', 'B', 'C', 'U', 'V', 'W'].forEach(function (k) {
@@ -507,7 +575,9 @@
       // lines the converter itself generated for the previous hole.
       if (!isGen[li] && (gSet[80] || ((gSet[0] || gSet[1] || gSet[2] || gSet[3]) && cyc === null))) activeCycle = null;
       if (!isGen[li] && (cyc !== null || (activeCycle && (('X' in words) || ('Y' in words)) && !gSet[80]))) {
-        if (distIncremental) inputError(li, rawLine, 'canned cycles in incremental mode (G91) are not converted. Post the cycles in G90.');
+        // FIX 2.12.2: a G91 on the cycle's own line ("G91 G81 X5 Z-3 R-2") was not seen here (the
+        // mode is updated later), and the holes were drilled at absolute X5 with the wrong depth.
+        if ((distIncremental && !gSet[90]) || gSet[91]) inputError(li, rawLine, 'canned cycles in incremental mode (G91) are not converted. Post the cycles in G90.');
         if (!xyKnown || !zKnown) inputError(li, rawLine, 'canned cycle before the tool position is known. The CAM must position with G0 first.');
         var sc = unitScale;
         if (cyc !== null && (!activeCycle || activeCycle.code !== cyc)) {

@@ -1,5 +1,33 @@
 # Changelog
 
+## 2.12.2 — only known G codes are read; G16 keeps a left-out radius/angle (Fanuc manual)
+
+Found by reading the whole Fanuc Series 16i/18i-MB operator's manual (B-63534EN/02, 1257 pages) and running its
+codes through the converter. Golden 144/144 identical; Marios's FreeCAD programs identical; sweeps unchanged.
+
+### Fixed
+- **Unknown G codes passed through, some with their X/Y taken as a move.** Until 2.12.1 only a list of known-bad codes
+  was refused. `G4 X1` (Fanuc dwell, 1 s) moved the tool to X1; the X/Y of `G51` (scaling centre), `G50.1` (mirror
+  axis), `G22` (stroke area), `G29`, `G45` and `G60` became moves; `G6.2` (NURBS), `G2.2` (involute) and `G2.4`
+  (3-D arc) became straight lines; `G33` (threading) became a plain `G1`; `G5 P10000`, `G5.1 Q1` (Fanuc high-speed
+  modes — splines in LinuxCNC), `G43.4/G43.5`, `G65/G66` (macro calls), `G95` (feed per revolution, read as
+  mm/min) passed through. Now only known codes are read (see README); any other G code stops with the line number.
+- **`G91` on a canned cycle's own line** (`G91 G81 X5 Z-3 R-2`) was not seen by the "no cycles in G91" check: the
+  hole was drilled at absolute X5 with the wrong depth. Refused now, like a cycle after a separate `G91`.
+- **Block delete `/`**: the `/` landed on an output line of its own, so the move ran always. Refused now.
+- **Chamfer / corner rounding `,C` `,R`** (Fanuc): `,R` was ignored (sharp corner instead of the rounding), `,C`
+  was refused as a "C axis word". Both refused now with their own reason.
+- **`G4 X`** refused with the reason (write `G4 P` in seconds). **Fanuc `G08 P1`** (advanced preview) left a stray
+  `P1` line after the `G8` removal; refused now.
+- A **Fanuc program number** (`O1000`, alone or with moves on the line) was copied out; LinuxCNC reads it as an
+  o-word without a keyword. Kept as a comment now.
+
+### Changed
+- **`G16` (Marios: E):** as in Fanuc B-63534EN §8.2 (p.138-140), a line may leave out the radius or the angle; it
+  keeps its last value (`N3 Y150.0` = 100 mm at 150°, the manual's example). `G91 Y120` turns the angle by +120°
+  with the same radius and the pole still at the work origin (example 2). Still refused: `G91` with a radius (the
+  pole becomes the current position), and a first point after `G16` without both values.
+
 ## 2.12.1 — G16 polar coordinates converted; subprograms, parameters and mixed R + I/J arcs refused; radial rapids in one block
 
 ### Added

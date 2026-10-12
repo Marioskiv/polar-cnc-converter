@@ -5,6 +5,18 @@ Short and factual. Current state lives in `STATUS.md`, permanent decisions in `D
 
 ---
 
+## 2026-10-12 (15) — whole Fanuc 16i/18i-MB manual read; 2.12.2 (whitelist of G codes, E)
+
+**Marios:** uploaded the full Fanuc manual (B-63534EN/02, 1257 pages) to a new PRIVATE repo `Marioskiv/cnc-manuals`
+(Claude could not create it: the GitHub integration may not create repos); asked to read it all; then "if they
+matter, do them". **Done:** text extracted and read in full (8 parallel readers + the key chapters by Claude);
+notes in `references/fanuc-b63534en.md`. Tested the manual's codes on the converter → real bugs (unknown codes
+passed, some X/Y as moves; G91 on a cycle line; `/`; `,R`). 2.12.2: whitelist of G codes, those fixes, E for G16.
+Golden 144/144 identical, input 152, sweeps worst 0.0225, FreeCAD programs identical. **Not done:** G12.1 import,
+dwell/integer warnings (ideas in STATUS). Note: the org's monthly spend limit was hit by one reader near the end.
+
+---
+
 ## 2026-10-12 (14) — F done; first primary Fanuc source (B-63524EN §4.6)
 
 **Marios:** "do F, both parts" + a Fanuc manual excerpt on G12.1. **Done:** header G8/G7 (rotary C only), input G7
