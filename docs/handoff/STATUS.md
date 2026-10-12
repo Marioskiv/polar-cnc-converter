@@ -87,7 +87,7 @@ trust the computer and tell Marios about the difference.
   https://marioskiv.github.io/polar-cnc-converter/ (Pages deploys from `main`; Ctrl+F5 after an update).
 - **v2.11.2 is on `main`** (PR #6 merged 2026-10-11): merge of moves < 0.15 mm (Z step, feed) and both-sides Signed-X
   short move fixed. **PR #7** (C speed 360 deg/s in the delivered `.ini` + notes) merged 2026-10-12.
-- **v2.11.3** (Marios: yes, 2026-10-12; branch `claude/youthful-goldberg-a6qv5t`, PR to `main`): `SIGNED_EXACT_R`
+- **v2.11.3 is on `main`** (PR #8 merged by Marios 2026-10-12, CI green): `SIGNED_EXACT_R`
   = `CHORD_TOL * 0.25` (was `CHORD_TOL`) → the rare near-pole 0.0268 mm is gone: random near-pole sweep 0/3000 both
   sides (worst 0.0225), sweeps unchanged, golden 144/144 identical, new input test (fails on 2.11.2), zip tested.
 - **Research 2026-10-11** (`references/research-2026-10-11.md`) — proposals waiting for Marios's yes:

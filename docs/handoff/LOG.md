@@ -5,6 +5,22 @@ Short and factual. Current state lives in `STATUS.md`, permanent decisions in `D
 
 ---
 
+## 2026-10-12 (7) — Enéias Eringer (LinuxCNC users group): what he does, and our answer
+
+**Marios:** showed Enéias Eringer (Brazil, "Eringer Retrofit CNC", LinuxCNC retrofits) — FreeCAD 1.1.1 video with
+operations "Surface5Axis…" and a tilted-tool simulator; asked if his work is on GitHub; then their Facebook thread
+(15 weeks old).
+**Found:** no public GitHub work of his ("eringer" on GitHub is someone else). "Surface5Axis" is not in official
+FreeCAD (1.1 or 26.3; only a multi-axis discussion, FreeCAD #23042) → his own modification. In the thread he says:
+his G-code came from hyperMILL for a normal 5-axis Fanuc machine, **LinuxCNC does TCP**, it is not an XYZ→XCZ
+converter; he suggested modifying LinuxCNC's code with AI and adding a remapped G12.1. **Our position unchanged**
+(DECISIONS: no real-time kinematics): G12.1/polarkins in real time cannot look ahead, so the pole (C up to 180° at
+r≈0) gives following errors or silent stalls; patched LinuxCNC C code must be re-patched on every update and a bug
+moves the machine. TCP is fine for a 5-axis table/head mill, not for this polar machine. Possible contact later (tilt
+axis B, oriented toolpaths), after the real test cuts.
+
+---
+
 ## 2026-10-12 (6) — 2.11.3: the 0.0268 mm near-pole fix (Marios: yes)
 
 **Marios:** C speed values fine → PR #7 merged by him. Then "yes, do the 2.11.3 fix".
