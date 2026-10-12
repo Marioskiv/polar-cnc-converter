@@ -5,6 +5,16 @@ Short and factual. Current state lives in `STATUS.md`, permanent decisions in `D
 
 ---
 
+## 2026-10-12 (4) — C direction: the standard; F test saved as Marios's checklist
+
+**Marios:** is there a rule for the C direction, so the machine is set by the rule? Save the F test as a pending item.
+**Answered:** yes — ISO 841 right-hand rule (tool motion on the part); the converter already follows it; with the
+chuck turning the part, `G0 C90` must turn the chuck clockwise seen from the cutter; a wrong direction is fixed by the
+sign of the C `STEP_SCALE`, then proven by the "F" cut. Procedure written in STATUS (testing before a real part).
+Still waiting for his yes on the one-line `SIGNED_EXACT_R` fix (2.11.3).
+
+---
+
 ## 2026-10-12 (3) — full check of the converter (no code changed); FreeCAD addon postponed
 
 **Marios:** not the addon yet — keep it as a future item; first he wants to know the converter works flawlessly.

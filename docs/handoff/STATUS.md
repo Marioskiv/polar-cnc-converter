@@ -54,6 +54,17 @@ trust the computer and tell Marios about the difference.
   plain G64 blending may still apply). Verify whether `[TRAJ] MAX_ANGULAR_VELOCITY` is used (documented only in `[DISPLAY]`).
 
 ## Open items — testing before a real part
+- **C direction + "F" test — Marios's checklist (saved at his request 2026-10-12).** Rule: ISO 841 / RS-274 / LinuxCNC,
+  right-hand rule about +Z (+Z = from the part toward the tool), describing the TOOL's motion on the part. The converter
+  already follows it (x = r cos C, y = r sin C, +C counter-clockwise in the CAM drawing). Since the chuck turns the part,
+  +C means the **chuck turns CLOCKWISE seen from the cutter**. Fix a wrong direction on the machine (sign of C
+  `STEP_SCALE` in the `.ini`, block given first), not in the converter (Invert option only for machines one cannot change).
+  1. Home all, MDI `G0 C90`, look at the chuck from the cutter side: clockwise = correct; counter-clockwise → C
+     `STEP_SCALE` 91.733333 → -91.733333.
+  2. CAM: a letter "F" about 30-40 mm high, engraved 0.2-0.5 mm deep, placed OFF the centre (e.g. its corner at X10 Y10),
+     upright in the CAM's XY view (top of the F toward +Y, arms toward +X); convert, cut on scrap.
+  3. Look at the part from the cutter side: a readable "F" = C and X correct; a mirrored "F" = one of them wrong;
+     an F turned by an angle only = C zero / work offset, not direction. Photograph it.
 - vismach simulation (`examples/linuxcnc-vismach-xzc-lathe`, synced to the new X layout and mill-style Z; sim only).
 - Air cut; Home C before every program; X = 0 at the chuck centre; then the asymmetric "F" cut; then an aluminium part,
   measured and photographed (the first thing the Kiri:Moto author will ask for).
