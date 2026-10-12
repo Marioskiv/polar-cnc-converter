@@ -74,6 +74,8 @@ trust the computer and tell Marios about the difference.
   (3) dropped — router base will be milled on the machine (DECISIONS);
   (4) simulator: deviation colouring, axis-speed colouring, finer height map, line link, report export;
   (5) long term: FreeCAD addon "Polar XZC" (machine `.fcm` + Python port of the core), after real test cuts.
+      **Feasibility proven 2026-10-12 on real FreeCAD 26.3** (`references/freecad-addon-feasibility-2026-10-12.md`);
+      Marios wants it as an addon (26.3+, not 1.1), first for himself. Not started — waiting for his go.
 - LinuxCNC on trixie: stay on 2.9.x (≥ 2.9.9 on 6.12 kernels), `linux-image-rt-amd64`, `linuxcnc-uspace`, install
   `iptables` for hm2_eth, NIC static + RX coalescing 0, run latency-histogram (see the research file §3).
 - Direction check written on the page (2026-10-11). For Marios: X settled 2026-10-04; **C still to be checked** with

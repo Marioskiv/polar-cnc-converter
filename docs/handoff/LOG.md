@@ -5,6 +5,17 @@ Short and factual. Current state lives in `STATUS.md`, permanent decisions in `D
 
 ---
 
+## 2026-10-12 (2) — FreeCAD addon: feasibility proven on real FreeCAD 26.3 (no repo code changed)
+
+**Marios:** has FreeCAD 1.1, tries 26.3; wants it done properly as an addon, first for himself, idea to FreeCAD later;
+research only, no code changes; verify it really works and is professional.
+**Done:** installed FreeCAD 26.3.0 headless (conda-forge 2026.09.16), built a throw-away addon in /tmp and a real CAM
+job → `references/freecad-addon-feasibility-2026-10-12.md`. Works: XZC machine valid, addon discovery (needs an
+`Init.py`), post gets arcs/feeds (mm/s)/tool diameter, G93 lines pass as-is, `G0 C0` poses must be dropped; end-to-end
+output identical to the page (0.0094 mm). 1.1 cannot do it. Decision on building the real addon: waiting for him.
+
+---
+
 ## 2026-10-12 — where should the converter live? (analysis, no code change)
 
 **Marios:** compare FreeCAD addon / Kiri hook / LinuxCNC `userkins.comp` (real time, Mesa 7i92) and give a roadmap.
