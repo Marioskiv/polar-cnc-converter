@@ -58,6 +58,13 @@ trust the computer and tell Marios about the difference.
 - Check C+ direction with the page's Direction check: `G0 C90` → chuck clockwise seen from the cutter (else mirrored
   parts; fix the C `STEP_SCALE` sign); `G0 C3600` then `G0 C0` must return exactly (else lower C speed to 105/90).
 - C soft limits ±99,999° allow only ~277 chuck turns per program — raise them in `[AXIS_C]`/`[JOINT_2]`.
+- **LATER (Marios 2026-10-12): variable-speed router / spindle controlled by CAM + LinuxCNC.** CAM `S` + `M3/M5`
+  already pass through the converter in order (checked: `S18000 M3`, mid-program `S24000`, `M5`). Needed: a spindle
+  with external control (VFD: 0-10 V or RS485 Modbus; a hand router like Makita cannot). LinuxCNC: BOB P1 = spindle
+  PWM (`gpio.000`, unused, `num_pwmgens=0`) — whether the BOB turns PWM into 0-10 V is UNKNOWN (ask, photo of the
+  BOB); or RS485 with a VFD component. Constant surface speed is not needed (the router cuts). Idea: HAL link spindle
+  speed to the real feed so chip load stays constant when LinuxCNC slows near the centre (with a minimum rpm).
+  Ask first: router/spindle model + VFD, BOB spindle terminal.
 - Mount and wire the chuck encoder. Confirm the gamepad layout (if X drifts: read `input.0.abs-ry-position` at rest).
 - Measure real vs predicted cycle time (LinuxCNC `tp.c` gives moves with a rotary axis no blend arc / tangent merge;
   plain G64 blending may still apply). Verify whether `[TRAJ] MAX_ANGULAR_VELOCITY` is used (documented only in `[DISPLAY]`).
@@ -87,7 +94,7 @@ trust the computer and tell Marios about the difference.
   https://marioskiv.github.io/polar-cnc-converter/ (Pages deploys from `main`; Ctrl+F5 after an update).
 - **v2.11.2 is on `main`** (PR #6 merged 2026-10-11): merge of moves < 0.15 mm (Z step, feed) and both-sides Signed-X
   short move fixed. **PR #7** (C speed 360 deg/s in the delivered `.ini` + notes) merged 2026-10-12.
-- **v2.11.3** (Marios: yes, 2026-10-12; branch `claude/youthful-goldberg-a6qv5t`, PR to `main`): `SIGNED_EXACT_R`
+- **v2.11.3 is on `main`** (PR #8 merged by Marios 2026-10-12, CI green): `SIGNED_EXACT_R`
   = `CHORD_TOL * 0.25` (was `CHORD_TOL`) → the rare near-pole 0.0268 mm is gone: random near-pole sweep 0/3000 both
   sides (worst 0.0225), sweeps unchanged, golden 144/144 identical, new input test (fails on 2.11.2), zip tested.
 - **Research 2026-10-11** (`references/research-2026-10-11.md`) — proposals waiting for Marios's yes:
