@@ -11,7 +11,7 @@ Short and factual. Current state lives in `STATUS.md`, permanent decisions in `D
 is no problem, do not remove them"; (b) yes to exact arcs about the chuck axis; (c) pasted the ENCY polar page.
 **Done:** 2.12.0 exact arcs (see STATUS/CHANGELOG), ENCY notes in `references/polar-papers-2026-10-12.md`.
 Found but NOT fixed: none new — the 3 sweep cases over 0.026 are sub-zone helices (replay artefact, also on main).
-**Open:** his decision on PR #10 (keep refusal / revert / support G16). 2.12.0 waits locally until then.
+**Then Marios chose "keep 2.11.4"** (explained: the codes did cause problems). 2.12.0 pushed into PR #10.
 
 ---
 

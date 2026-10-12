@@ -1,4 +1,4 @@
-# Status — updated 2026-10-12 (converter v2.12.0, local)
+# Status — updated 2026-10-12 (converter v2.12.0)
 
 Session history: `LOG.md` (newest first).
 
@@ -103,8 +103,8 @@ trust the computer and tell Marios about the difference.
   Later (B): support G16 properly. Paper read: `references/polar-papers-2026-10-12.md`.
 - **v2.12.0** (Marios: yes to exact arcs, 2026-10-12): arcs centred on the chuck axis = C-only blocks, X constant
   (≤ 45°/block). Golden 24/144 changed (explained in CHANGELOG), his FreeCAD programs 11,573 → 3,305 and
-  13,436 → 5,712 blocks, same accuracy. **Committed locally, not pushed:** waiting for his answer on 2.11.4 (he says
-  he did not ask to REFUSE G16 etc. — only remove them if they cause a problem).
+  13,436 → 5,712 blocks, same accuracy. Pushed with 2.11.4 in PR #10 (Marios chose: keep 2.11.4 — the refused codes
+  did cause problems: G16 wrong position, G15 refused by LinuxCNC).
 - **Research 2026-10-11** (`references/research-2026-10-11.md`) — proposals waiting for Marios's yes:
   (1) DONE 2.12.0 — arcs centred on the chuck axis as exact X-constant blocks;
   (2) dropped — line-length guard not wanted (DECISIONS);
