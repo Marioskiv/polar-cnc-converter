@@ -811,7 +811,12 @@
             // of that axis. If the tool is physically AT the pole, C may first be
             // spun to the line's own direction — a pure spin at r = 0 moves the
             // tool nowhere — which makes any line leaving the pole exact.
-            var SIGNED_EXACT_R = Math.max(CHORD_TOL, 1e-3);
+            // FIX 2.11.3: was CHORD_TOL. A line up to 0.025 mm off the axis then counted as
+            // "on" it, so its end point was written up to 0.02 mm off and the next block
+            // added its own error (0.0268 mm measured near the pole, 3-9 in 3000 random
+            // polylines). A quarter of the tolerance keeps Signed-X for real through-centre
+            // passes and sends the rest to Index at Pole / point by point.
+            var SIGNED_EXACT_R = Math.max(CHORD_TOL * 0.25, 1e-3);
             var perpToAxis = function (x, y, refDeg) {
               var a = refDeg * Math.PI / 180;
               return Math.abs(-x * Math.sin(a) + y * Math.cos(a));
