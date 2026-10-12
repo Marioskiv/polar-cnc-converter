@@ -83,3 +83,15 @@ before G13.1). **Partly unreliable:** it says in one breath that arcs are "prohi
 mm of arc" (in G12.1 the C word is a virtual linear axis in mm, §6); its "feed vs radius" paragraph mixes feed per
 rev with surface speed. The Nakamura example uses inch, G99 feed per rev, `G28 H0` to home C. Nothing new for the
 pole. **For us:** nothing to change — G12.1/G112 input stays refused; confirms the CAM-side approach.
+
+## 8. "G112 Polar Interpolation Programming — Axial Square Milling" (vendor blog, text pasted by Marios 2026-10-12)
+Codes: Haas `G112/G113`, Mitsubishi Meldas `G12.2/G13.2`, Fanuc `G12.1/G13.1`; cylindrical interpolation Fanuc
+`G7.1`, Mitsubishi `G7.2`, Haas `G107`. Correct and useful: X becomes the radial, C a virtual linear axis; the
+control never drives X negative — a "negative X" corner is reached as +X with C turned 180° (exactly our Index at
+Pole / one-side rule); dry-run lifted first, then a shallow scratch cut on aluminium, document the setup.
+**Partly confused:** calls a tool "axial" when perpendicular to Z and applies polar interpolation to flats "on the
+side of a shaft" (that is cylindrical interpolation / Y axis; polar interpolation mills the END FACE); parameter
+numbers and "Y-intercept cap" are unverified; feed mixes in/rev with linear feed. Nothing on the pole itself.
+**For us:** found that `G12.2/G13.2`, `G7.1`, `G107` passed through → now refused (2.12.1). Also found: lathe
+diameter mode **`G7` passes through** — on a `LATHE = 1` machine it would make LinuxCNC read our radius X as a
+DIAMETER (part half size) → proposal F (refuse G7; maybe write G8 in the header).

@@ -459,8 +459,11 @@
       // LinuxCNC polar words (@ radius, ^ angle) and polar interpolation (G12.1/G13.1,
       // Haas G112/G113) passed through unconverted. The converter itself makes the polar
       // output; the input must be plain Cartesian XY.
-      if (gSet[12.1] || gSet[13.1] || gSet[112] || gSet[113])
-        inputError(li, rawLine, 'polar interpolation (G12.1/G13.1, G112/G113) is not supported in the input. Post the job as a 3-axis mill with Cartesian X/Y; the converter makes the polar output itself.');
+      // 2.12.1: Mitsubishi G12.2/G13.2 too; cylindrical interpolation (Fanuc G7.1, Haas G107) as well.
+      if (gSet[12.1] || gSet[13.1] || gSet[112] || gSet[113] || gSet[12.2] || gSet[13.2])
+        inputError(li, rawLine, 'polar interpolation (G12.1/G13.1, G112/G113, G12.2/G13.2) is not supported in the input. Post the job as a 3-axis mill with Cartesian X/Y; the converter makes the polar output itself.');
+      if (gSet[7.1] || gSet[107])
+        inputError(li, rawLine, 'cylindrical interpolation (G7.1, G107) is not supported. Post the job as a 3-axis mill with Cartesian X/Y.');
       // ADDED 2.12.1 (Marios: D): program flow the converter cannot follow is refused, never passed
       // through. A subprogram body (M98/M99, LinuxCNC o-word sub/call) was converted where it stands
       // in the file - after M30 - from the position of the line before it, not from the call; loops

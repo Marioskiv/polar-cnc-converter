@@ -192,6 +192,9 @@ const P = (body) => 'G21 G90 G17\nG0 Z5\nG0 X10 Y0\n' + body + '\nM30';
 ok(/G0 X20\.0000 C45\.0000/.test(convert(P('G16\nG0 X20 Y45'), { xMin: 0, xMax: 113 })), 'G16 X20 Y45 goes to radius 20 at 45 deg');
 assert.throws(() => convert(P('G12.1\nG1 X10 Y0 F100'), { xMin: 0, xMax: 113 }), /polar interpolation/); n++;
 assert.throws(() => convert(P('G112\nG1 X10 F100'), { xMin: 0, xMax: 113 }), /polar interpolation/); n++;
+assert.throws(() => convert(P('G12.2\nG1 X10 Y0 F100'), { xMin: 0, xMax: 113 }), /polar interpolation/); n++;
+assert.throws(() => convert(P('G7.1 C20'), { xMin: 0, xMax: 113 }), /cylindrical interpolation|C axis word/); n++;
+assert.throws(() => convert(P('G107'), { xMin: 0, xMax: 113 }), /cylindrical interpolation/); n++;
 assert.throws(() => convert(P('G0 @20 ^45'), { xMin: 0, xMax: 113 }), /polar words/); n++;
 const g15 = convert('G90 G17 G21 G40 G49 G80 G15\nG0 Z5\nG0 X10 Y0\nG1 Z-1 F100\nM30', { xMin: 0, xMax: 113 });
 ok(!g15.split('\n').some(l => /\bG15\b/.test(l.replace(/\([^)]*\)/g, ''))) && /G40 G49 G80/.test(g15),

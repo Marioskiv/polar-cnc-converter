@@ -110,7 +110,9 @@ trust the computer and tell Marios about the difference.
   Golden 144/144 identical, input 98 checks. In PR #10 together with 2.11.4 and 2.12.0. G16 sources compared in
   `references/polar-papers-2026-10-12.md` (Shahab Dev OK; etcnmachining unreliable). Fanuc manual not available here.
 - **D DONE in 2.12.1 (Marios: yes):** M98/M99, o-word sub/call/if/while/repeat, `#` parameters and `[ ]`
-  expressions refused (all passed through before). **Waiting:** (E) in G16 keep the last radius/angle when a line omits one
+  expressions refused (all passed through before); also G12.2/G13.2, G7.1, G107. **Waiting:** (F) lathe diameter
+  mode `G7` passes through — on LATHE = 1 LinuxCNC would read our radius X as a diameter (half-size part): refuse
+  G7, and maybe write `G8` in the header (header change → golden); (E) in G16 keep the last radius/angle when a line omits one
   (Machining Doctor example) — needs a firm source; refused today. Fixed inside 2.12.1 (unmerged PR #10): X/Y on the
   G16 line itself refused (pole vs first point differs between sources).
 - **Research 2026-10-11** (`references/research-2026-10-11.md`) — proposals waiting for Marios's yes:
