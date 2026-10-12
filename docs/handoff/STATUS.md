@@ -58,6 +58,13 @@ trust the computer and tell Marios about the difference.
 - Check C+ direction with the page's Direction check: `G0 C90` → chuck clockwise seen from the cutter (else mirrored
   parts; fix the C `STEP_SCALE` sign); `G0 C3600` then `G0 C0` must return exactly (else lower C speed to 105/90).
 - C soft limits ±99,999° allow only ~277 chuck turns per program — raise them in `[AXIS_C]`/`[JOINT_2]`.
+- **LATER (Marios 2026-10-12): variable-speed router / spindle controlled by CAM + LinuxCNC.** CAM `S` + `M3/M5`
+  already pass through the converter in order (checked: `S18000 M3`, mid-program `S24000`, `M5`). Needed: a spindle
+  with external control (VFD: 0-10 V or RS485 Modbus; a hand router like Makita cannot). LinuxCNC: BOB P1 = spindle
+  PWM (`gpio.000`, unused, `num_pwmgens=0`) — whether the BOB turns PWM into 0-10 V is UNKNOWN (ask, photo of the
+  BOB); or RS485 with a VFD component. Constant surface speed is not needed (the router cuts). Idea: HAL link spindle
+  speed to the real feed so chip load stays constant when LinuxCNC slows near the centre (with a minimum rpm).
+  Ask first: router/spindle model + VFD, BOB spindle terminal.
 - Mount and wire the chuck encoder. Confirm the gamepad layout (if X drifts: read `input.0.abs-ry-position` at rest).
 - Measure real vs predicted cycle time (LinuxCNC `tp.c` gives moves with a rotary axis no blend arc / tangent merge;
   plain G64 blending may still apply). Verify whether `[TRAJ] MAX_ANGULAR_VELOCITY` is used (documented only in `[DISPLAY]`).

@@ -5,6 +5,14 @@ Short and factual. Current state lives in `STATUS.md`, permanent decisions in `D
 
 ---
 
+## 2026-10-12 (8) — variable-speed router: saved as a later item
+
+**Marios:** can CAM / converter control a variable-speed router? → yes for per-tool/per-operation `S` (already passes
+through); hardware + HAL/INI needed (VFD, BOB 0-10 V unknown). Idea: spindle speed following real feed near the
+centre (HAL). **Saved as a later item in STATUS** at his request; nothing changed.
+
+---
+
 ## 2026-10-12 (7) — Enéias Eringer (LinuxCNC users group): what he does, and our answer
 
 **Marios:** showed Enéias Eringer (Brazil, "Eringer Retrofit CNC", LinuxCNC retrofits) — FreeCAD 1.1.1 video with
