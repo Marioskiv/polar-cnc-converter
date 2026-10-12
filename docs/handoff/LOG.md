@@ -5,6 +5,16 @@ Short and factual. Current state lives in `STATUS.md`, permanent decisions in `D
 
 ---
 
+## 2026-10-12 — where should the converter live? (analysis, no code change)
+
+**Marios:** compare FreeCAD addon / Kiri hook / LinuxCNC `userkins.comp` (real time, Mesa 7i92) and give a roadmap.
+**Done:** `references/architecture-options-2026-10-12.md`. Read LinuxCNC 2.9.10 `control.c`: in coordinated mode the
+joint positions come straight from `kinematicsInverse()` of the planner's XYZ position, no joint speed clamp → near the
+centre: following error or silent stepper stall. Recommended: keep the offline core (JS reference, golden tests as the
+spec), FreeCAD addon long-term, Kiri optional, **no real-time kinematics**. Waiting for his decision; PR #6 still open.
+
+---
+
 ## 2026-10-11 (10) — 2.11.2: the two bugs fixed (Marios: yes)
 
 **Done:** merge of short moves (3-D check, never across a feed change, waiting point at its own feed) and the both-sides
