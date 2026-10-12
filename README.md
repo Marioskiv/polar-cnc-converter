@@ -252,7 +252,8 @@ too far from the start radius — same tolerances as LinuxCNC 2.9).
 (`G17`) with `G90`, `X` is the radius and `Y` the angle in degrees (counter-clockwise from +X), measured from the
 work origin. Write both on every line that moves in X/Y. `G16`/`G15` themselves are removed (LinuxCNC does not
 know them). Stopped with the line number: `G91` in polar mode (Fanuc then takes the pole at the current point),
-a missing radius or angle, arcs in polar mode, other planes, and offset/machine-coordinate commands with X/Y.
+a missing radius or angle, X/Y on the `G16` line itself (pole or first point? controls differ), arcs in polar
+mode, other planes, and offset/machine-coordinate commands with X/Y.
 Note: a canned-cycle line without X/Y (`G81 Z-15 R2` right after `G16`) drills at the current position — often the
 centre — exactly as on the control itself.
 

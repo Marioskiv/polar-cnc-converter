@@ -46,3 +46,13 @@ others: angle 0 = +X (3 o'clock), counter-clockwise positive; G15 cancels; used 
 supports G16": not verified. **For proposal B (G16 input) the Fanuc operator's manual is the reference, not blogs.**
 Found through it: the converter accepts an arc with BOTH R and I/J (`G3 X0 Y10 I-10 J0 R10`) and picks one meaning,
 where LinuxCNC refuses the block → proposal C (refuse, like LinuxCNC).
+
+## 5. Machining Doctor — G15/G16 (text pasted by Marios 2026-10-12)
+- X = radius, Y = angle from 3 o'clock; `G16` alone → pole at X0 Y0; G15 cancels. Same as the others.
+- **Differs:** "`G16 X5.0 Y6.0` places the pole at X5 Y6". Our 2.12.1 first draft read X/Y on the G16 line as a polar
+  point → conflicting meanings → now refused (G16 must stand alone).
+- Its bolt-circle example omits the radius on later lines (`G00 Y90`) — the radius is modal. 2.12.1 refuses lines
+  with only one of the two words (safe); supporting "last radius/angle kept" is proposal E (needs a firm source).
+- It uses `M98 P2000` subprograms. Found: the converter passes M98 through and converts the O2000 body where it
+  stands in the file (after M30), with the position state of the line before it, not of the call → proposal D:
+  refuse M98/M99 and O-word subroutine calls (`o… call/sub`) until handled properly.

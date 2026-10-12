@@ -8,7 +8,8 @@
   Each such line is rewritten to Cartesian X/Y before anything else reads it (canned cycles included) and noted in a
   comment; `G16`/`G15` are removed (LinuxCNC does not know them). A G16 bolt circle gives exactly the same motion as
   the same holes written in X/Y. Refused with the line number, because their meaning is not certain: `G91` in
-  polar mode, a line with only the radius or only the angle, arcs in polar mode, other planes, and
+  polar mode, a line with only the radius or only the angle, X/Y on the `G16` line itself (some sources make
+  them the pole, others a first point), arcs in polar mode, other planes, and
   `G10/G28/G30/G52/G53/G92` with X/Y. `G12.1/G13.1`, `G112/G113` and `@ ^` stay refused (2.11.4).
 
 ### Fixed

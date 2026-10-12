@@ -400,6 +400,10 @@
               inputError(li, rawLine, 'arcs in polar coordinate mode (G16) are not converted. Program the arc in Cartesian X/Y (after G15).');
             if (/\bG0*(10|28|30|52|53|92)(?![.\d])/.test(pc) && (px || py))
               inputError(li, rawLine, 'offset or machine-coordinate commands with X/Y are not converted in polar coordinate mode (G16).');
+            // X/Y on the G16 line itself: some sources make them the pole (Machining Doctor:
+            // "G16 X5 Y6" puts the pole at X5 Y6), others a first polar point - not certain, refused.
+            if (hasG16 && (px || py))
+              inputError(li, rawLine, 'X/Y on the G16 line itself is read differently by different controls (pole position or first point). Put G16 alone on its line, with the pole at the work origin.');
             if (px || py) {
               if (pInc) inputError(li, rawLine, 'incremental G91 in polar coordinate mode (G16) is not converted (the pole would be the current position). Use G90 with the radius and angle from the work origin.');
               if (!px || !py) inputError(li, rawLine, 'in polar coordinate mode (G16) write both the radius (X) and the angle (Y) on every line that moves in X/Y.');

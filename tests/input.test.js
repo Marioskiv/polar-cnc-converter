@@ -226,6 +226,7 @@ ok(/C0\.0000 Z-1\.0000/.test(convert(P('(a @ and ^ inside a comment)\nG1 Z-1 F10
   const Q = b => 'G21 G90 G17\nG0 X10 Y0 Z5\n' + b + '\nM30';
   assert.throws(() => convert(Q('G16\nG91 G0 X10 Y30'), { xMin: 0, xMax: 113 }), /incremental G91 in polar/); n++;
   assert.throws(() => convert(Q('G16\nG0 X20'), { xMin: 0, xMax: 113 }), /both the radius \(X\) and the angle \(Y\)/); n++;
+  assert.throws(() => convert(Q('G16 X6 Y6\nG0 X5 Y30'), { xMin: 0, xMax: 113 }), /G16 line itself/); n++;
   assert.throws(() => convert(Q('G1 Z-1 F100\nG16\nG3 X20 Y90 R20'), { xMin: 0, xMax: 113 }), /arcs in polar coordinate mode/); n++;
   ok(/G0 X20\.0000 C90\.0000/.test(convert(Q('G16\nG0 X20 Y90 ; side comment'), { xMin: 0, xMax: 113 })), 'G16 line with a ; comment');
 }
