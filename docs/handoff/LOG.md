@@ -5,6 +5,15 @@ Short and factual. Current state lives in `STATUS.md`, permanent decisions in `D
 
 ---
 
+## 2026-10-12 (13) — D done; more G16/G12.1 sources
+
+**Marios:** sent Machining Doctor (G16), a Fanuc G12.1 turn-mill document and a vendor G12.1 article; "do D".
+**Done:** 2.12.1 also refuses X/Y on the G16 line (pole vs first point differs between sources), subprograms,
+o-word flow and `#`/`[ ]` (all were passed through). Input tests 107, golden 144/144. Sources compared in
+`references/polar-papers-2026-10-12.md` §5–7. **Waiting:** E (modal radius/angle in G16) — needs the Fanuc manual.
+
+---
+
 ## 2026-10-12 (12) — 2.12.1: A, B, C (Marios: "ok kane to A kai to G kai B")
 
 **Done:** radial rapids in one block; G16 converted in its certain form (G17 + G90, both words per line, pole =

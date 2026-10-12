@@ -461,6 +461,18 @@
       // output; the input must be plain Cartesian XY.
       if (gSet[12.1] || gSet[13.1] || gSet[112] || gSet[113])
         inputError(li, rawLine, 'polar interpolation (G12.1/G13.1, G112/G113) is not supported in the input. Post the job as a 3-axis mill with Cartesian X/Y; the converter makes the polar output itself.');
+      // ADDED 2.12.1 (Marios: D): program flow the converter cannot follow is refused, never passed
+      // through. A subprogram body (M98/M99, LinuxCNC o-word sub/call) was converted where it stands
+      // in the file - after M30 - from the position of the line before it, not from the call; loops
+      // and conditions (o-word if/while/repeat) run lines a different number of times than written;
+      // parameters and expressions (#1, [5+5]) are values the converter cannot compute ("G1 X#1" lost
+      // its X). The CAM can post all of these as plain moves.
+      if (/\bM0*9[89](?![.\d])/.test(ln))
+        inputError(li, rawLine, 'subprograms (M98/M99) are not converted. Post the job with the subprograms expanded into plain moves.');
+      if (/^O\s*(<[^>]*>|\d+)\s*(SUB|ENDSUB|CALL|RETURN|IF|ELSEIF|ELSE|ENDIF|WHILE|ENDWHILE|DO|REPEAT|ENDREPEAT|BREAK|CONTINUE)\b/.test(ln))
+        inputError(li, rawLine, 'o-word subroutines, loops and conditions are not converted. Post the job as plain moves.');
+      if (/[#\[\]]/.test(ln))
+        inputError(li, rawLine, 'parameters and expressions (#, [ ]) are not converted. Post the job with plain numbers.');
       if (/[@^]/.test(ln))
         inputError(li, rawLine, 'polar words (@ radius, ^ angle) are not supported. Post the job with Cartesian X/Y; the converter makes the polar output itself.');
 

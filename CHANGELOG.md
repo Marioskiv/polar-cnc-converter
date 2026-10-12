@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.12.1 — G16 polar coordinates converted; mixed R + I/J arcs refused; radial rapids in one block
+## 2.12.1 — G16 polar coordinates converted; subprograms, parameters and mixed R + I/J arcs refused; radial rapids in one block
 
 ### Added
 - **Fanuc `G16` / `G15`** (polar coordinate command, used for hand-written bolt circles) is converted instead of
@@ -13,6 +13,11 @@
   `G10/G28/G30/G52/G53/G92` with X/Y. `G12.1/G13.1`, `G112/G113` and `@ ^` stay refused (2.11.4).
 
 ### Fixed
+- **Program flow and computed values** passed through unconverted: `M98`/`M99` subprograms (the sub body was converted
+  where it stands in the file, after `M30`, from the position of the line before it — not from the call), LinuxCNC
+  o-word `sub/call/if/while/repeat…`, and parameters / expressions (`#1=5`, `G1 X#1`, `X[5+5]` lost their X). All are
+  now refused with the line number; a CAM posts them as plain moves. A Fanuc program number (`O1001`) and `#`/`[ ]`
+  inside comments are still fine.
 - An arc with **both R and I/J** (`G3 X0 Y10 I-10 J0 R10`) was converted with R, whatever I/J said; LinuxCNC refuses
   such a block ("mixed radius-ijk format"). Now refused too.
 
@@ -21,8 +26,8 @@
   it was cut into 0.5 mm pieces (200 blocks for X0 → X100). Rapids that turn C are segmented as before.
 
 ### Golden baseline
-- 144/144 identical. Input tests 98 (new: G16 conversion = Cartesian version, 4 refusals, `;` comments, mixed
-  R + I/J, radial rapids). Sweeps and the near-pole stress test unchanged; Marios's FreeCAD programs: same G1 output,
+- 144/144 identical. Input tests 107 (new: G16 conversion = Cartesian version, 5 refusals, `;` comments, mixed
+  R + I/J, radial rapids, subprograms / o-words / parameters). Sweeps and the near-pole stress test unchanged; Marios's FreeCAD programs: same G1 output,
   one of them 2 rapid blocks fewer.
 
 

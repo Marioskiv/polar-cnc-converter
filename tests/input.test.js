@@ -240,4 +240,18 @@ assert.throws(() => convert('G21 G90 G17\nG0 X10 Y0 Z1\nG1 Z-1 F100\nG3 X0 Y10 I
   ok(g0('G21 G90\nG0 X50 Y0 Z5\nG0 X0 Y50\nG1 Z-1 F100\nM30').length > 3, 'a rapid that turns C is still segmented');
 }
 
+// 26. (2.12.1, D) Program flow and computed values are refused, not passed through.
+{
+  const R = b => () => convert('G21 G90\nG0 X10 Y0 Z5\n' + b + '\nM30', { xMin: 0, xMax: 113 });
+  assert.throws(R('M98 P2000'), /subprograms \(M98\/M99\)/); n++;
+  assert.throws(R('M99'), /subprograms \(M98\/M99\)/); n++;
+  assert.throws(R('o100 sub\nG1 Z-1 F100\no100 endsub'), /o-word subroutines/); n++;
+  assert.throws(R('o<drill> call'), /o-word subroutines/); n++;
+  assert.throws(R('o101 if [1 GT 0]\no101 endif'), /o-word|parameters/); n++;
+  assert.throws(R('#1=5\nG1 X#1 F100'), /parameters and expressions/); n++;
+  assert.throws(R('G1 X[5+5] F100'), /parameters and expressions/); n++;
+  ok(/G0 X10\.0000/.test(convert('O1001 (program number)\nG21 G90\nG0 X10 Y0 Z5 (a # and [x] in a comment)\nM30', { xMin: 0, xMax: 113 })),
+     'a Fanuc program number and #, [ ] inside comments are fine');
+}
+
 console.log(`input: ${n} checks passed`);

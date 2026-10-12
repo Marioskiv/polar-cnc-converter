@@ -93,7 +93,7 @@ This project solves both:
 - **Rejected with the line number** (never converted wrongly): cutter compensation `G41/G42`, tapping and
   threading cycles, offsets set with coordinates, probing, `G68`, `G90.1`, `G93` input, `G18/G19` arcs,
   polar interpolation input (`G12.1/G13.1`, `G112/G113`), `@`/`^` words, `G16` forms that are not certain (see below),
-  arcs with both R and I/J,
+  arcs with both R and I/J, subprograms (`M98/M99`, o-word `sub/call`), loops/conditions and parameters (`#`, `[ ]`),
   multi-turn arcs, rotary-axis words in the input, and cuts before the tool position is known.
 - **3D toolpath simulator** (Three.js) with continuous, feedrate-accurate playback (not just point-to-point
   jumps), Rotary-Mill and Static-3D view modes, live telemetry, a material-removal depth map with rapid-collision
@@ -244,7 +244,8 @@ cutter compensation `G41/G42` (use compensation *in computer*), tapping, threadi
 `G74/G76/G84/G86–G88` (enable *expand cycles*; drilling cycles are expanded by the converter itself),
 offsets set with coordinates `G92/G52/G10`, probing `G31/G38.x`, rotation `G68`, absolute arc centres
 `G90.1`, polar interpolation input (`G12.1/G13.1`, `G112/G113`), `@ ^` words, an arc with both R and I/J (LinuxCNC
-refuses it too), `G28` with an X/Y waypoint, `G53 G1`, numbers in exponent form (`1E3`), a cut before the tool position is known, a cut without a
+refuses it too), subprograms `M98/M99` and o-word `sub/call/if/while/repeat`, parameters and expressions (`#1`,
+`[5+5]`) — post them from the CAM as plain moves, `G28` with an X/Y waypoint, `G53 G1`, numbers in exponent form (`1E3`), a cut before the tool position is known, a cut without a
 feed rate, and arcs LinuxCNC itself would refuse (no I/J/R, R too small, R full circle, end radius
 too far from the start radius — same tolerances as LinuxCNC 2.9).
 

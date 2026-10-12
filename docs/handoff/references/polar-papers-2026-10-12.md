@@ -74,3 +74,12 @@ C in mm), so converting it as if it were would be wrong; (2) these are exactly t
 ideas list (squares, hexagons, flats on a part's face) — today: draw them in the CAM, the converter makes XZC;
 (3) possible later idea: an import mode for Fanuc G12.1 lathe programs (X/2 → x, C → y, G41/G42 not possible —
 CAM-side compensation only). Not proposed now.
+
+## 7. "Fanuc C-Axis Polar Interpolation Square Machining Program" (vendor blog, text pasted by Marios 2026-10-12)
+Same subject as §6 (G12.1/G13.1 = G112/G113, Fanuc 0i/16i/18i/21i-T, option "B1", alarm P/S010 without it;
+M-codes for C-axis engage / live tool are machine-builder specific; G41/G42 engaged after G12.1 and cancelled
+before G13.1). **Partly unreliable:** it says in one breath that arcs are "prohibited in polar mode" and then uses
+`G03` with R and I/J (Fanuc does allow G02/G03 in G12.1 — §6 and the manual titles it cites); it calls C "degrees or
+mm of arc" (in G12.1 the C word is a virtual linear axis in mm, §6); its "feed vs radius" paragraph mixes feed per
+rev with surface speed. The Nakamura example uses inch, G99 feed per rev, `G28 H0` to home C. Nothing new for the
+pole. **For us:** nothing to change — G12.1/G112 input stays refused; confirms the CAM-side approach.
