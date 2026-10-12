@@ -92,7 +92,15 @@ This project solves both:
   moves — in polar, a hole is just a position (X, C) followed by Z moves.
 - **Rejected with the line number** (never converted wrongly): cutter compensation `G41/G42`, tapping and
   threading cycles, offsets set with coordinates, probing, `G68`, `G90.1`, `G93` input, `G18/G19` arcs,
+  polar/cylindrical interpolation input (`G12.1/G13.1`, `G112/G113`, `G12.2/G13.2`, `G7.1`, `G107`), `@`/`^` words, `G16` forms that are not certain (see below),
+  arcs with both R and I/J, subprograms (`M98/M99`, o-word `sub/call`), loops/conditions and parameters (`#`, `[ ]`),
   multi-turn arcs, rotary-axis words in the input, and cuts before the tool position is known.
+  **Since 2.12.2 only known G codes are read** (G0-G3, `G4 P`, cycles G73/G81-G83/G85/G89, G17-G21, G28/G30/G53,
+  G40/G43/G49, G54-G59.3, G61/G61.1/G64, G80, G90/G91/G91.1, G92.x/G52/G10 without X/Y, G94, G97, G98/G99);
+  any other G code stops with the line number (Fanuc `G5 P10000`, `G5.1`, `G6.2` NURBS, `G2.2` involute, `G33`,
+  `G43.4`, `G51`, `G50.1`, `G60`, `G65`/`G66`, `G95`…). Also refused: `G4 X` (Fanuc dwell in seconds — write
+  `G4 P`), chamfer / corner words `,C` `,R`, block delete `/`, Fanuc `G08 P`, and `G91` on a cycle's own line.
+  A Fanuc program number (`O1000`, alone or with moves) is kept as a comment.
 - **3D toolpath simulator** (Three.js) with continuous, feedrate-accurate playback (not just point-to-point
   jumps), Rotary-Mill and Static-3D view modes, live telemetry, a material-removal depth map with rapid-collision
   detection, and the peak chuck speed the program asks for.
@@ -177,7 +185,7 @@ machine. Air-cut every new program first.
 ```
 index.html              page markup only
 css/styles.css          styles
-src/core/geometry.js    angle helpers, arc linearisation           (pure)
+src/core/geometry.js    angle helpers, arc geometry/linearisation  (pure)
 src/core/converter.js   convert(): options + the 3 stages below     (pure)
 src/core/gcode-input.js  stage 1: reads/checks the Cartesian program (pure)
 src/core/layout-xzc.js   stage 2: machine layout XZC, polar G93 blocks (pure)
@@ -231,7 +239,7 @@ The converter reads ordinary 3-axis milling G-code. Use a LinuxCNC (or grbl) pos
 | mm (`G21`) or inch (`G20`) | Inch is converted to mm; output is always `G21` |
 | Absolute `G90` or incremental `G91` | `G91` is converted to absolute; output is always `G90` |
 | Feed `G94` (units/min) | Required — the converter computes `G93` itself. `G93` input is rejected |
-| Arcs in the XY plane (`G17`, incremental I/J) | Converted. Arcs in `G18`/`G19` planes are rejected — set the post to output them as lines |
+| Arcs in the XY plane (`G17`, incremental I/J) | Converted. An arc **centred on the chuck axis** (also a helix) is exact: X stays constant and only C turns, at most 45° per block (2.12.0). Arcs in `G18`/`G19` planes are rejected — set the post to output them as lines |
 | `G53 G0 Z…`, `G28 G91 Z0`, `G30 G91 Z0` retracts | Replaced by `G0 Z<the program's own highest Z>` (work coordinates) — see below |
 | `G28 G91 X0 Y0`, `G53 G0 X… Y…` (park) | Skipped — the tool stays where it is |
 | `%` delimiters | Kept as the first and last line, as LinuxCNC requires |
@@ -241,9 +249,29 @@ The converter reads ordinary 3-axis milling G-code. Use a LinuxCNC (or grbl) pos
 cutter compensation `G41/G42` (use compensation *in computer*), tapping, threading and boring cycles
 `G74/G76/G84/G86–G88` (enable *expand cycles*; drilling cycles are expanded by the converter itself),
 offsets set with coordinates `G92/G52/G10`, probing `G31/G38.x`, rotation `G68`, absolute arc centres
-`G90.1`, `G28` with an X/Y waypoint, `G53 G1`, numbers in exponent form (`1E3`), a cut before the tool position is known, a cut without a
+`G90.1`, polar/cylindrical interpolation input (`G12.1/G13.1`, `G112/G113`, `G12.2/G13.2`, `G7.1`, `G107`), `@ ^` words, an arc with both R and I/J (LinuxCNC
+refuses it too), subprograms `M98/M99` and o-word `sub/call/if/while/repeat`, parameters and expressions (`#1`,
+`[5+5]`) — post them from the CAM as plain moves, `G28` with an X/Y waypoint, `G53 G1`, numbers in exponent form (`1E3`), a cut before the tool position is known, a cut without a
 feed rate, and arcs LinuxCNC itself would refuse (no I/J/R, R too small, R full circle, end radius
 too far from the start radius — same tolerances as LinuxCNC 2.9).
+
+**Fanuc polar coordinates `G16` / `G15` (2.12.1, 2.12.2)** — converted, for hand-written bolt circles: in the XY plane
+(`G17`) with `G90`, `X` is the radius and `Y` the angle in degrees (counter-clockwise from +X), measured from the
+work origin. As in the Fanuc manual (B-63534EN §8.2), a line may leave out the radius or the angle — it keeps its
+last value (`G81 X100 Y30 …` then `Y150` = radius 100 at 150°) — and `G91 Y120` turns the angle by +120° with the
+same radius. The first point after `G16` must give both. `G16`/`G15` themselves are removed (LinuxCNC does not
+know them). Stopped with the line number: `G91` with a radius (Fanuc then takes the pole at the current point),
+X/Y on the `G16` line itself (pole or first point? controls differ), arcs in polar
+mode, other planes, offset/machine-coordinate commands with X/Y, and cycles in `G91`.
+Note: a canned-cycle line without X/Y (`G81 Z-15 R2` right after `G16`) drills at the current position — often the
+centre — exactly as on the control itself.
+
+**X mode (2.12.1)** — with the rotary axis named C the program starts with `G8` (X is a radius), or `G7` when the
+output profile writes X as a diameter, so a lathe configuration (`LATHE = 1`) can never read a radius as a diameter.
+A `G7` in the CAM program is refused, a `G8` is removed.
+
+**Radial rapids (2.12.1)** — a `G0` on a ray from the centre (C constant) is one block; other rapids are still
+segmented so that the machine's joint-space interpolation does not spiral.
 
 A dwell `G4 P` of 60 or more is kept but flagged with a warning: in LinuxCNC P is **seconds**, while
 Fanuc-style posts write milliseconds.

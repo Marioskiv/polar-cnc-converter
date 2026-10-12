@@ -5,6 +5,75 @@ Short and factual. Current state lives in `STATUS.md`, permanent decisions in `D
 
 ---
 
+## 2026-10-12 (15) — whole Fanuc 16i/18i-MB manual read; 2.12.2 (whitelist of G codes, E)
+
+**Marios:** uploaded the full Fanuc manual (B-63534EN/02, 1257 pages) to a new PRIVATE repo `Marioskiv/cnc-manuals`
+(Claude could not create it: the GitHub integration may not create repos); asked to read it all; then "if they
+matter, do them". **Done:** text extracted and read in full (8 parallel readers + the key chapters by Claude);
+notes in `references/fanuc-b63534en.md`. Tested the manual's codes on the converter → real bugs (unknown codes
+passed, some X/Y as moves; G91 on a cycle line; `/`; `,R`). 2.12.2: whitelist of G codes, those fixes, E for G16.
+Golden 144/144 identical, input 152, sweeps worst 0.0225, FreeCAD programs identical. **Not done:** G12.1 import,
+dwell/integer warnings (ideas in STATUS). Note: the org's monthly spend limit was hit by one reader near the end.
+
+---
+
+## 2026-10-12 (14) — F done; first primary Fanuc source (B-63524EN §4.6)
+
+**Marios:** "do F, both parts" + a Fanuc manual excerpt on G12.1. **Done:** header G8/G7 (rotary C only), input G7
+refused, G8 removed; golden 144/144 changed by exactly one inserted `G8` line (verified per output); input 116.
+Also refused G12.2/G13.2, G7.1, G107 (passed through). Manual notes in references §9: F is tangential feed (= our
+G93 approach), Fanuc does not solve the pole (alarm / F < L·R·π/180) — basis for the pole-governor idea.
+E still waits for the G16 section of a Fanuc manual.
+
+---
+
+## 2026-10-12 (13) — D done; more G16/G12.1 sources
+
+**Marios:** sent Machining Doctor (G16), a Fanuc G12.1 turn-mill document and a vendor G12.1 article; "do D".
+**Done:** 2.12.1 also refuses X/Y on the G16 line (pole vs first point differs between sources), subprograms,
+o-word flow and `#`/`[ ]` (all were passed through). Input tests 107, golden 144/144. Sources compared in
+`references/polar-papers-2026-10-12.md` §5–7. **Waiting:** E (modal radius/angle in G16) — needs the Fanuc manual.
+
+---
+
+## 2026-10-12 (12) — 2.12.1: A, B, C (Marios: "ok kane to A kai to G kai B")
+
+**Done:** radial rapids in one block; G16 converted in its certain form (G17 + G90, both words per line, pole =
+work origin), everything else in G16 refused with the line; arcs with R and I/J refused like LinuxCNC. Verified:
+G16 bolt circle = Cartesian version (identical motion), golden 144/144, sweeps/pole stress unchanged, FreeCAD
+programs same G1 output, zip tested. **Note:** the G16 rules come from the sources read + general Fanuc knowledge,
+not from a Fanuc manual (not available here); uncertain forms are refused rather than guessed.
+
+---
+
+## 2026-10-12 (11) — 2.12.0 exact arcs about the axis; Marios on 2.11.4; ENCY text
+
+**Marios:** (a) he did not ask to remove/refuse G16, G12.1, G15 … — "only if they ever cause a problem; if there
+is no problem, do not remove them"; (b) yes to exact arcs about the chuck axis; (c) pasted the ENCY polar page.
+**Done:** 2.12.0 exact arcs (see STATUS/CHANGELOG), ENCY notes in `references/polar-papers-2026-10-12.md`.
+Found but NOT fixed: none new — the 3 sweep cases over 0.026 are sub-zone helices (replay artefact, also on main).
+**Then Marios chose "keep 2.11.4"** (explained: the codes did cause problems). 2.12.0 pushed into PR #10.
+
+---
+
+## 2026-10-12 (10) — 2.11.4: polar input refused; Zhang/Chen/Du paper read
+
+**Marios:** "not sure it is right, ok do it" (proposal A) + a paper (polar interpolation module, 2013) + ENCY CAM link.
+**Done:** 2.11.4 — `G16`, `G12.1/G13.1`, `G112/G113`, `@ ^` refused with the line; `G15` removed (LinuxCNC 2.9 does not
+know it, verified in `interp_array.cc`). 6 new input tests (fail on 2.11.3), golden identical, sweeps unchanged, zip
+tested. Paper notes in `references/polar-papers-2026-10-12.md` (confirms our spiral-error method and the exact
+X-constant arc idea; no pole handling). ENCY page blocked by the network policy (not read).
+
+---
+
+## 2026-10-12 (9) — Fanuc G15/G16 examples (helmancnc.com) → polar input not handled
+
+**Marios:** read the helmancnc G15/G16 bolt-circle page for ideas. **Could not:** host blocked by the session network
+policy (mirrors too). **Checked the converter instead:** G16 input silently mis-converted, `@ ^`, G112 passed through
+→ proposal A (refuse) / B (support G16) in STATUS. Idea confirmed: bolt circles are native on XZC (X fixed, only C).
+
+---
+
 ## 2026-10-12 (8) — variable-speed router: saved as a later item
 
 **Marios:** can CAM / converter control a variable-speed router? → yes for per-tool/per-operation `S` (already passes

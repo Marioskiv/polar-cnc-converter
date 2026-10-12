@@ -43,13 +43,40 @@
   //   Segment length = 2*sqrt(2*r*chordTol), clamped to [0.02, 2.0] mm.
   function linearizeArc(x0, y0, z0, x1, y1, z1, I, J, R, isG2, chordTol) {
     var tol = (chordTol > 0) ? chordTol : 0.01;
+    var g = arcGeometry(x0, y0, x1, y1, I, J, R, isG2);
+    if (g.degenerate) return [{ x: x1, y: y1, z: z1, arcSegLen: g.degenerate === 'zero-radius' ? Math.hypot(x1 - x0, y1 - y0) : 0 }];
+    var cx = g.cx, cy = g.cy, r = g.r, rEnd = g.rEnd, a0a = g.a0, sweep = g.sweep;
+
+    // Adaptive segment length based on arc radius and chordal tolerance
+    var arcAdaptSeg = Math.min(Math.max(2 * Math.sqrt(2 * r * tol), 0.02), 2.0);
+
+    var arcLen = Math.abs(sweep) * r;
+    if (arcLen < 1e-9) return [];
+    var n = Math.max(1, Math.ceil(arcLen / arcAdaptSeg));
+    var arcSegLen = arcLen / n;
+    var pts = [];
+    for (var i = 1; i <= n; i++) {
+      var t = i / n;
+      var a = a0a + sweep * t, ri = r + (rEnd - r) * t;
+      pts.push({ x: cx + ri * Math.cos(a), y: cy + ri * Math.sin(a),
+                 z: z0 + (z1 - z0) * t, arcSegLen: arcSegLen });
+    }
+    return pts;
+  }
+
+  // ─── arcGeometry ─────────────────────────────────────────────────────────────
+  // ADDED 2.12.0 (split out of linearizeArc, same maths): centre, start/end radius,
+  // start angle (rad) and signed sweep (rad, G2 negative) of a G2/G3 arc, so a machine
+  // layout can see where the arc is centred. { degenerate } for a zero chord (R form)
+  // or a zero radius (I/J form).
+  function arcGeometry(x0, y0, x1, y1, I, J, R, isG2) {
     var cx, cy, r, rEnd;
 
     if (R !== null && R !== undefined) {
       var dx = x1 - x0, dy = y1 - y0;
       var dist = Math.hypot(dx, dy);
       var absR = Math.abs(R);
-      if (dist < 1e-9) return [{ x: x1, y: y1, z: z1, arcSegLen: 0 }];
+      if (dist < 1e-9) return { degenerate: 'zero-chord' };
       // FIX 2.4.1: a half circle whose end points were rounded a hair more
       // than 2R apart used to become a STRAIGHT LINE (measured: R10 half
       // circle ending 0.0001 mm too far -> 10 mm off). LinuxCNC treats it as a
@@ -69,16 +96,13 @@
       cx = x0 + (I || 0);
       cy = y0 + (J || 0);
       r  = Math.hypot(x0 - cx, y0 - cy);
-      if (r < 1e-9) return [{ x: x1, y: y1, z: z1, arcSegLen: Math.hypot(x1 - x0, y1 - y0) }];
+      if (r < 1e-9) return { degenerate: 'zero-radius' };
       // FIX 2.4.1: the end radius can differ slightly from the start radius
       // (rounded I/J). LinuxCNC then cuts a spiral that ends exactly at the
       // programmed end point; the old code kept the start radius, so the last
       // point missed the end point by the difference. Same spiral here.
       rEnd = Math.hypot(x1 - cx, y1 - cy);
     }
-
-    // Adaptive segment length based on arc radius and chordal tolerance
-    var arcAdaptSeg = Math.min(Math.max(2 * Math.sqrt(2 * r * tol), 0.02), 2.0);
 
     var a0a = Math.atan2(y0 - cy, x0 - cx);
     var a1a = Math.atan2(y1 - cy, x1 - cx);
@@ -93,19 +117,8 @@
       sweep = a1a - a0a;
       if (sweep < -1e-9) sweep += 2 * Math.PI;
     }
-
-    var arcLen = Math.abs(sweep) * r;
-    if (arcLen < 1e-9) return [];
-    var n = Math.max(1, Math.ceil(arcLen / arcAdaptSeg));
-    var arcSegLen = arcLen / n;
-    var pts = [];
-    for (var i = 1; i <= n; i++) {
-      var t = i / n;
-      var a = a0a + sweep * t, ri = r + (rEnd - r) * t;
-      pts.push({ x: cx + ri * Math.cos(a), y: cy + ri * Math.sin(a),
-                 z: z0 + (z1 - z0) * t, arcSegLen: arcSegLen });
-    }
-    return pts;
+    return { cx: cx, cy: cy, r: r, rEnd: rEnd, a0: a0a, sweep: sweep };
   }
-  return { angdiff: angdiff, nearestEquivalentAngle: nearestEquivalentAngle, linearizeArc: linearizeArc };
+  return { angdiff: angdiff, nearestEquivalentAngle: nearestEquivalentAngle, linearizeArc: linearizeArc,
+           arcGeometry: arcGeometry };
 });

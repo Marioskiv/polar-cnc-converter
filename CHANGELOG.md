@@ -1,5 +1,108 @@
 # Changelog
 
+## 2.12.2 — only known G codes are read; G16 keeps a left-out radius/angle (Fanuc manual)
+
+Found by reading the whole Fanuc Series 16i/18i-MB operator's manual (B-63534EN/02, 1257 pages) and running its
+codes through the converter. Golden 144/144 identical; Marios's FreeCAD programs identical; sweeps unchanged.
+
+### Fixed
+- **Unknown G codes passed through, some with their X/Y taken as a move.** Until 2.12.1 only a list of known-bad codes
+  was refused. `G4 X1` (Fanuc dwell, 1 s) moved the tool to X1; the X/Y of `G51` (scaling centre), `G50.1` (mirror
+  axis), `G22` (stroke area), `G29`, `G45` and `G60` became moves; `G6.2` (NURBS), `G2.2` (involute) and `G2.4`
+  (3-D arc) became straight lines; `G33` (threading) became a plain `G1`; `G5 P10000`, `G5.1 Q1` (Fanuc high-speed
+  modes — splines in LinuxCNC), `G43.4/G43.5`, `G65/G66` (macro calls), `G95` (feed per revolution, read as
+  mm/min) passed through. Now only known codes are read (see README); any other G code stops with the line number.
+- **`G91` on a canned cycle's own line** (`G91 G81 X5 Z-3 R-2`) was not seen by the "no cycles in G91" check: the
+  hole was drilled at absolute X5 with the wrong depth. Refused now, like a cycle after a separate `G91`.
+- **Block delete `/`**: the `/` landed on an output line of its own, so the move ran always. Refused now.
+- **Chamfer / corner rounding `,C` `,R`** (Fanuc): `,R` was ignored (sharp corner instead of the rounding), `,C`
+  was refused as a "C axis word". Both refused now with their own reason.
+- **`G4 X`** refused with the reason (write `G4 P` in seconds). **Fanuc `G08 P1`** (advanced preview) left a stray
+  `P1` line after the `G8` removal; refused now.
+- A **Fanuc program number** (`O1000`, alone or with moves on the line) was copied out; LinuxCNC reads it as an
+  o-word without a keyword. Kept as a comment now.
+
+### Changed
+- **`G16` (Marios: E):** as in Fanuc B-63534EN §8.2 (p.138-140), a line may leave out the radius or the angle; it
+  keeps its last value (`N3 Y150.0` = 100 mm at 150°, the manual's example). `G91 Y120` turns the angle by +120°
+  with the same radius and the pole still at the work origin (example 2). Still refused: `G91` with a radius (the
+  pole becomes the current position), and a first point after `G16` without both values.
+
+## 2.12.1 — G16 polar coordinates converted; subprograms, parameters and mixed R + I/J arcs refused; radial rapids in one block
+
+### Added
+- **Fanuc `G16` / `G15`** (polar coordinate command, used for hand-written bolt circles) is converted instead of
+  refused: in `G17` with `G90`, `X` = radius and `Y` = angle (degrees, counter-clockwise from +X) from the work origin.
+  Each such line is rewritten to Cartesian X/Y before anything else reads it (canned cycles included) and noted in a
+  comment; `G16`/`G15` are removed (LinuxCNC does not know them). A G16 bolt circle gives exactly the same motion as
+  the same holes written in X/Y. Refused with the line number, because their meaning is not certain: `G91` in
+  polar mode, a line with only the radius or only the angle, X/Y on the `G16` line itself (some sources make
+  them the pole, others a first point), arcs in polar mode, other planes, and
+  `G10/G28/G30/G52/G53/G92` with X/Y. `G12.1/G13.1`, `G112/G113` and `@ ^` stay refused (2.11.4); Mitsubishi `G12.2/G13.2` and cylindrical
+  interpolation `G7.1`/`G107` are refused too (they passed through).
+
+### Fixed
+- **Program flow and computed values** passed through unconverted: `M98`/`M99` subprograms (the sub body was converted
+  where it stands in the file, after `M30`, from the position of the line before it — not from the call), LinuxCNC
+  o-word `sub/call/if/while/repeat…`, and parameters / expressions (`#1=5`, `G1 X#1`, `X[5+5]` lost their X). All are
+  now refused with the line number; a CAM posts them as plain moves. A Fanuc program number (`O1001`) and `#`/`[ ]`
+  inside comments are still fine.
+- An arc with **both R and I/J** (`G3 X0 Y10 I-10 J0 R10`) was converted with R, whatever I/J said; LinuxCNC refuses
+  such a block ("mixed radius-ijk format"). Now refused too.
+
+### Changed
+- **The program states its X mode** (Marios: F): `G8` (radius) after `G93`, or `G7` when the output profile writes X as
+  a diameter — only for a rotary axis named C (lathe-style XZC); A/B profiles (mill-style controls such as Mach3 Mill)
+  get neither. On a LinuxCNC lathe configuration (`LATHE = 1`) a `G7` left active would read the radius X as a
+  diameter: a half-size part. A `G7` in the input is now refused; a `G8` in the input is removed (the header sets it).
+- A **radial rapid** (on a ray from the centre, C constant — e.g. from the centre out to a bolt circle) is one block;
+  it was cut into 0.5 mm pieces (200 blocks for X0 → X100). Rapids that turn C are segmented as before.
+
+### Golden baseline
+- 144/144 outputs changed by exactly ONE line: `G8` inserted after `G93` (checked for every output: removing that
+  line gives the old output byte for byte). Input tests 116 (new: G16 conversion = Cartesian version, 5 refusals, `;` comments, mixed
+  R + I/J, radial rapids, subprograms / o-words / parameters). Sweeps and the near-pole stress test unchanged; Marios's FreeCAD programs: same G1 output,
+  one of them 2 rapid blocks fewer.
+
+
+## 2.12.0 — arcs centred on the chuck axis are exact
+
+### Changed
+- A `G2`/`G3` arc whose centre is on the chuck axis (within 0.001 mm) — a circle about the centre of the part, also a
+  helix — is now written as a few blocks in which **only C turns and X stays constant** (at most 45° of C per block;
+  Z linear for a helix). The machine draws that circle exactly. It used to be cut into chords and every chord into
+  polar pieces: an R10 circle was ~219 blocks, each up to ~0.01 mm off the circle; now 8 blocks, zero geometric error.
+  Same idea as the "G20" module of Zhang, Chen & Du (IJAMT 2013). Radii and end angle are taken about the axis
+  itself, so the last block lands exactly on the programmed end point (a rounded I/J or R gives the same small
+  spiral LinuxCNC itself would cut). All other arcs take the general path, unchanged.
+- `geometry.js`: the arc centre/sweep maths is split out as `arcGeometry()` (linearizeArc unchanged).
+
+### Golden baseline
+- 24/144 outputs changed — exactly the fixtures with an arc centred on the axis (`circle`, `rArc`, all option sets and
+  centre modes). Checked one by one: only `G1` lines of those arcs differ (all other lines identical), end point
+  identical, G93 cut time within 0.02 % (the true arc is a hair longer than the polygon), deviation 0.0094–0.0193 mm
+  → 0.0000–0.0009 mm (0.0009 is the replay tool's own 400-piece arc approximation), blocks 219 → 9 and 47 → 3.
+- New input tests (4); random sweep of 2000 arcs centred on/near the axis (radii 0.01–150 mm, I/J and R, full
+  circles, helices, centre offsets up to 0.003 mm), both cutting sides: no NaN, no bad F; the only cases over
+  0.026 mm (3, also on 2.11.4) are sub-0.0125 mm helices inside the centre zone, where the replay compares Z at a
+  point 0.012 mm from the pole — the cut is a plunge at the pole either way.
+
+
+## 2.11.4 — polar input is refused, never read as Cartesian
+
+### Fixed
+- `G16` (Fanuc polar coordinates: X = radius, Y = angle) was not recognised: `G16 X20 Y45` was converted as the
+  Cartesian point X20 Y45 (49.24 mm from the centre instead of 20 mm at 45°) and `G16` was copied to the output.
+  It is now refused with the line number, like other input that cannot be converted exactly.
+- Polar interpolation in the input (`G12.1/G13.1`, Haas `G112/G113`) and LinuxCNC polar words (`@` radius, `^` angle)
+  passed through unconverted — now refused with a clear message.
+- `G15` (polar off — the default) is removed with a note: Fanuc-style safety lines carry it and LinuxCNC 2.9 does not
+  know it (`_gees` table: G15 is not a valid G-code), so such a program used to be refused by LinuxCNC itself.
+
+### Golden baseline
+- 144/144 identical. New input tests (6). Found while reading Fanuc G15/G16 bolt-circle examples (Marios).
+
+
 ## 2.11.3 — Signed-X only for lines really on the pole axis
 
 ### Fixed
