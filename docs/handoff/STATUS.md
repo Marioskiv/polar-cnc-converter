@@ -37,12 +37,10 @@ trust the computer and tell Marios about the difference.
 - C `STEP_SCALE = 91.733333` (see above).
 
 ## DELIVERED but NOT installed yet (files in `docs/handoff/machine-config/`)
-- **2026-10-12 C SPEED TEST values** in the delivered `.ini` (Marios's yes; he will replace the whole file):
-  `[AXIS_C]`/`[JOINT_2]` MAX_VELOCITY 360, MAX_ACCELERATION 720, STEPGEN 450/900, `MAX_ANGULAR_VELOCITY` 360 in
-  `[DISPLAY]` and `[TRAJ]`. HAL reads them from the `.ini` (no `.hal` change). Test: mark on chuck, `G94`, then
-  `G1 C3600 F…` / `G1 C0 F…` at 120/180/240/300/360 deg/s (F 7200 … 21600), then `G0 C3600` / `G0 C0`; the mark must
-  line up. Final = ~70 % of the highest pass → a new final block replaces the test values. The 120/360 values
-  below are superseded.
+- **2026-10-12 C speed (Marios: these values are final, no staged test):** `[AXIS_C]`/`[JOINT_2]` MAX_VELOCITY 360,
+  MAX_ACCELERATION 720, STEPGEN 450/900, `MAX_ANGULAR_VELOCITY` 360 in `[DISPLAY]` and `[TRAJ]` (60 chuck rpm,
+  620 motor rpm). HAL reads them from the `.ini`. Advised once after install: mark on chuck, `G0 C3600` / `G0 C0`,
+  mark must line up (if not: lower in steps, e.g. 300 / 240). The 120/360 values below are superseded.
 - C speed: `MAX_VELOCITY 120`, `MAX_ACCELERATION 360`, `STEPGEN_MAXVEL 150`, `STEPGEN_MAXACCEL 450`,
   `MAX_ANGULAR_VELOCITY 120` in `[DISPLAY]` and `[TRAJ]`, `DEFAULT_ANGULAR_VELOCITY 60`.
 - Mill-style Z (all old values minus 590): `HOME_OFFSET 10`, `HOME 0`, `MAX_LIMIT 7`, `MIN_LIMIT -590`.

@@ -15,7 +15,8 @@ from the machine, closed loop or not, max pulse frequency. Proposed: wire ALM to
 chosen with him; nothing assumed).
 **Then:** Marios: the delivered files are what he will install, update them (he replaces the whole `.ini`).
 Done: C speed TEST values written into `machine-config/holzmann_cnc_mesa_7i92.ini` (header warning, a comment on
-every change, no inline comments, HAL unchanged). Waiting for his test result → final values.
+every change, no inline comments, HAL unchanged). **Then Marios: the values are fine, make them final and put it on
+`main`** → comments relabelled (values unchanged), PR to `main`. Advised: one G0 C3600 / G0 C0 mark check after install.
 
 ---
 
