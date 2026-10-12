@@ -167,6 +167,7 @@
     var zKnown = false;           // Z unknown at start and after G28/G30/G53/M6
     var distIncremental = false;  // input is in G91
     var unitScale = 1.0;          // 25.4 while the input is in inches (G20)
+    var polarMode = false;        // 2.12.1: inside Fanuc G16 polar coordinate mode
     var plane = 17;               // active arc plane of the input
     var usedPercent = false;      // input used % tape delimiters
     // FIX (2026-10-04): an input line copied INTO one of the converter's own
@@ -193,6 +194,10 @@
       var SPIRAL_REL = 0.001;                                    // SPIRAL_RELATIVE_TOLERANCE
       if (R === null && I === null && J === null)
         inputError(lineIdx, raw, 'arc without I/J or R.');
+      // ADDED 2.12.1: LinuxCNC refuses an arc with both R and I/J ("mixed radius-ijk format");
+      // the converter used to take R silently, whatever the I/J said.
+      if (R !== null && (I !== null || J !== null))
+        inputError(lineIdx, raw, 'arc with both R and I/J. Give the arc either with R or with I/J, not both (LinuxCNC refuses this too).');
       if (R !== null) {
         if (x0 === x1 && y0 === y1)
           inputError(lineIdx, raw, 'R-format arc whose start and end are the same point (a full circle needs I/J).');
@@ -364,14 +369,50 @@
 
     for (var li = 0; li < lines.length; li++) {
       var rawLine = lines[li];
-      // ADDED 2.11.4: G15 (polar coordinates OFF) is the default state and LinuxCNC does not
-      // know it ("unknown G code"), yet Fanuc-style safety lines carry it. It is removed and
-      // noted; G16 (polar ON) is refused below.
-      var g15code = rawLine.replace(/\([^)]*\)/g, ' ').replace(/;.*$/, '');
-      if (/\bG0*15(?![.\d])/i.test(g15code) && !/\bG0*16(?![.\d])/i.test(g15code) && rawLine.indexOf(';') < 0) {
-        rawLine = rawLine.replace(/\bG0*15(?![.\d])/gi, '').replace(/\s{2,}/g, ' ').trim()
-                + ' ( G15 removed: polar coordinates off is the default )';
-        lines[li] = rawLine;
+      // ─── POLAR COORDINATE COMMAND G15/G16 (Fanuc) ─────────────────────────
+      // 2.11.4 removed G15 (polar off, the default; LinuxCNC does not know it).
+      // ADDED 2.12.1 (Marios): G16 is CONVERTED instead of refused, in the plain form used for
+      // hand-written bolt circles: XY plane (G17), absolute (G90) - the pole is then the work
+      // origin - X = radius, Y = angle in degrees counter-clockwise from +X, both written on
+      // every line that moves in X/Y. The line is rewritten to Cartesian X/Y before anything
+      // else reads it (canned cycles included) and G15/G16 are removed from the output.
+      // Everything whose meaning is less certain stops with the line number: G91 in polar
+      // mode (Fanuc then takes the pole at the current position), a missing radius or angle,
+      // arcs, other planes, and offset / machine-coordinate commands.
+      if (!isGen[li]) {
+        var pcmt = [], pcode = rawLine.replace(/\([^)]*\)/g, function (m) { pcmt.push(m.slice(1, -1).trim()); return ' '; });
+        var psemi = pcode.indexOf(';');
+        if (psemi >= 0) { pcmt.push(pcode.slice(psemi + 1).trim()); pcode = pcode.slice(0, psemi); }
+        var hasG15 = /\bG0*15(?![.\d])/i.test(pcode), hasG16 = /\bG0*16(?![.\d])/i.test(pcode);
+        if (hasG15 || hasG16 || polarMode) {
+          if (hasG15 && hasG16) inputError(li, rawLine, 'G15 and G16 on the same line.');
+          var pnote = [];
+          if (hasG15) { polarMode = false; pnote.push('G15 removed: polar coordinates off'); }
+          if (hasG16) { polarMode = true;  pnote.push('G16 polar coordinates on - X = radius, Y = angle, converted to X/Y'); }
+          pcode = pcode.replace(/\bG0*1[56](?![.\d])/gi, ' ');
+          if (polarMode) {
+            var pc = pcode.toUpperCase();
+            var px = pc.match(/X\s*([-+]?(?:\d+\.?\d*|\.\d+))/), py = pc.match(/Y\s*([-+]?(?:\d+\.?\d*|\.\d+))/);
+            var pInc = /\bG0*91(?![.\d])/.test(pc) ? true : /\bG0*90(?![.\d])/.test(pc) ? false : distIncremental;
+            if (/\bG0*1[89](?![.\d])/.test(pc) || (plane !== 17 && !/\bG0*17(?![.\d])/.test(pc)))
+              inputError(li, rawLine, 'polar coordinates (G16) are converted only in the XY plane (G17).');
+            if (/\bG0*[23](?![.\d])/.test(pc) || ((px || py) && (modalMove === 'G2' || modalMove === 'G3') && !/\bG0*[01](?![.\d])/.test(pc) && !/\bG0*(7[3-9]|8\d)(?![.\d])/.test(pc)))
+              inputError(li, rawLine, 'arcs in polar coordinate mode (G16) are not converted. Program the arc in Cartesian X/Y (after G15).');
+            if (/\bG0*(10|28|30|52|53|92)(?![.\d])/.test(pc) && (px || py))
+              inputError(li, rawLine, 'offset or machine-coordinate commands with X/Y are not converted in polar coordinate mode (G16).');
+            if (px || py) {
+              if (pInc) inputError(li, rawLine, 'incremental G91 in polar coordinate mode (G16) is not converted (the pole would be the current position). Use G90 with the radius and angle from the work origin.');
+              if (!px || !py) inputError(li, rawLine, 'in polar coordinate mode (G16) write both the radius (X) and the angle (Y) on every line that moves in X/Y.');
+              var pr = parseFloat(px[1]), pa = parseFloat(py[1]) * Math.PI / 180;
+              var cxp = pr * Math.cos(pa), cyp = pr * Math.sin(pa);
+              pcode = pcode.replace(/X\s*[-+]?(?:\d+\.?\d*|\.\d+)/i, 'X' + cxp.toFixed(6)).replace(/Y\s*[-+]?(?:\d+\.?\d*|\.\d+)/i, 'Y' + cyp.toFixed(6));
+              pnote.push('G16 X' + px[1] + ' Y' + py[1] + ' = radius ' + px[1] + ' at ' + py[1] + ' deg');
+            }
+          }
+          var ptext = pcmt.concat(pnote).filter(function (t) { return t; }).join(' / ').replace(/[()]/g, '');
+          rawLine = pcode.replace(/\s{2,}/g, ' ').trim() + (ptext ? ' ( ' + ptext + ' )' : '');
+          lines[li] = rawLine;
+        }
       }
       if (pendingPost) { sink.flush(camFeed); emitPassThrough(pendingPost); pendingPost = null; }
       var ln = rawLine.replace(/\(.*?\)/g, '').replace(/;.*$/, '').trim().toUpperCase();
@@ -408,14 +449,12 @@
 
       if ('T' in words) nextTool = String(Math.round(words['T']));
 
-      // ADDED 2.11.4: polar INPUT is refused, never guessed. After G16 the X and Y words mean
+      // ADDED 2.11.4: polar INPUT is refused, never guessed (G16 is converted since 2.12.1, above). After G16 the X and Y words mean
       // radius and angle (Fanuc polar coordinate command); they were read as Cartesian X/Y
       // (G16 X20 Y45 became a point 49.24 mm from the centre) and G16 went to the output.
       // LinuxCNC polar words (@ radius, ^ angle) and polar interpolation (G12.1/G13.1,
       // Haas G112/G113) passed through unconverted. The converter itself makes the polar
       // output; the input must be plain Cartesian XY.
-      if (gSet[16])
-        inputError(li, rawLine, 'polar coordinate programming (G16: X = radius, Y = angle) is not supported. Post the job with ordinary Cartesian X/Y; the converter makes the polar output itself.');
       if (gSet[12.1] || gSet[13.1] || gSet[112] || gSet[113])
         inputError(li, rawLine, 'polar interpolation (G12.1/G13.1, G112/G113) is not supported in the input. Post the job as a 3-axis mill with Cartesian X/Y; the converter makes the polar output itself.');
       if (/[@^]/.test(ln))

@@ -5,6 +5,16 @@ Short and factual. Current state lives in `STATUS.md`, permanent decisions in `D
 
 ---
 
+## 2026-10-12 (12) — 2.12.1: A, B, C (Marios: "ok kane to A kai to G kai B")
+
+**Done:** radial rapids in one block; G16 converted in its certain form (G17 + G90, both words per line, pole =
+work origin), everything else in G16 refused with the line; arcs with R and I/J refused like LinuxCNC. Verified:
+G16 bolt circle = Cartesian version (identical motion), golden 144/144, sweeps/pole stress unchanged, FreeCAD
+programs same G1 output, zip tested. **Note:** the G16 rules come from the sources read + general Fanuc knowledge,
+not from a Fanuc manual (not available here); uncertain forms are refused rather than guessed.
+
+---
+
 ## 2026-10-12 (11) — 2.12.0 exact arcs about the axis; Marios on 2.11.4; ENCY text
 
 **Marios:** (a) he did not ask to remove/refuse G16, G12.1, G15 … — "only if they ever cause a problem; if there

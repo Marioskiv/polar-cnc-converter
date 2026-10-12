@@ -188,7 +188,8 @@ for (const xm of [0, -18])
 
 // 21. (2.11.4) Polar INPUT is refused, never read as Cartesian (G16 X20 Y45 became r 49.24).
 const P = (body) => 'G21 G90 G17\nG0 Z5\nG0 X10 Y0\n' + body + '\nM30';
-assert.throws(() => convert(P('G16\nG0 X20 Y45'), { xMin: 0, xMax: 113 }), /G16: X = radius/); n++;
+// 2.12.1: G16 is converted (G90, XY plane): G16 X20 Y45 = radius 20 at 45 deg, not the point X20 Y45.
+ok(/G0 X20\.0000 C45\.0000/.test(convert(P('G16\nG0 X20 Y45'), { xMin: 0, xMax: 113 })), 'G16 X20 Y45 goes to radius 20 at 45 deg');
 assert.throws(() => convert(P('G12.1\nG1 X10 Y0 F100'), { xMin: 0, xMax: 113 }), /polar interpolation/); n++;
 assert.throws(() => convert(P('G112\nG1 X10 F100'), { xMin: 0, xMax: 113 }), /polar interpolation/); n++;
 assert.throws(() => convert(P('G0 @20 ^45'), { xMin: 0, xMax: 113 }), /polar words/); n++;
@@ -211,6 +212,31 @@ ok(/C0\.0000 Z-1\.0000/.test(convert(P('(a @ and ^ inside a comment)\nG1 Z-1 F10
   ok(/G1 X15\.0000 C360\.0000 Z-2\.0000/.test(convert(helix, { xMin: 0, xMax: 113 })), 'helix about the axis: C turns 360, Z goes down linearly');
   const off = 'G21 G90 G17\nG0 Z5\nG0 X30 Y0\nG1 Z-1 F300\nG3 X30 Y0 I-10 J0 F600\nG0 Z5\nM30';
   ok(convert(off, { xMin: 0, xMax: 113 }).split('\n').filter(l => /^G1 /.test(l)).length > 20, 'an arc NOT centred on the axis still takes the general path');
+}
+
+// 23. (2.12.1) G16 converted: a bolt circle gives the same motion as the same holes written in X/Y;
+// uncertain forms stop with the line number; G15/G16 never reach the output.
+{
+  const holes = [0, 60, 120, 180, 240, 300];
+  const pol = 'G90 G21 G17\nG0 X0 Y0 Z50\nG16\nG81 Z-15 R2 F150\n' + holes.map(a => 'X100 Y' + a).join('\n') + '\nG80\nG15\nM30';
+  const car = 'G90 G21 G17\nG0 X0 Y0 Z50\nG81 Z-15 R2 F150\n' + holes.map(a => 'X' + (100 * Math.cos(a * Math.PI / 180)).toFixed(6) + ' Y' + (100 * Math.sin(a * Math.PI / 180)).toFixed(6)).join('\n') + '\nG80\nM30';
+  const mv = g => convert(g, { xMin: 0, xMax: 113 }).split('\n').filter(l => /^G[01] /.test(l)).join('\n');
+  ok(mv(pol) === mv(car), 'G16 bolt circle = the same holes in X/Y');
+  ok(!convert(pol, { xMin: 0, xMax: 113 }).split('\n').some(l => /\bG1[56]\b/.test(l.replace(/\([^)]*\)/g, ''))), 'G15/G16 removed from the output');
+  const Q = b => 'G21 G90 G17\nG0 X10 Y0 Z5\n' + b + '\nM30';
+  assert.throws(() => convert(Q('G16\nG91 G0 X10 Y30'), { xMin: 0, xMax: 113 }), /incremental G91 in polar/); n++;
+  assert.throws(() => convert(Q('G16\nG0 X20'), { xMin: 0, xMax: 113 }), /both the radius \(X\) and the angle \(Y\)/); n++;
+  assert.throws(() => convert(Q('G1 Z-1 F100\nG16\nG3 X20 Y90 R20'), { xMin: 0, xMax: 113 }), /arcs in polar coordinate mode/); n++;
+  ok(/G0 X20\.0000 C90\.0000/.test(convert(Q('G16\nG0 X20 Y90 ; side comment'), { xMin: 0, xMax: 113 })), 'G16 line with a ; comment');
+}
+// 24. (2.12.1) An arc with both R and I/J is refused, as LinuxCNC does ("mixed radius-ijk").
+assert.throws(() => convert('G21 G90 G17\nG0 X10 Y0 Z1\nG1 Z-1 F100\nG3 X0 Y10 I-10 J0 R10\nM30', { xMin: 0, xMax: 113 }), /both R and I\/J/); n++;
+// 25. (2.12.1) A radial rapid (C constant) is one block, not 0.5 mm pieces.
+{
+  const g0 = g => convert(g, { xMin: 0, xMax: 113 }).split('\n').filter(l => /^G0 X/.test(l));
+  ok(g0('G21 G90\nG0 X0 Y0 Z5\nG0 X30 Y40\nG1 Z-1 F100\nM30').length === 3, 'rapid from the centre outward = spin C at the centre + one block');
+  ok(g0('G21 G90\nG0 X50 Y50 Z5\nG0 X10 Y10\nG1 Z-1 F100\nM30').length === 2, 'rapid inward on the same ray = one block');
+  ok(g0('G21 G90\nG0 X50 Y0 Z5\nG0 X0 Y50\nG1 Z-1 F100\nM30').length > 3, 'a rapid that turns C is still segmented');
 }
 
 console.log(`input: ${n} checks passed`);

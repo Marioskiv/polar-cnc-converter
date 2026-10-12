@@ -1,5 +1,30 @@
 # Changelog
 
+## 2.12.1 — G16 polar coordinates converted; mixed R + I/J arcs refused; radial rapids in one block
+
+### Added
+- **Fanuc `G16` / `G15`** (polar coordinate command, used for hand-written bolt circles) is converted instead of
+  refused: in `G17` with `G90`, `X` = radius and `Y` = angle (degrees, counter-clockwise from +X) from the work origin.
+  Each such line is rewritten to Cartesian X/Y before anything else reads it (canned cycles included) and noted in a
+  comment; `G16`/`G15` are removed (LinuxCNC does not know them). A G16 bolt circle gives exactly the same motion as
+  the same holes written in X/Y. Refused with the line number, because their meaning is not certain: `G91` in
+  polar mode, a line with only the radius or only the angle, arcs in polar mode, other planes, and
+  `G10/G28/G30/G52/G53/G92` with X/Y. `G12.1/G13.1`, `G112/G113` and `@ ^` stay refused (2.11.4).
+
+### Fixed
+- An arc with **both R and I/J** (`G3 X0 Y10 I-10 J0 R10`) was converted with R, whatever I/J said; LinuxCNC refuses
+  such a block ("mixed radius-ijk format"). Now refused too.
+
+### Changed
+- A **radial rapid** (on a ray from the centre, C constant — e.g. from the centre out to a bolt circle) is one block;
+  it was cut into 0.5 mm pieces (200 blocks for X0 → X100). Rapids that turn C are segmented as before.
+
+### Golden baseline
+- 144/144 identical. Input tests 98 (new: G16 conversion = Cartesian version, 4 refusals, `;` comments, mixed
+  R + I/J, radial rapids). Sweeps and the near-pole stress test unchanged; Marios's FreeCAD programs: same G1 output,
+  one of them 2 rapid blocks fewer.
+
+
 ## 2.12.0 — arcs centred on the chuck axis are exact
 
 ### Changed

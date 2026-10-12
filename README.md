@@ -92,7 +92,8 @@ This project solves both:
   moves — in polar, a hole is just a position (X, C) followed by Z moves.
 - **Rejected with the line number** (never converted wrongly): cutter compensation `G41/G42`, tapping and
   threading cycles, offsets set with coordinates, probing, `G68`, `G90.1`, `G93` input, `G18/G19` arcs,
-  polar input (`G16`, `G12.1/G13.1`, `G112/G113`, `@`/`^` words; a `G15` is removed),
+  polar interpolation input (`G12.1/G13.1`, `G112/G113`), `@`/`^` words, `G16` forms that are not certain (see below),
+  arcs with both R and I/J,
   multi-turn arcs, rotary-axis words in the input, and cuts before the tool position is known.
 - **3D toolpath simulator** (Three.js) with continuous, feedrate-accurate playback (not just point-to-point
   jumps), Rotary-Mill and Static-3D view modes, live telemetry, a material-removal depth map with rapid-collision
@@ -242,10 +243,21 @@ The converter reads ordinary 3-axis milling G-code. Use a LinuxCNC (or grbl) pos
 cutter compensation `G41/G42` (use compensation *in computer*), tapping, threading and boring cycles
 `G74/G76/G84/G86–G88` (enable *expand cycles*; drilling cycles are expanded by the converter itself),
 offsets set with coordinates `G92/G52/G10`, probing `G31/G38.x`, rotation `G68`, absolute arc centres
-`G90.1`, polar input (`G16`, `G12.1/G13.1`, `G112/G113`, `@ ^` words — `G15`, polar off, is simply removed
-because LinuxCNC does not know it), `G28` with an X/Y waypoint, `G53 G1`, numbers in exponent form (`1E3`), a cut before the tool position is known, a cut without a
+`G90.1`, polar interpolation input (`G12.1/G13.1`, `G112/G113`), `@ ^` words, an arc with both R and I/J (LinuxCNC
+refuses it too), `G28` with an X/Y waypoint, `G53 G1`, numbers in exponent form (`1E3`), a cut before the tool position is known, a cut without a
 feed rate, and arcs LinuxCNC itself would refuse (no I/J/R, R too small, R full circle, end radius
 too far from the start radius — same tolerances as LinuxCNC 2.9).
+
+**Fanuc polar coordinates `G16` / `G15` (2.12.1)** — converted, for hand-written bolt circles: in the XY plane
+(`G17`) with `G90`, `X` is the radius and `Y` the angle in degrees (counter-clockwise from +X), measured from the
+work origin. Write both on every line that moves in X/Y. `G16`/`G15` themselves are removed (LinuxCNC does not
+know them). Stopped with the line number: `G91` in polar mode (Fanuc then takes the pole at the current point),
+a missing radius or angle, arcs in polar mode, other planes, and offset/machine-coordinate commands with X/Y.
+Note: a canned-cycle line without X/Y (`G81 Z-15 R2` right after `G16`) drills at the current position — often the
+centre — exactly as on the control itself.
+
+**Radial rapids (2.12.1)** — a `G0` on a ray from the centre (C constant) is one block; other rapids are still
+segmented so that the machine's joint-space interpolation does not spiral.
 
 A dwell `G4 P` of 60 or more is kept but flagged with a warning: in LinuxCNC P is **seconds**, while
 Fanuc-style posts write milliseconds.

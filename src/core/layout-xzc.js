@@ -691,6 +691,15 @@
             nRapid = Math.max(nRapid, Math.ceil(Math.abs(angdiff(aR0, aR1)) / MAX_DEG_PER_SEG));
           }
           nRapid = Math.min(nRapid, 400);   // hard cap: a rapid is never worth more
+          // ADDED 2.12.1: a RADIAL rapid - on a ray from the pole, from the pole (centre zone)
+          // or from a point further in or out on the same ray - keeps C constant, so X alone
+          // traces it exactly: one block (it was cut into 0.5 mm pieces, 200 blocks for X0 -> X100).
+          // The same rule walkLine already uses for radial cuts.
+          var rS0 = Math.hypot(curX, curY), rS1 = Math.hypot(newX, newY);
+          if (rS1 >= THRESHOLD &&
+              (rS0 < THRESHOLD ||
+               (Math.abs(curX * newY - curY * newX) / rS1 <= 1e-3 && curX * newX + curY * newY > 0)))
+            nRapid = 1;
         }
         // FIX 1 (2026-09-12): the start of the first positioning move is UNKNOWN
         // (the converter only assumes 0,0,0). Walking a path from an imaginary

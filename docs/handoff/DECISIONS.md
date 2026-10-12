@@ -27,7 +27,10 @@
 - Preserve every G-code word (G43 H, S, M, T, coolant, comments, tool changes) in the correct execution order.
 - G53/G28/G30 retracts: **2.11.0 (Marios chose "β")** → `G0 Z<the program's own highest Z>` in work coordinates;
   no Safe retract Z setting (was: the user's machine Z, rejected if empty). Universal, needs no machine data. X/Y parks (`G28 G91 X0 Y0`,
-  `G53 G0 X.. Y..`) are skipped — not moving can hit nothing (2.5.0). G41/G42, G92/G52/G10 with XY,
+  `G53 G0 X.. Y..`) are skipped — not moving can hit nothing (2.5.0). **2.12.1 (Marios: A, B, C):** Fanuc `G16`
+  is CONVERTED in its certain form (G17, G90, both X=radius and Y=angle per line, pole = work origin; G15/G16 removed);
+  G91 in G16, missing radius/angle, arcs in G16 → refused. Polar interpolation input (G12.1/G112) and `@ ^` stay
+  refused (2.11.4). Arcs with both R and I/J → refused like LinuxCNC. Radial rapids = one block. G41/G42, G92/G52/G10 with XY,
   G90.1, G93 input, G18/G19 arcs, tapping/threading are rejected with the line number. Drilling cycles are expanded.
 - Tool diameter comes from CAM tool comments of any CAM (2.8.0, `scanToolDiameters`): a stated diameter (D=, DIA,
   Diameter, TOOL/MILL, flute=) beats a size in a tool name; a bare `D1` is an offset register, never a diameter;
