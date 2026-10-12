@@ -258,6 +258,10 @@ mode, other planes, and offset/machine-coordinate commands with X/Y.
 Note: a canned-cycle line without X/Y (`G81 Z-15 R2` right after `G16`) drills at the current position — often the
 centre — exactly as on the control itself.
 
+**X mode (2.12.1)** — with the rotary axis named C the program starts with `G8` (X is a radius), or `G7` when the
+output profile writes X as a diameter, so a lathe configuration (`LATHE = 1`) can never read a radius as a diameter.
+A `G7` in the CAM program is refused, a `G8` is removed.
+
 **Radial rapids (2.12.1)** — a `G0` on a ray from the centre (C constant) is one block; other rapids are still
 segmented so that the machine's joint-space interpolation does not spiral.
 

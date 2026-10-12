@@ -110,9 +110,9 @@ trust the computer and tell Marios about the difference.
   Golden 144/144 identical, input 98 checks. In PR #10 together with 2.11.4 and 2.12.0. G16 sources compared in
   `references/polar-papers-2026-10-12.md` (Shahab Dev OK; etcnmachining unreliable). Fanuc manual not available here.
 - **D DONE in 2.12.1 (Marios: yes):** M98/M99, o-word sub/call/if/while/repeat, `#` parameters and `[ ]`
-  expressions refused (all passed through before); also G12.2/G13.2, G7.1, G107. **Waiting:** (F) lathe diameter
-  mode `G7` passes through — on LATHE = 1 LinuxCNC would read our radius X as a diameter (half-size part): refuse
-  G7, and maybe write `G8` in the header (header change → golden); (E) in G16 keep the last radius/angle when a line omits one
+  expressions refused (all passed through before); also G12.2/G13.2, G7.1, G107. **F DONE (Marios: both parts):** header
+  `G8`/`G7` (rotary C only), input G7 refused, input G8 removed; golden 144/144 changed by exactly that one line.
+  **Waiting:** (E) in G16 keep the last radius/angle when a line omits one
   (Machining Doctor example) — needs a firm source; refused today. Fixed inside 2.12.1 (unmerged PR #10): X/Y on the
   G16 line itself refused (pole vs first point differs between sources).
 - **Research 2026-10-11** (`references/research-2026-10-11.md`) — proposals waiting for Marios's yes:
@@ -157,5 +157,7 @@ trust the computer and tell Marios about the difference.
   machine-layout **library** usable both by our page and inside Kiri (see `references/kirimoto.md` §6, §10). Agreed direction proposed: the CAM (Fusion, Kiri:Moto, …) makes the toolpaths, the
   converter is the universal **machine-layout** stage (like Fusion's machine definition + post).
 - Ideas not built: overcut difference map, polar-native operations (spiral facing, bolt circles, radial and concentric
-  grooves), a "pole governor" warning (feed near the centre is limited by C speed: v = ω·d), acceleration in simulator timing.
+  grooves), a "pole governor" warning (feed near the centre is limited by C speed: v = ω·d — the Fanuc manual
+  B-63524EN gives the same rule: F < L × R × π/180, L = closest distance of the tool centre to the centre, R = max C
+  feed in deg/min; with C 360°/s and L = 1 mm → F < 377 mm/min), acceleration in simulator timing.
 - Collaboration with the Kiri:Moto author (Stewart Allen) only AFTER the real tests and photos exist.

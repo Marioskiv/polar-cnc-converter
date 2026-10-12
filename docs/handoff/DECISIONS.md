@@ -32,7 +32,9 @@
   G91 in G16, missing radius/angle, arcs in G16 → refused. Polar interpolation input (G12.1/G112) and `@ ^` stay
   refused (2.11.4). Arcs with both R and I/J → refused like LinuxCNC. Radial rapids = one block.
   **D (Marios):** subprograms (M98/M99, o-word sub/call), o-word loops/conditions and parameters/expressions
-  (`#`, `[ ]`) → refused (were passed through / converted out of order). G41/G42, G92/G52/G10 with XY,
+  (`#`, `[ ]`) → refused (were passed through / converted out of order).
+  **F (Marios, both parts):** header writes `G8` (or `G7` for a diameter profile) when the rotary axis is C; input
+  `G7` refused, input `G8` removed. Not for A/B profiles (mill-style controls may not know G7/G8). G41/G42, G92/G52/G10 with XY,
   G90.1, G93 input, G18/G19 arcs, tapping/threading are rejected with the line number. Drilling cycles are expanded.
 - Tool diameter comes from CAM tool comments of any CAM (2.8.0, `scanToolDiameters`): a stated diameter (D=, DIA,
   Diameter, TOOL/MILL, flute=) beats a size in a tool name; a bare `D1` is an offset register, never a diameter;

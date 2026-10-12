@@ -165,6 +165,12 @@
     var layout = LAYOUTS[O.layout].create(O, out);
     Array.prototype.push.apply(out, layout.header());
     out.push('', 'G21', 'G90', 'G93');
+    // ADDED 2.12.1 (Marios: F): on a LinuxCNC lathe configuration (LATHE = 1) a G7 left in the
+    // control would read our radius X as a DIAMETER (half-size part). The program now states the
+    // mode its X needs: G8 (radius) or G7 when the profile writes X as a diameter. Only for a
+    // rotary axis named C (lathe-style XZC); A/B profiles are mill-style controls (e.g. Mach3 Mill)
+    // that may not know G7/G8.
+    if (O.rotaryAxis === 'C') out.push(O.xDiameter ? 'G7' : 'G8');
 
     var res = gcodeInput.read(text, O, {
       // A layout may need to act before a passed-through line (the tilting

@@ -5,6 +5,16 @@ Short and factual. Current state lives in `STATUS.md`, permanent decisions in `D
 
 ---
 
+## 2026-10-12 (14) — F done; first primary Fanuc source (B-63524EN §4.6)
+
+**Marios:** "do F, both parts" + a Fanuc manual excerpt on G12.1. **Done:** header G8/G7 (rotary C only), input G7
+refused, G8 removed; golden 144/144 changed by exactly one inserted `G8` line (verified per output); input 116.
+Also refused G12.2/G13.2, G7.1, G107 (passed through). Manual notes in references §9: F is tangential feed (= our
+G93 approach), Fanuc does not solve the pole (alarm / F < L·R·π/180) — basis for the pole-governor idea.
+E still waits for the G16 section of a Fanuc manual.
+
+---
+
 ## 2026-10-12 (13) — D done; more G16/G12.1 sources
 
 **Marios:** sent Machining Doctor (G16), a Fanuc G12.1 turn-mill document and a vendor G12.1 article; "do D".

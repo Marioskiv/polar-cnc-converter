@@ -23,11 +23,16 @@
   such a block ("mixed radius-ijk format"). Now refused too.
 
 ### Changed
+- **The program states its X mode** (Marios: F): `G8` (radius) after `G93`, or `G7` when the output profile writes X as
+  a diameter — only for a rotary axis named C (lathe-style XZC); A/B profiles (mill-style controls such as Mach3 Mill)
+  get neither. On a LinuxCNC lathe configuration (`LATHE = 1`) a `G7` left active would read the radius X as a
+  diameter: a half-size part. A `G7` in the input is now refused; a `G8` in the input is removed (the header sets it).
 - A **radial rapid** (on a ray from the centre, C constant — e.g. from the centre out to a bolt circle) is one block;
   it was cut into 0.5 mm pieces (200 blocks for X0 → X100). Rapids that turn C are segmented as before.
 
 ### Golden baseline
-- 144/144 identical. Input tests 107 (new: G16 conversion = Cartesian version, 5 refusals, `;` comments, mixed
+- 144/144 outputs changed by exactly ONE line: `G8` inserted after `G93` (checked for every output: removing that
+  line gives the old output byte for byte). Input tests 116 (new: G16 conversion = Cartesian version, 5 refusals, `;` comments, mixed
   R + I/J, radial rapids, subprograms / o-words / parameters). Sweeps and the near-pole stress test unchanged; Marios's FreeCAD programs: same G1 output,
   one of them 2 rapid blocks fewer.
 

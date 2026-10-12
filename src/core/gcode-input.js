@@ -369,6 +369,18 @@
 
     for (var li = 0; li < lines.length; li++) {
       var rawLine = lines[li];
+      // ADDED 2.12.1 (Marios: F): lathe diameter mode G7 in the input is refused - the converter's
+      // X is a radius (or a diameter only through the profile), and a G7 passed to a LinuxCNC lathe
+      // configuration halved the part. G8 (radius mode) is removed: the header states the mode.
+      if (!isGen[li]) {
+        var g78 = rawLine.replace(/\([^)]*\)/g, ' ').replace(/;.*$/, '');
+        if (/\bG0*7(?![.\d])/i.test(g78))
+          inputError(li, rawLine, 'lathe diameter mode (G7) is not converted: the converter writes X itself (radius, or diameter through the output profile). Remove G7 from the post.');
+        if (/\bG0*8(?![.\d])/i.test(g78) && rawLine.indexOf(';') < 0) {
+          rawLine = rawLine.replace(/\bG0*8(?![.\d])/gi, '').replace(/\s{2,}/g, ' ').trim() + ' ( G8 removed: the header sets the X mode )';
+          lines[li] = rawLine;
+        }
+      }
       // ─── POLAR COORDINATE COMMAND G15/G16 (Fanuc) ─────────────────────────
       // 2.11.4 removed G15 (polar off, the default; LinuxCNC does not know it).
       // ADDED 2.12.1 (Marios): G16 is CONVERTED instead of refused, in the plain form used for

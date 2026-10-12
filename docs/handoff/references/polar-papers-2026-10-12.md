@@ -95,3 +95,25 @@ numbers and "Y-intercept cap" are unverified; feed mixes in/rev with linear feed
 **For us:** found that `G12.2/G13.2`, `G7.1`, `G107` passed through → now refused (2.12.1). Also found: lathe
 diameter mode **`G7` passes through** — on a `LATHE = 1` machine it would make LinuxCNC read our radius X as a
 DIAMETER (part half size) → proposal F (refuse G7; maybe write G8 in the header).
+
+## 9. FANUC manual excerpt — B-63524EN/01 (Series 0i/16i-T style lathe programming), §4.6 Polar coordinate
+## interpolation G12.1/G13.1 (pages 58–60, text pasted by Marios 2026-10-12 as "APP2008-047")
+The first PRIMARY source. In our words:
+- G12.1 / G13.1 (= G112 / G113) in blocks of their own; reset/power-on → G13.1; linear and rotary axis set by
+  parameters 5460 / 5461. G12.1 cancels the G17/G18/G19 plane, G13.1 restores it.
+- In the mode, commands are Cartesian in the plane (linear axis, virtual axis named by the rotary address, both in
+  mm/inch); the virtual axis is 0 right after G12.1, and the start angle is taken as 0 at the tool's position.
+- **F is the tangential speed in that Cartesian plane (mm/min)** — what our G93 blocks give the CAM feed.
+- Allowed in the mode: G01, G02/G03 (I/J for an X-based plane, or R), G04, G40–G42 (compensation applied before the
+  polar transform), G65–G67, G98/G99. Not allowed: changing the coordinate system (G92, G52, G53, G54–G59); G12.1/G13.1
+  only with G40 active; no program restart inside the mode. The work origin must be on the rotary centre first.
+- Radius/diameter: "even when diameter programming is used for X, radius programming is applied to the rotary
+  (virtual) axis"; and the first axis follows the rotary axis's setting → in G12.1 the coordinates are radius values.
+  (So the §6 document's "X28 = 28 mm square" depends on that machine's parameters — not general.)
+- **The pole (WARNING in the manual):** near the centre the C component of the feed grows and can exceed the max C
+  cutting feed (parameter 1422) → alarm. Rule: **F < L × R × π / 180** (L = closest distance tool centre ↔ centre,
+  mm; R = max C feed, deg/min); or keep the tool centre away from the centre. **Fanuc does not solve the pole — it
+  limits F or forbids going near it.** Our converter goes through/near the pole (Signed-X, Index at Pole) and LinuxCNC
+  slows each G93 block to the C limit instead of raising an alarm. The formula is the basis for the "pole governor"
+  warning idea (STATUS, ideas).
+- Nothing here about G16 (that is a different section) → proposal E still needs the G16 page of a Fanuc manual.

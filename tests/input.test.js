@@ -257,4 +257,19 @@ assert.throws(() => convert('G21 G90 G17\nG0 X10 Y0 Z1\nG1 Z-1 F100\nG3 X0 Y10 I
      'a Fanuc program number and #, [ ] inside comments are fine');
 }
 
+// 27. (2.12.1, F) The X mode is stated: G8 (radius) or G7 (diameter profile) after G93, only for rotary C;
+// a G7 in the input is refused, a G8 is removed (the header sets it).
+{
+  const g = 'G21 G90\nG0 X10 Y0 Z5\nG1 Z-1 F100\nM30';
+  const hdr = o => o.split('\n').filter(l => /^G\d+$/.test(l)).join(' ');
+  ok(hdr(convert(g, { xMin: 0, xMax: 113 })) === 'G21 G90 G93 G8', 'radius X: header has G8');
+  ok(hdr(convert(g, { xMin: 0, xMax: 113, xDiameter: true })) === 'G21 G90 G93 G7', 'diameter X: header has G7');
+  ok(hdr(convert(g, { xMin: 0, xMax: 113, rotaryAxis: 'A' })) === 'G21 G90 G93', 'rotary A (mill-style control): no G7/G8');
+  assert.throws(() => convert('G7\n' + g, { xMin: 0, xMax: 113 }), /lathe diameter mode \(G7\)/); n++;
+  ok(!convert('G18 G8 G21\n' + g, { xMin: 0, xMax: 113 }).split('\n').some(l => /\bG8\b/.test(l.replace(/\([^)]*\)/g, '')) && !/^G8$/.test(l)),
+     'an input G8 is removed (only the header G8 remains)');
+  ok(!/G7/.test(convert('G21 G90\nG0 X10 Y0 Z5\nG73 Z-3 R1 Q1 F100\nG80\nM30', { xMin: 0, xMax: 113 }).split('\n').filter(l => /^G7/.test(l)).join('')),
+     'G73 (peck cycle) is not mistaken for G7');
+}
+
 console.log(`input: ${n} checks passed`);
