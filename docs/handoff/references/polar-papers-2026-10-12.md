@@ -20,8 +20,18 @@ Marios, read in full, 7 pages). Nothing copied; method in our own words.
 proposal (1) of `research-2026-10-11.md`: an arc centred on the chuck axis should be ONE exact block with X constant
 (today a polygon: 127 blocks for R10). Nothing new for the pole — our Index at Pole / Signed-X go further.
 
-## 2. Fanuc G15/G16 (helmancnc.com bolt-circle page) and ENCY CAM docs (docs.encycam.com/ENCY/1/en/10083.html)
-**Not read:** both hosts blocked by the session's network policy (also the mirrors). Known in general: G16 = polar
+## 2. ENCY CAM — "Polar interpolation" (docs.encycam.com/ENCY/1/en/10083.html)
+Host blocked here; Marios pasted the page text (2026-10-12). What it says, in our words:
+- Polar transformation turns an XYZ milling path into X(radius) C(angle) Z for lathes with a driven tool; needs a
+  rotary axis turning the part, parallel to the tool axis, a radial axis and an axial axis — exactly this machine.
+- R = sqrt(X² + Y²), A = atan2(Y, X); a **tolerance** (mm) for the deviation of the transformed path.
+- Two ways: the CAM writes X C Z itself (our converter's way), or the control does it (Fanuc/Mori/Haas `G112/G113`,
+  Siemens `TRANSMIT/TRAOFF`, Heidenhain none) — then the CAM writes XYZ between on/off commands.
+- Nothing about the pole, inverse-time feed or rapids. Confirms our architecture (CAM-side transform with a
+  tolerance) and the input refusal of `G112/G113` (those belong to controls that transform themselves).
+
+## 3. Fanuc G15/G16 (helmancnc.com bolt-circle page)
+**Not read:** host blocked by the session's network policy (also the mirrors). Known in general: G16 = polar
 coordinate *command* on a normal mill (X = radius, Y = angle; pole at the work origin with G90, at the current point
 with G91), used for hand-written bolt circles. Led to fix 2.11.4: polar input (G16, G12.1/G13.1, G112/G113, `@ ^`)
 is refused instead of being read as Cartesian; `G15` is removed (LinuxCNC 2.9 does not know it — `_gees[150] = -1`).

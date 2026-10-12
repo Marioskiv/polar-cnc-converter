@@ -19,6 +19,7 @@
   var angdiff = geometry.angdiff;
   var nearestEquivalentAngle = geometry.nearestEquivalentAngle;
   var linearizeArc = geometry.linearizeArc;
+  var arcGeometry = geometry.arcGeometry;
 
   // RESTRUCTURED 2.6.0: this is the polar part of the old single converter
   // function, moved here unchanged. O = normalised options, out = the output
@@ -1060,6 +1061,41 @@
         // off-centre r=10 circle against a 0.025 target). The arc now gets half
         // the budget, as Autodesk's own posts do for polar mode
         // (activatePolarMode(getTolerance() / 2, ...)).
+        // ADDED 2.12.0: an arc CENTRED ON THE CHUCK AXIS is a circle of constant radius about
+        // the pole, which the machine draws exactly by turning C alone (X constant; Z linear
+        // for a helix). It used to be cut into chords and every chord into polar pieces - a
+        // polygon of ~127 blocks for an R10 circle, each 0.0125 mm off the circle. Now it is a
+        // few blocks with zero geometric error (Zhang/Chen/Du 2013 do the same with their
+        // "G20"). Pieces are still limited to MAX_DEG_PER_SEG of C per block. A start/end
+        // radius that differs by rounding (I/J) becomes X changing linearly with C - the same
+        // spiral LinuxCNC itself cuts for such an arc. The centre must be on the axis within
+        // ARC_AXIS_TOL; otherwise the general path below is used.
+        var ARC_AXIS_TOL = 1e-3;   // mm: |arc centre| <= this counts as on the chuck axis
+        var ag = arcGeometry(curX, curY, newX, newY, nI, nJ, nR, type === 'G2');
+        if (!ag.degenerate && Math.hypot(ag.cx, ag.cy) <= ARC_AXIS_TOL && xyKnown &&
+            Math.min(Math.hypot(curX, curY), Math.hypot(newX, newY)) >= Math.max(THRESHOLD, CHORD_TOL) &&
+            Math.abs(ag.sweep) * ag.r > 1e-9 && physicallyAt(curX, curY) && prevR > 0) {
+          var a0d = Math.atan2(curY, curX) * 180 / Math.PI;
+          var c0 = cInit ? nearestEquivalentAngle(a0d, cumC) : a0d;
+          if (!cInit || Math.abs(c0 - prevC) > 1e-6) {
+            // prevC is the same direction as c0 (physicallyAt) but may be a different turn
+            // count only through rounding; continue from the emitted value.
+            c0 = nearestEquivalentAngle(a0d, prevC);
+          }
+          // Radii and end angle are taken about the chuck axis itself, so the last block lands
+          // exactly on the programmed end point (an R arc rounded a hair longer than 2R has its
+          // computed centre 0.0005 mm off the axis).
+          var r0a = Math.hypot(curX, curY), r1a = Math.hypot(newX, newY);
+          var cEnd = nearestEquivalentAngle(Math.atan2(newY, newX) * 180 / Math.PI, c0 + ag.sweep * 180 / Math.PI);
+          var sweepD = cEnd - c0;
+          var nArc = Math.max(1, Math.ceil(Math.abs(sweepD) / MAX_DEG_PER_SEG - 1e-9));
+          for (var ia = 1; ia <= nArc; ia++) {
+            var ta = ia / nArc;
+            emitG1(r0a + (r1a - r0a) * ta, c0 + sweepD * ta, curZ + dz * ta);
+          }
+          cumC = cEnd;  cInit = true;
+          return;
+        }
         var arcPts = linearizeArc(curX, curY, curZ, newX, newY, newZ, nI, nJ, nR, type === 'G2', CHORD_TOL * 0.5);
         // FIX 2.4.0: an arc that LEAVES the pole. At r = 0 the angle is free, so
         // C may still point anywhere; going to the first arc point then turned

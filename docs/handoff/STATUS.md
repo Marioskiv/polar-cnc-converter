@@ -1,4 +1,4 @@
-# Status — updated 2026-10-12 (converter v2.11.4)
+# Status — updated 2026-10-12 (converter v2.12.0, local)
 
 Session history: `LOG.md` (newest first).
 
@@ -101,8 +101,12 @@ trust the computer and tell Marios about the difference.
   (`G16`, `G12.1/G13.1`, `G112/G113`, `@ ^`) — `G16 X20 Y45` used to be read as Cartesian; `G15` removed with a note
   (LinuxCNC 2.9 rejects G15). Golden 144/144 identical, input 84 checks, sweeps unchanged, FreeCAD programs identical.
   Later (B): support G16 properly. Paper read: `references/polar-papers-2026-10-12.md`.
+- **v2.12.0** (Marios: yes to exact arcs, 2026-10-12): arcs centred on the chuck axis = C-only blocks, X constant
+  (≤ 45°/block). Golden 24/144 changed (explained in CHANGELOG), his FreeCAD programs 11,573 → 3,305 and
+  13,436 → 5,712 blocks, same accuracy. **Committed locally, not pushed:** waiting for his answer on 2.11.4 (he says
+  he did not ask to REFUSE G16 etc. — only remove them if they cause a problem).
 - **Research 2026-10-11** (`references/research-2026-10-11.md`) — proposals waiting for Marios's yes:
-  (1) arcs centred on the chuck axis as exact X-constant blocks (now polygons, 127 blocks for R10);
+  (1) DONE 2.12.0 — arcs centred on the chuck axis as exact X-constant blocks;
   (2) dropped — line-length guard not wanted (DECISIONS);
   (3) dropped — router base will be milled on the machine (DECISIONS);
   (4) simulator: deviation colouring, axis-speed colouring, finer height map, line link, report export;

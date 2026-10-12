@@ -116,7 +116,10 @@ for (const extra of [0, 0.0001, 0.001]) {
   ok(Math.max(...pts.map(p => Math.abs(p.y))) > 9.99, 'R half circle ' + extra + ' mm too long must stay a half circle');
 }
 const semi = 'G21 G90\nG0 X10 Y0 Z2\nG1 Z-1 F100\nG3 X-10.001 Y0 R10\nG0 Z5\nM30';
-ok(motion(semi).length > 10, 'rounded R half circle converted as an arc');
+// 2.12.0: an arc centred on the chuck axis is now a few exact C-only blocks, so "an arc" is
+// checked by its path (a straight line would be 10 mm off), not by a block count.
+ok(require('./lib/replay.js').analyse('semi', semi, convert(semi, { xMin: 0, xMax: 113 }), {}, true).maxDevG1 <= 0.026,
+   'rounded R half circle converted as an arc');
 // 11. (2.4.1) An I/J arc whose end radius differs within LinuxCNC's tolerance
 // is a spiral that ends exactly on the programmed end point.
 const sp = linearizeArc(10, 0, 0, 0, 10.02, 0, -10, 0, null, false, 0.0125);
@@ -194,5 +197,20 @@ ok(!g15.split('\n').some(l => /\bG15\b/.test(l.replace(/\([^)]*\)/g, ''))) && /G
    'G15 in a safety line is removed (LinuxCNC does not know it), the rest of the line stays');
 ok(/C0\.0000 Z-1\.0000/.test(convert(P('(a @ and ^ inside a comment)\nG1 Z-1 F100'), { xMin: 0, xMax: 113 })),
    '@ and ^ inside a comment are fine');
+
+// 22. (2.12.0) An arc centred on the chuck axis is cut exactly: X constant, only C turns,
+// at most 45 deg of C per block, the CAM feed along the real arc (Zhang/Chen/Du 2013, "G20").
+{
+  const { analyse } = require('./lib/replay.js');
+  const circ = 'G21 G90 G17\nG0 Z5\nG0 X10 Y0\nG1 Z-1 F300\nG2 X10 Y0 I-10 J0 F600\nG0 Z5\nM30';
+  const o = convert(circ, { xMin: 0, xMax: 113 });
+  const arc = o.split('\n').filter(l => /^G1 X10\.0000 C-/.test(l));
+  ok(arc.length === 8 && arc.every(l => / F76\.394/.test(l)), 'R10 circle about the axis = 8 blocks of 45 deg, X10, F = 600 mm/min along the arc');
+  ok(analyse('c', circ, o, {}, true).maxDevG1 <= 0.001, 'R10 circle about the axis is exact');
+  const helix = 'G21 G90 G17\nG0 Z5\nG0 X15 Y0\nG1 Z0 F300\nG3 X15 Y0 Z-2 I-15 J0 F600\nG0 Z5\nM30';
+  ok(/G1 X15\.0000 C360\.0000 Z-2\.0000/.test(convert(helix, { xMin: 0, xMax: 113 })), 'helix about the axis: C turns 360, Z goes down linearly');
+  const off = 'G21 G90 G17\nG0 Z5\nG0 X30 Y0\nG1 Z-1 F300\nG3 X30 Y0 I-10 J0 F600\nG0 Z5\nM30';
+  ok(convert(off, { xMin: 0, xMax: 113 }).split('\n').filter(l => /^G1 /.test(l)).length > 20, 'an arc NOT centred on the axis still takes the general path');
+}
 
 console.log(`input: ${n} checks passed`);

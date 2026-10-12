@@ -1,5 +1,28 @@
 # Changelog
 
+## 2.12.0 — arcs centred on the chuck axis are exact
+
+### Changed
+- A `G2`/`G3` arc whose centre is on the chuck axis (within 0.001 mm) — a circle about the centre of the part, also a
+  helix — is now written as a few blocks in which **only C turns and X stays constant** (at most 45° of C per block;
+  Z linear for a helix). The machine draws that circle exactly. It used to be cut into chords and every chord into
+  polar pieces: an R10 circle was ~219 blocks, each up to ~0.01 mm off the circle; now 8 blocks, zero geometric error.
+  Same idea as the "G20" module of Zhang, Chen & Du (IJAMT 2013). Radii and end angle are taken about the axis
+  itself, so the last block lands exactly on the programmed end point (a rounded I/J or R gives the same small
+  spiral LinuxCNC itself would cut). All other arcs take the general path, unchanged.
+- `geometry.js`: the arc centre/sweep maths is split out as `arcGeometry()` (linearizeArc unchanged).
+
+### Golden baseline
+- 24/144 outputs changed — exactly the fixtures with an arc centred on the axis (`circle`, `rArc`, all option sets and
+  centre modes). Checked one by one: only `G1` lines of those arcs differ (all other lines identical), end point
+  identical, G93 cut time within 0.02 % (the true arc is a hair longer than the polygon), deviation 0.0094–0.0193 mm
+  → 0.0000–0.0009 mm (0.0009 is the replay tool's own 400-piece arc approximation), blocks 219 → 9 and 47 → 3.
+- New input tests (4); random sweep of 2000 arcs centred on/near the axis (radii 0.01–150 mm, I/J and R, full
+  circles, helices, centre offsets up to 0.003 mm), both cutting sides: no NaN, no bad F; the only cases over
+  0.026 mm (3, also on 2.11.4) are sub-0.0125 mm helices inside the centre zone, where the replay compares Z at a
+  point 0.012 mm from the pole — the cut is a plunge at the pole either way.
+
+
 ## 2.11.4 — polar input is refused, never read as Cartesian
 
 ### Fixed

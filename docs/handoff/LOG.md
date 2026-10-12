@@ -5,6 +5,16 @@ Short and factual. Current state lives in `STATUS.md`, permanent decisions in `D
 
 ---
 
+## 2026-10-12 (11) — 2.12.0 exact arcs about the axis; Marios on 2.11.4; ENCY text
+
+**Marios:** (a) he did not ask to remove/refuse G16, G12.1, G15 … — "only if they ever cause a problem; if there
+is no problem, do not remove them"; (b) yes to exact arcs about the chuck axis; (c) pasted the ENCY polar page.
+**Done:** 2.12.0 exact arcs (see STATUS/CHANGELOG), ENCY notes in `references/polar-papers-2026-10-12.md`.
+Found but NOT fixed: none new — the 3 sweep cases over 0.026 are sub-zone helices (replay artefact, also on main).
+**Open:** his decision on PR #10 (keep refusal / revert / support G16). 2.12.0 waits locally until then.
+
+---
+
 ## 2026-10-12 (10) — 2.11.4: polar input refused; Zhang/Chen/Du paper read
 
 **Marios:** "not sure it is right, ok do it" (proposal A) + a paper (polar interpolation module, 2013) + ENCY CAM link.
