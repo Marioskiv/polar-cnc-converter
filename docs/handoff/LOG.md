@@ -5,6 +5,17 @@ Short and factual. Current state lives in `STATUS.md`, permanent decisions in `D
 
 ---
 
+## 2026-10-12 (5) — C axis speed: motor datasheet received
+
+**Marios:** wants to set the C speed properly (chuck rpm low because of the 10.32:1 belts); sent the 57-112 page.
+**Found:** integrated driver, SW1 = direction, ALM alarm output, generic speed curve (open loop to ~800 motor rpm).
+Today 120 deg/s (delivered) = 206 motor rpm. Plan: step test 120 → 180 → 240 → 300 → 360 deg/s with `G0 C3600` /
+`G0 C0` and a mark; keep ~70 % of the highest that returns exactly. **Waiting for:** the real `[AXIS_C]`/`[JOINT_2]`
+from the machine, closed loop or not, max pulse frequency. Proposed: wire ALM to a LinuxCNC fault input (pin to be
+chosen with him; nothing assumed).
+
+---
+
 ## 2026-10-12 (4) — C direction: the standard; F test saved as Marios's checklist
 
 **Marios:** is there a rule for the C direction, so the machine is set by the rule? Save the F test as a pending item.

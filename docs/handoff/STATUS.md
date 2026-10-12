@@ -20,6 +20,11 @@ trust the computer and tell Marios about the difference.
   C: NEMA23 57-112 (~3 N·m), belts 20→48→20→86 = 10.32:1. X and Z are near their practical speed limit.
 - C driver runs at 3200 steps/rev (a DIP switch is broken, cannot set 1600) → `STEP_SCALE = 91.733333`.
   `G0 C360` measured = exactly one turn. Max pulse rate of the driver is unverified (model unknown).
+- **C motor datasheet (Marios, 2026-10-12, AliExpress page):** "57-112" = 3 N·m, 3-4.2 A, 24-48 VDC, 8 mm shaft,
+  driver **built onto the motor** (integrated). DIP: SW1 = motor direction, SW2-SW5 = microsteps (2-256); no current
+  switch. Terminals: PUL±, DIR±, ENA± (5/24 V, no resistor), **ALM± alarm output (opto, open collector)**. The page's
+  speed curve (generic, not to scale): open loop flat to ~800 rpm then falls; "closed loop" flat to ~1100 rpm.
+  To confirm: is his unit the closed-loop (encoder) version? max pulse frequency? which DIP switch is broken?
 - Chuck encoder (600 PPR NPN, 1:1, scale 6.666667) is NOT mounted yet; needs its own 9–12 V supply, A/B to P1.
 
 ## INSTALLED and confirmed on the real machine
