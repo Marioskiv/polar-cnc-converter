@@ -1,4 +1,4 @@
-# Status — updated 2026-10-12 (converter v2.11.3)
+# Status — updated 2026-10-12 (converter v2.11.4)
 
 Session history: `LOG.md` (newest first).
 
@@ -97,11 +97,10 @@ trust the computer and tell Marios about the difference.
 - **v2.11.3 is on `main`** (PR #8 merged by Marios 2026-10-12, CI green): `SIGNED_EXACT_R`
   = `CHORD_TOL * 0.25` (was `CHORD_TOL`) → the rare near-pole 0.0268 mm is gone: random near-pole sweep 0/3000 both
   sides (worst 0.0225), sweeps unchanged, golden 144/144 identical, new input test (fails on 2.11.2), zip tested.
-- **Found 2026-10-12 (proposal, waiting for Marios's yes):** polar INPUT is not handled — `G16 X20 Y45` is converted
-  as Cartesian X20 Y45 (r 49.24) and `G16` is passed through; LinuxCNC `@`/`^` words and Haas `G112/G113` pass through
-  unconverted; `G12.1` is refused only because of its C word. Proposal A: refuse G15/G16, G12.1/G13.1, G112/G113,
-  `@`/`^` with a clear message (small). B later: support G16 (pole by G90/G91 at G16, canned cycles), with tests.
-  (helmancnc.com G15/G16 page could not be read: host blocked by the session network policy.)
+- **v2.11.4** (Marios: "ok, do it", 2026-10-12; branch → PR to `main`): polar INPUT refused with the line number
+  (`G16`, `G12.1/G13.1`, `G112/G113`, `@ ^`) — `G16 X20 Y45` used to be read as Cartesian; `G15` removed with a note
+  (LinuxCNC 2.9 rejects G15). Golden 144/144 identical, input 84 checks, sweeps unchanged, FreeCAD programs identical.
+  Later (B): support G16 properly. Paper read: `references/polar-papers-2026-10-12.md`.
 - **Research 2026-10-11** (`references/research-2026-10-11.md`) — proposals waiting for Marios's yes:
   (1) arcs centred on the chuck axis as exact X-constant blocks (now polygons, 127 blocks for R10);
   (2) dropped — line-length guard not wanted (DECISIONS);

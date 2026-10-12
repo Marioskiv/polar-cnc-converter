@@ -5,6 +5,16 @@ Short and factual. Current state lives in `STATUS.md`, permanent decisions in `D
 
 ---
 
+## 2026-10-12 (10) — 2.11.4: polar input refused; Zhang/Chen/Du paper read
+
+**Marios:** "not sure it is right, ok do it" (proposal A) + a paper (polar interpolation module, 2013) + ENCY CAM link.
+**Done:** 2.11.4 — `G16`, `G12.1/G13.1`, `G112/G113`, `@ ^` refused with the line; `G15` removed (LinuxCNC 2.9 does not
+know it, verified in `interp_array.cc`). 6 new input tests (fail on 2.11.3), golden identical, sweeps unchanged, zip
+tested. Paper notes in `references/polar-papers-2026-10-12.md` (confirms our spiral-error method and the exact
+X-constant arc idea; no pole handling). ENCY page blocked by the network policy (not read).
+
+---
+
 ## 2026-10-12 (9) — Fanuc G15/G16 examples (helmancnc.com) → polar input not handled
 
 **Marios:** read the helmancnc G15/G16 bolt-circle page for ideas. **Could not:** host blocked by the session network

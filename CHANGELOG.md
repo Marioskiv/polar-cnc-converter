@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.11.4 — polar input is refused, never read as Cartesian
+
+### Fixed
+- `G16` (Fanuc polar coordinates: X = radius, Y = angle) was not recognised: `G16 X20 Y45` was converted as the
+  Cartesian point X20 Y45 (49.24 mm from the centre instead of 20 mm at 45°) and `G16` was copied to the output.
+  It is now refused with the line number, like other input that cannot be converted exactly.
+- Polar interpolation in the input (`G12.1/G13.1`, Haas `G112/G113`) and LinuxCNC polar words (`@` radius, `^` angle)
+  passed through unconverted — now refused with a clear message.
+- `G15` (polar off — the default) is removed with a note: Fanuc-style safety lines carry it and LinuxCNC 2.9 does not
+  know it (`_gees` table: G15 is not a valid G-code), so such a program used to be refused by LinuxCNC itself.
+
+### Golden baseline
+- 144/144 identical. New input tests (6). Found while reading Fanuc G15/G16 bolt-circle examples (Marios).
+
+
 ## 2.11.3 — Signed-X only for lines really on the pole axis
 
 ### Fixed

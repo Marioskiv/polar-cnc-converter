@@ -183,4 +183,16 @@ for (const xm of [0, -18])
   ok(analyse('x', sx3, convert(sx3, { xMin: xm, xMax: 113 }), {}, true).maxDevG1 <= 0.026,
      'a line 0.02 mm off the pole axis is not treated as on it (was 0.0268 mm), xMin ' + xm);
 
+// 21. (2.11.4) Polar INPUT is refused, never read as Cartesian (G16 X20 Y45 became r 49.24).
+const P = (body) => 'G21 G90 G17\nG0 Z5\nG0 X10 Y0\n' + body + '\nM30';
+assert.throws(() => convert(P('G16\nG0 X20 Y45'), { xMin: 0, xMax: 113 }), /G16: X = radius/); n++;
+assert.throws(() => convert(P('G12.1\nG1 X10 Y0 F100'), { xMin: 0, xMax: 113 }), /polar interpolation/); n++;
+assert.throws(() => convert(P('G112\nG1 X10 F100'), { xMin: 0, xMax: 113 }), /polar interpolation/); n++;
+assert.throws(() => convert(P('G0 @20 ^45'), { xMin: 0, xMax: 113 }), /polar words/); n++;
+const g15 = convert('G90 G17 G21 G40 G49 G80 G15\nG0 Z5\nG0 X10 Y0\nG1 Z-1 F100\nM30', { xMin: 0, xMax: 113 });
+ok(!g15.split('\n').some(l => /\bG15\b/.test(l.replace(/\([^)]*\)/g, ''))) && /G40 G49 G80/.test(g15),
+   'G15 in a safety line is removed (LinuxCNC does not know it), the rest of the line stays');
+ok(/C0\.0000 Z-1\.0000/.test(convert(P('(a @ and ^ inside a comment)\nG1 Z-1 F100'), { xMin: 0, xMax: 113 })),
+   '@ and ^ inside a comment are fine');
+
 console.log(`input: ${n} checks passed`);

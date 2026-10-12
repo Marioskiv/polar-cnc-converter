@@ -364,6 +364,15 @@
 
     for (var li = 0; li < lines.length; li++) {
       var rawLine = lines[li];
+      // ADDED 2.11.4: G15 (polar coordinates OFF) is the default state and LinuxCNC does not
+      // know it ("unknown G code"), yet Fanuc-style safety lines carry it. It is removed and
+      // noted; G16 (polar ON) is refused below.
+      var g15code = rawLine.replace(/\([^)]*\)/g, ' ').replace(/;.*$/, '');
+      if (/\bG0*15(?![.\d])/i.test(g15code) && !/\bG0*16(?![.\d])/i.test(g15code) && rawLine.indexOf(';') < 0) {
+        rawLine = rawLine.replace(/\bG0*15(?![.\d])/gi, '').replace(/\s{2,}/g, ' ').trim()
+                + ' ( G15 removed: polar coordinates off is the default )';
+        lines[li] = rawLine;
+      }
       if (pendingPost) { sink.flush(camFeed); emitPassThrough(pendingPost); pendingPost = null; }
       var ln = rawLine.replace(/\(.*?\)/g, '').replace(/;.*$/, '').trim().toUpperCase();
       // Comment-only lines are kept (they used to be replaced by blank lines,
@@ -398,6 +407,19 @@
       }
 
       if ('T' in words) nextTool = String(Math.round(words['T']));
+
+      // ADDED 2.11.4: polar INPUT is refused, never guessed. After G16 the X and Y words mean
+      // radius and angle (Fanuc polar coordinate command); they were read as Cartesian X/Y
+      // (G16 X20 Y45 became a point 49.24 mm from the centre) and G16 went to the output.
+      // LinuxCNC polar words (@ radius, ^ angle) and polar interpolation (G12.1/G13.1,
+      // Haas G112/G113) passed through unconverted. The converter itself makes the polar
+      // output; the input must be plain Cartesian XY.
+      if (gSet[16])
+        inputError(li, rawLine, 'polar coordinate programming (G16: X = radius, Y = angle) is not supported. Post the job with ordinary Cartesian X/Y; the converter makes the polar output itself.');
+      if (gSet[12.1] || gSet[13.1] || gSet[112] || gSet[113])
+        inputError(li, rawLine, 'polar interpolation (G12.1/G13.1, G112/G113) is not supported in the input. Post the job as a 3-axis mill with Cartesian X/Y; the converter makes the polar output itself.');
+      if (/[@^]/.test(ln))
+        inputError(li, rawLine, 'polar words (@ radius, ^ angle) are not supported. Post the job with Cartesian X/Y; the converter makes the polar output itself.');
 
       // The input must be plain XYZ milling G-code: a rotary or secondary
       // linear axis word means the program was posted for a different machine.
