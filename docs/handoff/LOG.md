@@ -5,6 +5,16 @@ Short and factual. Current state lives in `STATUS.md`, permanent decisions in `D
 
 ---
 
+## 2026-10-12 (6) — 2.11.3: the 0.0268 mm near-pole fix (Marios: yes)
+
+**Marios:** C speed values fine → PR #7 merged by him. Then "yes, do the 2.11.3 fix".
+**Done:** branch restarted from `main`; `SIGNED_EXACT_R = CHORD_TOL * 0.25`; input test for the 0.0268 case (fails on
+2.11.2, passes now) and the "no fill" message test moved to a line that still takes that path; version 2.11.3
+(package, lock, page, `?v=`), CHANGELOG. `npm test` all pass, golden 144/144 identical, sweeps worst 0.0225,
+near-pole stress 0/3000 both sides, extracted zip tested. PR to `main` waiting for his merge.
+
+---
+
 ## 2026-10-12 (5) — C axis speed: motor datasheet received
 
 **Marios:** wants to set the C speed properly (chuck rpm low because of the 10.32:1 belts); sent the 57-112 page.
