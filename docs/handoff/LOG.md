@@ -5,6 +5,14 @@ Short and factual. Current state lives in `STATUS.md`, permanent decisions in `D
 
 ---
 
+## 2026-10-12 (9) — Fanuc G15/G16 examples (helmancnc.com) → polar input not handled
+
+**Marios:** read the helmancnc G15/G16 bolt-circle page for ideas. **Could not:** host blocked by the session network
+policy (mirrors too). **Checked the converter instead:** G16 input silently mis-converted, `@ ^`, G112 passed through
+→ proposal A (refuse) / B (support G16) in STATUS. Idea confirmed: bolt circles are native on XZC (X fixed, only C).
+
+---
+
 ## 2026-10-12 (8) — variable-speed router: saved as a later item
 
 **Marios:** can CAM / converter control a variable-speed router? → yes for per-tool/per-operation `S` (already passes
