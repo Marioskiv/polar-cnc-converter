@@ -56,3 +56,21 @@ where LinuxCNC refuses the block → proposal C (refuse, like LinuxCNC).
 - It uses `M98 P2000` subprograms. Found: the converter passes M98 through and converts the O2000 body where it
   stands in the file (after M30), with the position state of the line before it, not of the call → proposal D:
   refuse M98/M99 and O-word subroutine calls (`o… call/sub`) until handled properly.
+
+## 6. "Polar Coordinates FANUC Example" (Scribd-style 4-page document, text pasted by Marios 2026-10-12)
+Fanuc **turn-mill** programs with `G12.1` (polar interpolation on) / `G13.1` (off): 28 mm square (G42 and G41),
+24 mm hexagon, 12.8 mm two flats, axial live tool. Method, in our words:
+- Inside G12.1 the program is written in a **virtual Cartesian plane**: `X` = the linear axis in the control's
+  lathe (DIAMETER) units, `C` = the virtual second axis in mm (not degrees). `X28 C14` = corner of a 28 mm square
+  (x = 28/2, y = 14). The control does the polar transform itself, in real time.
+- Cutter radius compensation G41/G42 works inside G12.1 (the control compensates in the virtual plane), feed G94
+  mm/min in that plane, approach/retract with G40 outside the profile; spindle oriented `G0 C0` / `G28 C0` first.
+- Set-up: machine X zero on the spindle axis, tool offset to the cutter axis, radius only in the geometry offset;
+  parameters 5460 (linear axis) / 5461 (rotary axis) name the axes, 3706#6.
+- No word on the pole: none of the profiles passes through the centre (smallest square/hexagon stays away from it).
+
+**For us:** (1) confirms the 2.11.4 refusal of G12.1 input — such a program is not XYZ milling input (X diameter,
+C in mm), so converting it as if it were would be wrong; (2) these are exactly the "polar-native operations" in the
+ideas list (squares, hexagons, flats on a part's face) — today: draw them in the CAM, the converter makes XZC;
+(3) possible later idea: an import mode for Fanuc G12.1 lathe programs (X/2 → x, C → y, G41/G42 not possible —
+CAM-side compensation only). Not proposed now.
