@@ -13,6 +13,9 @@ Today 120 deg/s (delivered) = 206 motor rpm. Plan: step test 120 → 180 → 240
 `G0 C0` and a mark; keep ~70 % of the highest that returns exactly. **Waiting for:** the real `[AXIS_C]`/`[JOINT_2]`
 from the machine, closed loop or not, max pulse frequency. Proposed: wire ALM to a LinuxCNC fault input (pin to be
 chosen with him; nothing assumed).
+**Then:** Marios: the delivered files are what he will install, update them (he replaces the whole `.ini`).
+Done: C speed TEST values written into `machine-config/holzmann_cnc_mesa_7i92.ini` (header warning, a comment on
+every change, no inline comments, HAL unchanged). Waiting for his test result → final values.
 
 ---
 
