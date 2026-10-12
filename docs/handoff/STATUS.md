@@ -109,7 +109,8 @@ trust the computer and tell Marios about the difference.
   (bolt-circle test: 200 G0 blocks from X0 to X100); (B) support `G16` input (G90 only, pole at work origin, lines +
   drilling cycles; still refuse G91+G16 and arcs in G16). Marios unsure; recommended A now, B later. He keeps sending G16
   sources: Shahab Dev article (pasted; its bolt-circle example also drills a 7th hole at the centre — the G81 line has
-  no X/Y), etcnmachining.com/blog/g16-cnc-code (blocked here — ask him to paste the text).
+  no X/Y), etcnmachining.com/blog/g16-cnc-code (pasted; unreliable, see `references/polar-papers-2026-10-12.md` §4).
+  (C) refuse an arc with both R and I/J, as LinuxCNC does ("mixed radius-ijk") — today R silently wins.
 - **Research 2026-10-11** (`references/research-2026-10-11.md`) — proposals waiting for Marios's yes:
   (1) DONE 2.12.0 — arcs centred on the chuck axis as exact X-constant blocks;
   (2) dropped — line-length guard not wanted (DECISIONS);

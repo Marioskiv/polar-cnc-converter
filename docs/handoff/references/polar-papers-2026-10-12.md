@@ -36,3 +36,13 @@ coordinate *command* on a normal mill (X = radius, Y = angle; pole at the work o
 with G91), used for hand-written bolt circles. Led to fix 2.11.4: polar input (G16, G12.1/G13.1, G112/G113, `@ ^`)
 is refused instead of being read as Cartesian; `G15` is removed (LinuxCNC 2.9 does not know it — `_gees[150] = -1`).
 Idea kept: bolt circles are native on XZC (X fixed, only C turns).
+
+## 4. etcnmachining.com "Mastering CNC Programming with G16" (text pasted by Marios 2026-10-12; host blocked here)
+**Unreliable — do not use as a reference.** Its three "G16 examples" contain no G16 at all; it says polar mode is left
+with G17 (it is G15), mixes I/J and R on one arc (`G3 I-10 J0 R10` — LinuxCNC refuses "mixed radius-ijk"), gives arcs
+without end points, suggests radians (Fanuc G16 angles are degrees), calls R the radius word and A the angle (in G16
+the plane's 1st axis word is the radius, the 2nd the angle) and "G82 R30" as an angle. Correct and consistent with the
+others: angle 0 = +X (3 o'clock), counter-clockwise positive; G15 cancels; used for bolt circles. Claim "Mach3
+supports G16": not verified. **For proposal B (G16 input) the Fanuc operator's manual is the reference, not blogs.**
+Found through it: the converter accepts an arc with BOTH R and I/J (`G3 X0 Y10 I-10 J0 R10`) and picks one meaning,
+where LinuxCNC refuses the block → proposal C (refuse, like LinuxCNC).
