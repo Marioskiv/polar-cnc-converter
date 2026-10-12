@@ -20,6 +20,11 @@ trust the computer and tell Marios about the difference.
   C: NEMA23 57-112 (~3 N·m), belts 20→48→20→86 = 10.32:1. X and Z are near their practical speed limit.
 - C driver runs at 3200 steps/rev (a DIP switch is broken, cannot set 1600) → `STEP_SCALE = 91.733333`.
   `G0 C360` measured = exactly one turn. Max pulse rate of the driver is unverified (model unknown).
+- **C motor datasheet (Marios, 2026-10-12, AliExpress page):** "57-112" = 3 N·m, 3-4.2 A, 24-48 VDC, 8 mm shaft,
+  driver **built onto the motor** (integrated). DIP: SW1 = motor direction, SW2-SW5 = microsteps (2-256); no current
+  switch. Terminals: PUL±, DIR±, ENA± (5/24 V, no resistor), **ALM± alarm output (opto, open collector)**. The page's
+  speed curve (generic, not to scale): open loop flat to ~800 rpm then falls; "closed loop" flat to ~1100 rpm.
+  To confirm: is his unit the closed-loop (encoder) version? max pulse frequency? which DIP switch is broken?
 - Chuck encoder (600 PPR NPN, 1:1, scale 6.666667) is NOT mounted yet; needs its own 9–12 V supply, A/B to P1.
 
 ## INSTALLED and confirmed on the real machine
@@ -32,6 +37,10 @@ trust the computer and tell Marios about the difference.
 - C `STEP_SCALE = 91.733333` (see above).
 
 ## DELIVERED but NOT installed yet (files in `docs/handoff/machine-config/`)
+- **2026-10-12 C speed (Marios: these values are final, no staged test):** `[AXIS_C]`/`[JOINT_2]` MAX_VELOCITY 360,
+  MAX_ACCELERATION 720, STEPGEN 450/900, `MAX_ANGULAR_VELOCITY` 360 in `[DISPLAY]` and `[TRAJ]` (60 chuck rpm,
+  620 motor rpm). HAL reads them from the `.ini`. Advised once after install: mark on chuck, `G0 C3600` / `G0 C0`,
+  mark must line up (if not: lower in steps, e.g. 300 / 240). The 120/360 values below are superseded.
 - C speed: `MAX_VELOCITY 120`, `MAX_ACCELERATION 360`, `STEPGEN_MAXVEL 150`, `STEPGEN_MAXACCEL 450`,
   `MAX_ANGULAR_VELOCITY 120` in `[DISPLAY]` and `[TRAJ]`, `DEFAULT_ANGULAR_VELOCITY 60`.
 - Mill-style Z (all old values minus 590): `HOME_OFFSET 10`, `HOME 0`, `MAX_LIMIT 7`, `MIN_LIMIT -590`.
@@ -54,6 +63,17 @@ trust the computer and tell Marios about the difference.
   plain G64 blending may still apply). Verify whether `[TRAJ] MAX_ANGULAR_VELOCITY` is used (documented only in `[DISPLAY]`).
 
 ## Open items — testing before a real part
+- **C direction + "F" test — Marios's checklist (saved at his request 2026-10-12).** Rule: ISO 841 / RS-274 / LinuxCNC,
+  right-hand rule about +Z (+Z = from the part toward the tool), describing the TOOL's motion on the part. The converter
+  already follows it (x = r cos C, y = r sin C, +C counter-clockwise in the CAM drawing). Since the chuck turns the part,
+  +C means the **chuck turns CLOCKWISE seen from the cutter**. Fix a wrong direction on the machine (sign of C
+  `STEP_SCALE` in the `.ini`, block given first), not in the converter (Invert option only for machines one cannot change).
+  1. Home all, MDI `G0 C90`, look at the chuck from the cutter side: clockwise = correct; counter-clockwise → C
+     `STEP_SCALE` 91.733333 → -91.733333.
+  2. CAM: a letter "F" about 30-40 mm high, engraved 0.2-0.5 mm deep, placed OFF the centre (e.g. its corner at X10 Y10),
+     upright in the CAM's XY view (top of the F toward +Y, arms toward +X); convert, cut on scrap.
+  3. Look at the part from the cutter side: a readable "F" = C and X correct; a mirrored "F" = one of them wrong;
+     an F turned by an angle only = C zero / work offset, not direction. Photograph it.
 - vismach simulation (`examples/linuxcnc-vismach-xzc-lathe`, synced to the new X layout and mill-style Z; sim only).
 - Air cut; Home C before every program; X = 0 at the chuck centre; then the asymmetric "F" cut; then an aluminium part,
   measured and photographed (the first thing the Kiri:Moto author will ask for).
@@ -67,13 +87,20 @@ trust the computer and tell Marios about the difference.
   https://marioskiv.github.io/polar-cnc-converter/ (Pages deploys from `main`; Ctrl+F5 after an update).
 - **v2.11.2** (branch `claude/youthful-goldberg-a6qv5t`, PR to `main`): fixes the two bugs found 2026-10-11 — merge of
   moves < 0.15 mm (small Z step → ramp, 0.1 mm gouge; wrong feed) and both-sides Signed-X short move (0.12 mm off).
-  Still open: rare near-pole 0.0268 mm vs the 0.026 test limit (3/3000 one side).
+  Still open: rare near-pole 0.0268 mm vs the 0.026 test limit (3/3000 one side, 9/3000 both sides).
+  **Cause found 2026-10-12:** `SIGNED_EXACT_R = CHORD_TOL` accepts a line as "on the pole axis" when it is up to
+  0.025 mm off it, so its end point is written up to 0.02 mm off; the next block adds its own error. Proposed
+  fix (one line, waiting for Marios's yes): `CHORD_TOL * 0.25` → 0/3000 both sides, worst 0.0225; all tests,
+  sweeps, golden 144/144 unchanged; his FreeCAD programs give identical output (one input test needs a new line).
 - **Research 2026-10-11** (`references/research-2026-10-11.md`) — proposals waiting for Marios's yes:
   (1) arcs centred on the chuck axis as exact X-constant blocks (now polygons, 127 blocks for R10);
   (2) dropped — line-length guard not wanted (DECISIONS);
   (3) dropped — router base will be milled on the machine (DECISIONS);
   (4) simulator: deviation colouring, axis-speed colouring, finer height map, line link, report export;
   (5) long term: FreeCAD addon "Polar XZC" (machine `.fcm` + Python port of the core), after real test cuts.
+      **Feasibility proven 2026-10-12 on real FreeCAD 26.3** (`references/freecad-addon-feasibility-2026-10-12.md`);
+      Marios wants it as an addon (26.3+, not 1.1), first for himself. **2026-10-12 Marios: FUTURE item — not now;**
+      first the converter must be proven flawless (tests + real cuts). Prototype tarball only in the session scratchpad.
 - LinuxCNC on trixie: stay on 2.9.x (≥ 2.9.9 on 6.12 kernels), `linux-image-rt-amd64`, `linuxcnc-uspace`, install
   `iptables` for hm2_eth, NIC static + RX coalescing 0, run latency-histogram (see the research file §3).
 - Direction check written on the page (2026-10-11). For Marios: X settled 2026-10-04; **C still to be checked** with

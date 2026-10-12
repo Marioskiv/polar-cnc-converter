@@ -5,6 +5,65 @@ Short and factual. Current state lives in `STATUS.md`, permanent decisions in `D
 
 ---
 
+## 2026-10-12 (5) — C axis speed: motor datasheet received
+
+**Marios:** wants to set the C speed properly (chuck rpm low because of the 10.32:1 belts); sent the 57-112 page.
+**Found:** integrated driver, SW1 = direction, ALM alarm output, generic speed curve (open loop to ~800 motor rpm).
+Today 120 deg/s (delivered) = 206 motor rpm. Plan: step test 120 → 180 → 240 → 300 → 360 deg/s with `G0 C3600` /
+`G0 C0` and a mark; keep ~70 % of the highest that returns exactly. **Waiting for:** the real `[AXIS_C]`/`[JOINT_2]`
+from the machine, closed loop or not, max pulse frequency. Proposed: wire ALM to a LinuxCNC fault input (pin to be
+chosen with him; nothing assumed).
+**Then:** Marios: the delivered files are what he will install, update them (he replaces the whole `.ini`).
+Done: C speed TEST values written into `machine-config/holzmann_cnc_mesa_7i92.ini` (header warning, a comment on
+every change, no inline comments, HAL unchanged). **Then Marios: the values are fine, make them final and put it on
+`main`** → comments relabelled (values unchanged), PR to `main`. Advised: one G0 C3600 / G0 C0 mark check after install.
+
+---
+
+## 2026-10-12 (4) — C direction: the standard; F test saved as Marios's checklist
+
+**Marios:** is there a rule for the C direction, so the machine is set by the rule? Save the F test as a pending item.
+**Answered:** yes — ISO 841 right-hand rule (tool motion on the part); the converter already follows it; with the
+chuck turning the part, `G0 C90` must turn the chuck clockwise seen from the cutter; a wrong direction is fixed by the
+sign of the C `STEP_SCALE`, then proven by the "F" cut. Procedure written in STATUS (testing before a real part).
+Still waiting for his yes on the one-line `SIGNED_EXACT_R` fix (2.11.3).
+
+---
+
+## 2026-10-12 (3) — full check of the converter (no code changed); FreeCAD addon postponed
+
+**Marios:** not the addon yet — keep it as a future item; first he wants to know the converter works flawlessly.
+**Done (all on v2.11.2, repo code unchanged):** `npm test` all pass (golden 144/144); `tools/sweeps.js` 0 over 0.026
+(worst 0.0225); about 75 tricky cases, both cutting sides: all pass, the 8 expected refusals refuse; G93 time = length/feed
+checked by hand on the 5 cases the old checker flagged (checker artifacts: G91, other feeds); his 3 FreeCAD programs:
+worst 0.0222 / 0.0151 / 0.0151 mm, no missing F, no nested comments, no line > 251. Near-pole stress 3000 polylines:
+3 (one side) / 9 (both) at 0.0268 mm. **Cause found** (`SIGNED_EXACT_R = CHORD_TOL`), fix tried in a scratch copy:
+`CHORD_TOL * 0.25` → 0/3000, all tests and sweeps pass, golden unchanged, his programs identical. Waiting for his yes.
+**Not proven by software:** C direction and X sign (only the asymmetric "F" cut), real machine dynamics.
+
+---
+
+## 2026-10-12 (2) — FreeCAD addon: feasibility proven on real FreeCAD 26.3 (no repo code changed)
+
+**Marios:** has FreeCAD 1.1, tries 26.3; wants it done properly as an addon, first for himself, idea to FreeCAD later;
+research only, no code changes; verify it really works and is professional.
+**Done:** installed FreeCAD 26.3.0 headless (conda-forge 2026.09.16), built a throw-away addon in /tmp and a real CAM
+job → `references/freecad-addon-feasibility-2026-10-12.md`. Works: XZC machine valid, addon discovery (needs an
+`Init.py`), post gets arcs/feeds (mm/s)/tool diameter, G93 lines pass as-is, `G0 C0` poses must be dropped; end-to-end
+output identical to the page (0.0094 mm). 1.1 cannot do it. Decision on building the real addon: waiting for him.
+
+---
+
+## 2026-10-12 — where should the converter live? (analysis, no code change)
+
+**Marios:** compare FreeCAD addon / Kiri hook / LinuxCNC `userkins.comp` (real time, Mesa 7i92) and give a roadmap.
+**Done:** `references/architecture-options-2026-10-12.md`. Read LinuxCNC 2.9.10 `control.c`: in coordinated mode the
+joint positions come straight from `kinematicsInverse()` of the planner's XYZ position, no joint speed clamp → near the
+centre: following error or silent stepper stall. Recommended: keep the offline core (JS reference, golden tests as the
+spec), FreeCAD addon long-term, Kiri optional, **no real-time kinematics**. Waiting for his decision; PR #6 still open.
+
+---
+
 ## 2026-10-11 (10) — 2.11.2: the two bugs fixed (Marios: yes)
 
 **Done:** merge of short moves (3-D check, never across a feed change, waiting point at its own feed) and the both-sides
