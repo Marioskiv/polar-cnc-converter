@@ -1,5 +1,21 @@
 # Changelog
 
+## 2.11.3 — Signed-X only for lines really on the pole axis
+
+### Fixed
+- A line passing very close to the centre (up to 0.025 mm off the axis through the pole) was treated as lying **on**
+  that axis and cut with C frozen (Signed-X). Its end point was then written up to 0.02 mm off, and the next block added
+  its own error: **0.0268 mm** against the 0.025 mm tolerance in 3/3000 (one side) and 9/3000 (both sides) random
+  near-pole polylines. A line now counts as on the axis only within a quarter of the chord tolerance (0.00625 mm by
+  default); the others go to Index at Pole or are converted point by point.
+  Random near-pole sweep: **0/3000** over 0.026 mm on both cutting sides (worst 0.0225 mm).
+
+### Golden baseline
+- 144/144 outputs **identical** (no change). `tools/sweeps.js` unchanged (worst 0.0225 mm). Marios's FreeCAD programs
+  give identical output. New input test (the 0.0268 case, both sides); the "no fill" message test uses a line that
+  still takes that path.
+
+
 ## 2.11.2 — fixes found by the 2026-10-11 research (63 test cases from other polar projects)
 
 ### Fixed

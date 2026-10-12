@@ -1,4 +1,4 @@
-# Status — updated 2026-10-11 (converter v2.11.2)
+# Status — updated 2026-10-12 (converter v2.11.3)
 
 Session history: `LOG.md` (newest first).
 
@@ -85,13 +85,11 @@ trust the computer and tell Marios about the difference.
 - **v2.11.1 is on `main`** and on GitHub Pages (PRs #4, #5 merged by Marios 2026-10-11): Cutting side / X Axis Max
   required, no Safe retract Z, direction check, version in the header. Marios uses
   https://marioskiv.github.io/polar-cnc-converter/ (Pages deploys from `main`; Ctrl+F5 after an update).
-- **v2.11.2** (branch `claude/youthful-goldberg-a6qv5t`, PR to `main`): fixes the two bugs found 2026-10-11 — merge of
-  moves < 0.15 mm (small Z step → ramp, 0.1 mm gouge; wrong feed) and both-sides Signed-X short move (0.12 mm off).
-  Still open: rare near-pole 0.0268 mm vs the 0.026 test limit (3/3000 one side, 9/3000 both sides).
-  **Cause found 2026-10-12:** `SIGNED_EXACT_R = CHORD_TOL` accepts a line as "on the pole axis" when it is up to
-  0.025 mm off it, so its end point is written up to 0.02 mm off; the next block adds its own error. Proposed
-  fix (one line, waiting for Marios's yes): `CHORD_TOL * 0.25` → 0/3000 both sides, worst 0.0225; all tests,
-  sweeps, golden 144/144 unchanged; his FreeCAD programs give identical output (one input test needs a new line).
+- **v2.11.2 is on `main`** (PR #6 merged 2026-10-11): merge of moves < 0.15 mm (Z step, feed) and both-sides Signed-X
+  short move fixed. **PR #7** (C speed 360 deg/s in the delivered `.ini` + notes) merged 2026-10-12.
+- **v2.11.3** (Marios: yes, 2026-10-12; branch `claude/youthful-goldberg-a6qv5t`, PR to `main`): `SIGNED_EXACT_R`
+  = `CHORD_TOL * 0.25` (was `CHORD_TOL`) → the rare near-pole 0.0268 mm is gone: random near-pole sweep 0/3000 both
+  sides (worst 0.0225), sweeps unchanged, golden 144/144 identical, new input test (fails on 2.11.2), zip tested.
 - **Research 2026-10-11** (`references/research-2026-10-11.md`) — proposals waiting for Marios's yes:
   (1) arcs centred on the chuck axis as exact X-constant blocks (now polygons, 127 blocks for R10);
   (2) dropped — line-length guard not wanted (DECISIONS);

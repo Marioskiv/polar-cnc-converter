@@ -175,7 +175,12 @@ ok(g1s('G0 X20 Y0 Z1\nG1 Z0 F100\nG1 X20.1 Y0 F50\nG1 X30 Y0 F3000').includes('G
    'a short move keeps its own slow feed (F50 over 0.1 mm), not the next line\'s');
 const sx2 = 'G21 G90 G17\nG0 Z5\nG0 X-1 Y0\nG1 Z-1 F200\nG1 X0 Y0.01 F600\nG1 X0.1 Y0.02\nG1 X1 Y0.5\nG0 Z5\nM30';
 ok(analyse('x', sx2, convert(sx2, { xMin: -18, xMax: 113 }), {}, true).maxDevG1 <= 0.026, 'both sides: a short Signed-X move is unwound at the pole (was 0.12 mm off)');
-ok(/converted point by point, no fill/.test(convert('G21 G90\nG0 X-5 Y0.012 Z1\nG1 Z-1 F300\nG1 X5 Y0.012 F600\nM30', { xMin: 0, xMax: 113 })),
+ok(/converted point by point, no fill/.test(convert('G21 G90\nG0 X-5 Y0.002 Z1\nG1 Z-1 F300\nG1 X0.002 Y0.002 F600\nM30', { xMin: 0, xMax: 113 })),
    'the comment no longer claims a Pocket Fill that is not done');
+// 20. (2.11.3) Signed-X only for lines really on the pole axis (0.0268 mm found near the pole).
+const sx3 = 'G21 G90 G17\nG0 Z5\nG0 X-0.8993 Y-0.1462\nG1 Z-1 F200\nG1 X-0.0088 Y-0.0107 F600\nG1 X0.0142 Y-0.0144\nG1 X1.0000 Y-0.0224\nG0 Z5\nM30';
+for (const xm of [0, -18])
+  ok(analyse('x', sx3, convert(sx3, { xMin: xm, xMax: 113 }), {}, true).maxDevG1 <= 0.026,
+     'a line 0.02 mm off the pole axis is not treated as on it (was 0.0268 mm), xMin ' + xm);
 
 console.log(`input: ${n} checks passed`);
