@@ -139,10 +139,12 @@
     function machineX(r, b) { return r + (K ? K * Math.sin(b * D2R) : 0); }
     function machineZ(z, b) { return z + (K ? K * (Math.cos(b * D2R) - 1) : 0); }
 
+    var cLo = Infinity, cHi = -Infinity;
     function writeBlock(kind, r, c, z, b, F) {
       var X = machineX(r, b);
       if (X < X_MIN - 1e-6 || X > X_MAX + 1e-6) xViolations++;
       var line = kind + ' ' + wx(X) + ' ' + wc(c);
+      var cw = O.invertC ? -c : c; if (cw < cLo) cLo = cw; if (cw > cHi) cHi = cw;   // 2.13.0: C range
       if (z !== null) line += ' Z' + f4(machineZ(z, b));
       if (Math.abs(b - lastB) > 5e-5) { line += ' ' + wb(b); lastB = b; }
       if (F !== null) line += ' F' + F.toFixed(4);
@@ -263,6 +265,8 @@
       finish: function () {
         inner.finish();
         reorient(0);
+        // 2.13.0: the C report of the XZC layout, with this layout's own C range and axis letter
+        if (Array.isArray(out)) layoutXZC.insertReport(out, inner.reportLines(ROT, cLo, cHi));
         if (xViolations > 0)
           out.push('( WARNING: ' + xViolations + ' moves exceed configured X travel ['
                    + X_MIN.toFixed(1) + ', ' + X_MAX.toFixed(1) + '] mm — check machine limits! )');

@@ -5,6 +5,31 @@ Short and factual. Current state lives in `STATUS.md`, permanent decisions in `D
 
 ---
 
+## 2026-10-13 (17) — study of professional polar controls / CAM posts; 2.13.0 C report
+
+**Marios:** use as many features of existing polar machines as possible ("find how they handle it and write the code").
+**Done:** three web studies (Siemens/Heidenhain, lathe controls Fanuc/Haas/Mitsubishi/Mazak/Okuma, CAM posts
+Fusion/Mastercam/NX) → `references/polar-controls-2026-10-13.md`. Result: the converter already matched them; gaps
+offered: (1) pole speed report, (2) C turns/limit check, (3) one-direction C for holes. Marios: 1 and 2 yes, 3 not
+needed (no backlash). 2.13.0: report at the top (C range, ±99,999° warning, C speed bands + fastest block with source
+line). Golden 144/144 changed only by those comment lines (checked per output), input 159, tilt/A rename OK.
+**Limits:** vendor PDFs unreachable from here (excerpts only). **Not done:** item 3.
+
+---
+
+## 2026-10-13 (16) — exhaustive audit with LinuxCNC's own interpreter; 2.12.3
+
+**Marios:** "many changes, I don't like that — do an exhaustive check of the project" (no file changes, report first),
+then "do them" (Claude's proposal: 1, 3, 6, 7 + the tool, README notes for 2 and 4). **Done:** built LinuxCNC 2.9.10
+`rs274` from source; compared input vs output on golden, his 3 FreeCAD programs, ~60 edge cases, options, 2000 random
+programs. One-side cutting clean (his programs <= 0.022 mm, time equal). 2.12.3: (1) Signed-X ramp retrace at the
+line's own Z (both sides only); (3) cycle initial level kept without G80 (as LinuxCNC `cycle_il`); (6) rapid into
+the centre one block; (7) STATUS, profile text, vismach C 360/720; `tools/linuxcnc-compare.js`; README notes on the
+G98 default and G85/G89. New tests fail on the old code (input 30; geometry ramp case 0.333 mm). Golden 144/144,
+sweeps 0.0225, FreeCAD identical. **Not done:** L repeat (5); unwind time in both-sides mode (needs lookahead).
+
+---
+
 ## 2026-10-12 (15) — whole Fanuc 16i/18i-MB manual read; 2.12.2 (whitelist of G codes, E)
 
 **Marios:** uploaded the full Fanuc manual (B-63534EN/02, 1257 pages) to a new PRIVATE repo `Marioskiv/cnc-manuals`

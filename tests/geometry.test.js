@@ -34,6 +34,9 @@ const CASES = {
   'arc leaving the pole':         'G21 G90\nG0 X0 Y0 Z2\nG1 Z-1 F300\nG2 X40 Y0 I20 J0 F500\nG0 Z5\nM30',
   'arc leaving the pole, R form': 'G21 G90\nG0 X0 Y0 Z2\nG1 Z-1 F300\nG2 X40 Y0 R20 F500\nG0 Z5\nM30',
   'line to pole, arc out':        'G21 G90\nG0 X30 Y5 Z2\nG1 Z-1 F300\nG1 X0 Y0 F500\nG3 X-20 Y20 I-20 J0\nG0 Z5\nM30',
+  // 2.12.3 - a RAMP through the pole, then a turn: the way back to the pole ran at the final,
+  // deeper Z (0.13 mm too deep with X Min < 0; found by the LinuxCNC rs274 comparison).
+  'ramp down through the pole, turn': 'G21 G90\nG0 X40 Y0 Z5\nG1 Z-1 F300\nG1 X-8 Y0 Z-3 F500\nG1 X-8 Y3\nG0 Z5\nM30',
   'R arcs, short and long':       'G21 G90\nG0 X10 Y10 Z2\nG1 Z-1 F300\nG2 X30 Y30 R20 F500\nG3 X10 Y10 R-20\nG0 Z5\nM30',
 };
 const G1_TOL = 0.025 + 1e-3, G0_TOL = 0.5;

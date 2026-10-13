@@ -67,7 +67,8 @@
     // Every X and rotary word is written through these two functions, so the
     // output profile (letter, direction, radius/diameter) is applied in ONE place.
     function wx(r) { var v = (O.invertX ? -r : r) * X_SCALE; return 'X' + (Math.abs(v) < 5e-5 ? 0 : v).toFixed(4); }
-    function wc(c) { var v = O.invertC ? -c : c; return ROT + (Math.abs(v) < 5e-5 ? 0 : v).toFixed(4); }
+    function wc(c) { var v = O.invertC ? -c : c; if (v < cLo) cLo = v; if (v > cHi) cHi = v;   // 2.13.0: C range
+      return ROT + (Math.abs(v) < 5e-5 ? 0 : v).toFixed(4); }
     // Minimum entry/exit angular separation (degrees) for a centre crossing to be
     // considered "diameter-like" in Auto mode. Close to 180° = truly radial cut;
     // lower values would accept more oblique crossings at the cost of larger
@@ -76,6 +77,15 @@
     // Running count of emitted moves whose X fell outside [X_MIN_LIMIT, X_MAX_LIMIT] —
     // reported to the user at the end of conversion (see xLimitViolations below).
     var xLimitViolations = 0;
+    // ADDED 2.13.0 (Marios: yes, from the 2026-10-13 study of Fanuc AFC / Siemens TRANSMIT): how fast
+    // C must turn to keep the CAM feed. Those controls slow the feed near the centre on their own;
+    // LinuxCNC does too (it stretches a G93 block its axes cannot follow) but says nothing. Only a
+    // report: the motion is not changed and there is no C speed setting (DECISIONS). Bands in deg/s,
+    // so any machine reads the row of its own [AXIS_C] MAX_VELOCITY.
+    var C_BANDS = [90, 180, 360, 720];
+    var cBandLen = [0, 0, 0, 0], cBandBlocks = [0, 0, 0, 0];
+    var cFastest = 0, cFastestR = 0, cFastestLine = null, srcLine = null;
+    var cLo = Infinity, cHi = -Infinity;
 
 
     // Effective C-axis velocity limit: minimum of programmed limit and physical motor limit
@@ -463,6 +473,14 @@
       var T      = Math.max(dist3D / feed, MIN_TIME);         // [min]
       var F_g93  = Math.min(1.0 / T, MAX_F_G93);              // inverse-time word
       out.push('G1 ' + wx(r) + ' ' + wc(outC) + ' Z' + z.toFixed(4) + ' F' + F_g93.toFixed(4));
+      // 2.13.0: C speed this block asks for (deg/s). A spin AT the centre (no path) is left out:
+      // it cuts nothing, so its speed does not matter.
+      if (dist3D > 1e-6 && dC_rad > 0) {
+        var cSpeed = Math.abs(dC_deg) * F_g93 / 60;
+        for (var bI = 0; bI < C_BANDS.length; bI++)
+          if (cSpeed > C_BANDS[bI]) { cBandLen[bI] += dist3D; cBandBlocks[bI]++; }
+        if (cSpeed > cFastest) { cFastest = cSpeed; cFastestR = rAvg; cFastestLine = srcLine; }
+      }
 
       if (r < X_MIN_LIMIT || r > X_MAX_LIMIT) xLimitViolations++;
 
@@ -519,26 +537,56 @@
     // representation. Because every Signed-X line passes through the centre
     // along the frozen C direction, steps 1 and 3 run over material that has
     // just been removed: nothing is gouged.
+    // FIX 2.12.3 (found by the LinuxCNC rs274 comparison): steps 1 and 3 ran at the
+    // CURRENT Z. After a line that RAMPED down through the pole the tool went back at the
+    // final, deeper Z over material the ramp had left higher (0.13 mm too deep in the
+    // comparison). The way back now follows the line's own Z (signedTrail), never lower
+    // than that and never lower than the current Z: it only moves where the tool has cut.
+    var signedTrail = [], signedTrailC = 0;
+    function signedPathToPole(zNow) {
+      var last = signedTrail.length ? signedTrail[signedTrail.length - 1] : null;
+      // The trail is valid only if it ends where the tool is (same r, same frozen C).
+      if (!last || Math.abs(last.r - prevR) > 1e-6 || Math.abs(signedTrailC - prevC) > 1e-9)
+        return [{ r: 0, z: zNow }];
+      var pts = [], rPrev = last.r, zPrev = last.z;
+      for (var i = signedTrail.length - 2; i >= 0; i--) {
+        var p = signedTrail[i];
+        if (p.r >= 0) {
+          var zc = (Math.abs(rPrev - p.r) < 1e-12) ? p.z : p.z + (zPrev - p.z) * (0 - p.r) / (rPrev - p.r);
+          pts.push({ r: 0, z: Math.max(zc, zNow) });
+          return pts;
+        }
+        pts.push({ r: p.r, z: Math.max(p.z, zNow) });
+        rPrev = p.r;  zPrev = p.z;
+      }
+      pts.push({ r: 0, z: zNow });   // the trail never reached the pole (not expected)
+      return pts;
+    }
     function unwindSigned(isRapid) {
       // FIX 2.11.2: a short Signed-X move may still be waiting in the merge buffer;
       // write it first, or prevR still shows the old side and the return to the pole
       // is skipped (one block then swung X through 0 while C turned 159 deg: 0.12 mm off).
       if (!isRapid) flushDeferred();
       if (!(prevR < -1e-6)) return;
-      var rOld  = prevR;
+      var rOld  = prevR, zNow = prevZ, cHold = prevC;
       var cFlip = prevC + (prevC > 0 ? -180 : 180);
-      if (isRapid) {
-        out.push('G0 ' + wx(0) + ' ' + wc(prevC) + zw(prevZ));
-        out.push('G0 ' + wx(0) + ' ' + wc(cFlip) + zw(prevZ));
-        out.push('G0 ' + wx(-rOld) + ' ' + wc(cFlip) + zw(prevZ));
-        prevR = -rOld;  prevC = cFlip;
-      } else {
-        flushDeferred();
-        var zHold = prevZ, cHold = prevC;
-        emitG1Forced(0, cHold, zHold);
-        emitG1Forced(0, cFlip, zHold);
-        emitG1Forced(-rOld, cFlip, zHold);
+      // Way in: current point -> pole; drop points that lie on a straight r-z line.
+      var raw = [{ r: rOld, z: zNow }].concat(signedPathToPole(zNow)), path = [raw[0]];
+      for (var k = 1; k < raw.length; k++) {
+        var a = path[path.length - 1], b = raw[k], c = raw[k + 1];
+        if (c && Math.abs(c.r - a.r) > 1e-12 &&
+            Math.abs(a.z + (c.z - a.z) * (b.r - a.r) / (c.r - a.r) - b.z) < 1e-6) continue;
+        path.push(b);
       }
+      var zPole = path[path.length - 1].z;
+      function mv(r, cc, z) {
+        if (isRapid) { out.push('G0 ' + wx(r) + ' ' + wc(cc) + zw(z));  prevR = r;  prevC = cc;  prevZ = z; }
+        else emitG1Forced(r, cc, z);
+      }
+      for (var m = 1; m < path.length; m++) mv(path[m].r, cHold, path[m].z);   // 1. in to the pole
+      mv(0, cFlip, zPole);                                                     // 2. spin at the pole
+      for (var n = path.length - 2; n >= 0; n--) mv(-path[n].r, cFlip, path[n].z);   // 3. same line out
+      signedTrail = [];
       cumC = cFlip;  cInit = true;
     }
 
@@ -618,6 +666,7 @@
       var type = ev.kind;
       zKnown = ev.zKnown;
       camFeed = ev.feed;
+      srcLine = ev.line === undefined ? null : ev.line;
       var dx = newX - curX, dy = newY - curY, dz = newZ - curZ;
 
       if (type === 'G0') {
@@ -700,6 +749,9 @@
               (rS0 < THRESHOLD ||
                (Math.abs(curX * newY - curY * newX) / rS1 <= 1e-3 && curX * newX + curY * newY > 0)))
             nRapid = 1;
+          // 2.12.3: also a rapid INTO the pole (end inside the centre zone): it runs along the ray
+          // at the current C, X alone (was 0.5 mm pieces, e.g. 42 blocks for X21 -> X0).
+          if (rS0 >= THRESHOLD && rS1 < THRESHOLD) nRapid = 1;
         }
         // FIX 1 (2026-09-12): the start of the first positioning move is UNKNOWN
         // (the converter only assumes 0,0,0). Walking a path from an imaginary
@@ -993,6 +1045,11 @@
             // exact. With the tiny automatic centre zone, sizing by the closest
             // approach would cut a facing pass into thousands of blocks.
             var nS = Math.max(1, Math.ceil(dXY / MAX_SEG_G));
+            // 2.12.3: remember the line's r and Z for the way back (unwindSigned).
+            var rTr0 = curX * Math.cos(refRad) + curY * Math.sin(refRad);
+            if (!(prevR < -1e-6) || !signedTrail.length || Math.abs(signedTrailC - refAngle) > 1e-9) {
+              signedTrail = [{ r: rTr0, z: curZ }];  signedTrailC = refAngle;
+            }
             for (var iS = 1; iS <= nS; iS++) {
               var tS  = iS / nS;
               var ixS = curX + dx * tS;
@@ -1000,6 +1057,7 @@
               var izS = curZ + dz * tS;
               var rSigned = ixS * Math.cos(refRad) + iyS * Math.sin(refRad);
               emitG1(rSigned, refAngle, izS);
+              signedTrail.push({ r: rSigned, z: izS });
             }
             cumC = refAngle;   // C is unchanged by this move — no rotation cost
           } else {
@@ -1155,12 +1213,38 @@
     }
 
     // End of program: write what is still waiting, then this layout's warnings.
+    // ─── 2.13.0: C report ───────────────────────────────────────────────────────
+    // The C range is that of the written blocks (wc), so it includes rapids and turns at the
+    // centre, exactly what the controller will be asked for. The tilting layout calls this with
+    // its own range and axis letter.
+    function reportLines(rot, lo, hi) {
+      var rep = [];
+      if (hi >= lo) {
+        rep.push('( ' + rot + ' range ' + lo.toFixed(1) + ' .. ' + hi.toFixed(1) + ' deg = '
+                 + ((hi - lo) / 360).toFixed(1) + ' turns )');
+        // Many LinuxCNC rotary configs (and the delivered Holzmann .ini) use soft limits of +-99999 deg.
+        if (Math.max(Math.abs(lo), Math.abs(hi)) > 99999)
+          rep.push('( !! ' + rot + ' goes past 99999 deg - if your [AXIS_' + rot + '] MIN_LIMIT/MAX_LIMIT are +-99999 the program stops there; raise them first )');
+      }
+      if (cFastest > C_BANDS[0]) {
+        rep.push('( ' + rot + ' speed needed for the CAM feed. Where it is above your [AXIS_' + rot + '] MAX_VELOCITY, )');
+        rep.push('( LinuxCNC cuts slower than the CAM feed - normal close to the centre: )');
+        for (var bJ = 0; bJ < C_BANDS.length; bJ++)
+          if (cBandBlocks[bJ]) rep.push('(   above ' + C_BANDS[bJ] + ' deg/s: ' + cBandLen[bJ].toFixed(1) + ' mm of cut in ' + cBandBlocks[bJ] + ' blocks )');
+        rep.push('(   fastest: ' + Math.round(cFastest) + ' deg/s at ' + cFastestR.toFixed(3) + ' mm from the centre'
+                 + (cFastestLine ? ', source line ' + cFastestLine : '') + ' )');
+      }
+      return rep;
+    }
+
     function finish() {
       flushDeferred();
     if (xLimitViolations > 0) {
       out.push('( WARNING: ' + xLimitViolations + ' moves exceed configured X travel ['
                + X_MIN_LIMIT.toFixed(1) + ', ' + X_MAX_LIMIT.toFixed(1) + '] mm \u2014 check machine limits! )');
     }
+    // ADDED 2.13.0: C report (see C_BANDS), written at the top with the header.
+    if (Array.isArray(out)) insertReport(out, reportLines(ROT, cLo, cHi));
     }
 
     return {
@@ -1168,8 +1252,16 @@
       move: move,
       flush: function (feed) { camFeed = feed; flushDeferred(); },
       setTool: function (dia) { TOOL_DIA = dia; },
-      finish: finish
+      finish: finish,
+      reportLines: reportLines
     };
   }
-  return { create: create };
+  // 2.13.0: put report lines at the top, after the header comments (before the blank line + G21).
+  function insertReport(out, rep) {
+    if (!rep.length) return;
+    var at = out.indexOf('G21');
+    if (at > 0 && out[at - 1] === '') at--;
+    Array.prototype.splice.apply(out, [at < 0 ? out.length : at, 0].concat(rep));
+  }
+  return { create: create, insertReport: insertReport };
 });

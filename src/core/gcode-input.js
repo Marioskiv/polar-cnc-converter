@@ -21,7 +21,7 @@
   // moved here unchanged. The output goes through `sink`:
   //   sink.text(line)        a line to write as it is
   //   sink.flush(feed)       write any motion the layout still holds back
-  //   sink.move(event)       a G0/G1/G2/G3 (see the call below for the fields)
+  //   sink.move(event)       a G0/G1/G2/G3 (see the call below for the fields; line = source line, 2.13.0)
   //   sink.tool(dia, number) the active cutter changed (diameter in mm, tool number as text)
   //   sink.programEnd(feed)  the CAM's own M2/M30 follows (flush + G94 restore)
   // Returns { usedPercent, programEnded, warnings[] } for the converter.
@@ -581,7 +581,10 @@
         if (!xyKnown || !zKnown) inputError(li, rawLine, 'canned cycle before the tool position is known. The CAM must position with G0 first.');
         var sc = unitScale;
         if (cyc !== null && (!activeCycle || activeCycle.code !== cyc)) {
-          activeCycle = { code: cyc, initialZ: curZ / sc,
+          // FIX 2.12.3: a change of cycle code without G80 keeps the first cycle's initial level, as
+          // LinuxCNC does (cycle_il, reset only by a non-cycle motion). It was the current Z (= R after
+          // a G99 hole), so later G98 holes retracted only to R.
+          activeCycle = { code: cyc, initialZ: activeCycle ? activeCycle.initialZ : curZ / sc,
                           R: activeCycle ? activeCycle.R : null, Z: activeCycle ? activeCycle.Z : null,
                           Q: activeCycle ? activeCycle.Q : null, P: activeCycle ? activeCycle.P : 0 };
         }
@@ -823,7 +826,7 @@
         how = sink.move({
           kind: type, words: words, arc: arcWords, feed: camFeed,
           from: { x: curX, y: curY, z: curZ }, to: { x: newX, y: newY, z: newZ },
-          xyKnown: xyKnown, zKnown: zKnown
+          xyKnown: xyKnown, zKnown: zKnown, line: srcNo[li]
         });
       } else {
         emit(rawLine.trim());

@@ -1,5 +1,52 @@
 # Changelog
 
+## 2.13.0 — C report: range in turns, C speed the CAM feed needs (from Fanuc / Siemens practice)
+
+From the 2026-10-13 study of how professional controls and CAM posts handle polar machining (Marios: "1 and 2,
+do them"). Golden 144/144: each output gains only the new report comment lines at the top (at most 8); every
+other byte is the same (checked per output). Sweeps unchanged.
+
+### Added
+- **C range** at the top of the output: lowest and highest C written (rapids and centre turns included) and the
+  turns between them. **Warning past ±99,999°**: the usual LinuxCNC rotary soft limit (also in the delivered
+  Holzmann `.ini`, about 277 turns) — LinuxCNC would stop the program there. Siemens monitors rotary turns, and
+  Autodesk's posts check rotary limits, for the same reason.
+- **C speed the CAM feed needs**: the mm of cut (and blocks) that need C faster than 90 / 180 / 360 / 720 deg/s,
+  and the fastest block with its distance from the centre and source line. Where this is above the machine's
+  `[AXIS_C] MAX_VELOCITY`, LinuxCNC stretches the block and cuts slower than the CAM feed — Fanuc (AFC, parameters
+  5450/5463) and Siemens TRANSMIT do the same near the centre automatically. Only a report: no C speed setting
+  (DECISIONS), the motion is not changed. A spin at the centre itself is left out (it cuts nothing).
+- Moves carry their source line number from the input stage to the layout (`ev.line`).
+
+### Not done (Marios, 2026-10-13)
+- One-direction C approach for holes (Okuma, Mastercam): his C has no measurable backlash; LinuxCNC's own
+  `[JOINT_n] BACKLASH` covers a small one.
+
+## 2.12.3 — fixes found by comparing with the real LinuxCNC interpreter
+
+Exhaustive audit (Marios, 2026-10-13): the CAM input and the converter output were both run through LinuxCNC
+2.9.10's own interpreter (`rs274`) and compared — golden programs, Marios's three FreeCAD programs, about 60 edge
+cases, the options, and 2000 random programs. One-side cutting (Marios's machine) had no error. Golden 144/144
+identical; FreeCAD programs identical; sweeps unchanged (worst 0.0225 mm).
+
+### Fixed
+- **Signed-X ramp through the centre, both-sides cutting only (X Min < 0).** After a line that ramped in Z through
+  the centre, the way back to the centre (to change from negative X to positive X) ran at the line's final Z. On a
+  ramp going down that is deeper than the ramp was near the centre: 0.13 mm too deep in the comparison, 0.33 mm in
+  the new geometry test. The way back now follows the line's own Z (never lower than it, never lower than the
+  current Z), so it only moves where the tool has already cut. Flat lines give the same output as before.
+- **Canned cycle changing code without `G80`** (`G99 G81 …` then `G98 G83 …`): the G98 holes retracted only to R,
+  because the initial level was taken again at the code change. It is kept now, as LinuxCNC does (`cycle_il`).
+
+### Changed
+- **A rapid INTO the centre** (end inside the centre zone) is one block (X alone at the current C, exact); it was
+  cut into 0.5 mm pieces (42 blocks for X21 → X0). Same rule as the rapid out of the centre (2.12.1).
+
+### Added
+- `tools/linuxcnc-compare.js` — the comparison with LinuxCNC's interpreter as an optional tool (see README).
+- README: the two known differences from LinuxCNC in drilling cycles (default `G98`, `G85`/`G89` retract), both only
+  above R.
+
 ## 2.12.2 — only known G codes are read; G16 keeps a left-out radius/angle (Fanuc manual)
 
 Found by reading the whole Fanuc Series 16i/18i-MB operator's manual (B-63534EN/02, 1257 pages) and running its
