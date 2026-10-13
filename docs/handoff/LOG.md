@@ -5,6 +5,18 @@ Short and factual. Current state lives in `STATUS.md`, permanent decisions in `D
 
 ---
 
+## 2026-10-13 (17) — study of professional polar controls / CAM posts; 2.13.0 C report
+
+**Marios:** use as many features of existing polar machines as possible ("find how they handle it and write the code").
+**Done:** three web studies (Siemens/Heidenhain, lathe controls Fanuc/Haas/Mitsubishi/Mazak/Okuma, CAM posts
+Fusion/Mastercam/NX) → `references/polar-controls-2026-10-13.md`. Result: the converter already matched them; gaps
+offered: (1) pole speed report, (2) C turns/limit check, (3) one-direction C for holes. Marios: 1 and 2 yes, 3 not
+needed (no backlash). 2.13.0: report at the top (C range, ±99,999° warning, C speed bands + fastest block with source
+line). Golden 144/144 changed only by those comment lines (checked per output), input 159, tilt/A rename OK.
+**Limits:** vendor PDFs unreachable from here (excerpts only). **Not done:** item 3.
+
+---
+
 ## 2026-10-13 (16) — exhaustive audit with LinuxCNC's own interpreter; 2.12.3
 
 **Marios:** "many changes, I don't like that — do an exhaustive check of the project" (no file changes, report first),

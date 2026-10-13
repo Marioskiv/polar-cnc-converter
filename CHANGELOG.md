@@ -1,5 +1,27 @@
 # Changelog
 
+## 2.13.0 — C report: range in turns, C speed the CAM feed needs (from Fanuc / Siemens practice)
+
+From the 2026-10-13 study of how professional controls and CAM posts handle polar machining (Marios: "1 and 2,
+do them"). Golden 144/144: each output gains only the new report comment lines at the top (at most 8); every
+other byte is the same (checked per output). Sweeps unchanged.
+
+### Added
+- **C range** at the top of the output: lowest and highest C written (rapids and centre turns included) and the
+  turns between them. **Warning past ±99,999°**: the usual LinuxCNC rotary soft limit (also in the delivered
+  Holzmann `.ini`, about 277 turns) — LinuxCNC would stop the program there. Siemens monitors rotary turns, and
+  Autodesk's posts check rotary limits, for the same reason.
+- **C speed the CAM feed needs**: the mm of cut (and blocks) that need C faster than 90 / 180 / 360 / 720 deg/s,
+  and the fastest block with its distance from the centre and source line. Where this is above the machine's
+  `[AXIS_C] MAX_VELOCITY`, LinuxCNC stretches the block and cuts slower than the CAM feed — Fanuc (AFC, parameters
+  5450/5463) and Siemens TRANSMIT do the same near the centre automatically. Only a report: no C speed setting
+  (DECISIONS), the motion is not changed. A spin at the centre itself is left out (it cuts nothing).
+- Moves carry their source line number from the input stage to the layout (`ev.line`).
+
+### Not done (Marios, 2026-10-13)
+- One-direction C approach for holes (Okuma, Mastercam): his C has no measurable backlash; LinuxCNC's own
+  `[JOINT_n] BACKLASH` covers a small one.
+
 ## 2.12.3 — fixes found by comparing with the real LinuxCNC interpreter
 
 Exhaustive audit (Marios, 2026-10-13): the CAM input and the converter output were both run through LinuxCNC

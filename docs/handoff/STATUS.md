@@ -1,4 +1,4 @@
-# Status — updated 2026-10-13 (converter v2.12.3)
+# Status — updated 2026-10-13 (converter v2.13.0)
 
 Session history: `LOG.md` (newest first).
 
@@ -130,6 +130,12 @@ trust the computer and tell Marios about the difference.
   tool: `tools/linuxcnc-compare.js`. Golden 144/144 identical, input 155, geometry 84, sweeps unchanged.
   Not changed (reported): L repeat ignored; default G98 vs LinuxCNC G99; G85/G89 Fanuc-style retract (README);
   the Signed-X unwind costs time in both-sides mode (p95: 39 s vs CAM 28 s) — would need lookahead.
+- **v2.13.0** (2026-10-13, Marios: "1 and 2, do them"): after studying how Siemens, Fanuc, Heidenhain, Haas, Beckhoff,
+  Fusion and Mastercam handle polar machining (`references/polar-controls-2026-10-13.md`; converter already matched
+  them): C report at the top of the output — C range in turns + warning past ±99,999°, and the mm of cut needing C
+  above 90/180/360/720 deg/s + fastest block (source line). His `in.ngc`: 43 turns, 6.7 mm of cut above 360 deg/s.
+  Golden 144/144 changed only by the added comment lines. **2.12.3 + 2.13.0 in PR #11** (waiting for his merge).
+  One-direction C for holes NOT done (Marios: C has no measurable backlash; he may set `BACKLASH` in the `.ini`).
 - **Research 2026-10-11** (`references/research-2026-10-11.md`) — proposals waiting for Marios's yes:
   (1) DONE 2.12.0 — arcs centred on the chuck axis as exact X-constant blocks;
   (2) dropped — line-length guard not wanted (DECISIONS);
@@ -175,7 +181,7 @@ trust the computer and tell Marios about the difference.
   `G12.1`, X/C' Cartesian mm about the C centre, arcs I/J or R — convertible with certainty); a warning for Fanuc
   `G4 P` in ms / integer coordinates without a decimal point (Fanuc `X3025` = 3.025 mm on most machines).
 - Ideas not built: overcut difference map, polar-native operations (spiral facing, bolt circles, radial and concentric
-  grooves), a "pole governor" warning (feed near the centre is limited by C speed: v = ω·d — the Fanuc manual
+  grooves), (DONE 2.13.0 as the C speed report) a "pole governor" warning (feed near the centre is limited by C speed: v = ω·d — the Fanuc manual
   B-63524EN gives the same rule: F < L × R × π/180, L = closest distance of the tool centre to the centre, R = max C
   feed in deg/min; with C 360°/s and L = 1 mm → F < 377 mm/min), acceleration in simulator timing.
 - Collaboration with the Kiri:Moto author (Stewart Allen) only AFTER the real tests and photos exist.

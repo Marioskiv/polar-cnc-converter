@@ -107,6 +107,11 @@ This project solves both:
   `G43.4`, `G51`, `G50.1`, `G60`, `G65`/`G66`, `G95`…). Also refused: `G4 X` (Fanuc dwell in seconds — write
   `G4 P`), chamfer / corner words `,C` `,R`, block delete `/`, Fanuc `G08 P`, and `G91` on a cycle's own line.
   A Fanuc program number (`O1000`, alone or with moves) is kept as a comment.
+- **C report at the top of the output (2.13.0)** — the C range in degrees and turns (with a warning past
+  ±99,999°, the usual LinuxCNC soft limit, so a long program does not stop half way), and how fast C must turn to
+  keep the CAM feed: mm of cut above 90 / 180 / 360 / 720 deg/s and the fastest block with its source line. Read
+  the row of your `[AXIS_C] MAX_VELOCITY`: there LinuxCNC cuts slower than the CAM feed (normal near the centre;
+  Fanuc's AFC and Siemens TRANSMIT slow down there too). Only a report — the motion is not changed.
 - **3D toolpath simulator** (Three.js) with continuous, feedrate-accurate playback (not just point-to-point
   jumps), Rotary-Mill and Static-3D view modes, live telemetry, a material-removal depth map with rapid-collision
   detection, and the peak chuck speed the program asks for.
@@ -407,6 +412,9 @@ Every one of these was read directly, not cited second-hand. None is reused verb
 Fanuc **G12.1/G112** (the `F < L × R × π/180` formula, where `L` is the radius at closest approach, plus the
 PS214 illegal-code list and the `G00` prohibition), Haas **G112**, Siemens SINUMERIK **TRANSMIT** (the three
 `POLE_SIDE_FIX` strategies), Heidenhain **FUNCTION POLARKIN**, and SprutCAM's polar transformation mode.
+2026-10-13 study (`docs/handoff/references/polar-controls-2026-10-13.md`): Fanuc lathe AFC (automatic feed
+override near the centre), Siemens TRANSMIT pole handling and feed reduction, Beckhoff `#FACE`, Autodesk Fusion
+"polar in computer" posts, Mastercam C-axis posts — the converter matched them except the C report (added 2.13.0).
 
 The search for further prior art was carried out in English, Chinese, Russian and Japanese, across GitHub,
 Gitee, vendor documentation and the LinuxCNC source, docs and forums. It is considered exhausted.

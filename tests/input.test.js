@@ -336,5 +336,16 @@ assert.throws(() => convert('G21 G90 G17\nG0 X10 Y0 Z1\nG1 Z-1 F100\nG3 X0 Y10 I
   const g0z = o.split('\n').filter(l => /^G0 .*Z/.test(l)).map(l => +l.match(/Z(-?[\d.]+)/)[1]);
   ok(g0z.length > 2 && Math.min(...g0z) >= 2, 'rapid back to the pole stays at the lifted Z (min ' + Math.min(...g0z) + ')');
 }
+// 33. (2.13.0) C report at the top: range in turns, warning past 99999 deg, C speed the CAM feed needs.
+{
+  const circles = Array.from({ length: 300 }, () => 'G2 X10 Y0 I-10 J0').join('\n');
+  const o = convert('G21 G90\nG0 X10 Y0 Z2\nG1 Z-1 F500\n' + circles + '\nG0 Z5\nM30', { xMin: 0, xMax: 113 });
+  const top = o.slice(0, o.indexOf('\nG21'));
+  ok(/\( C range 0\.0 \.\. -?108000\.0 deg = 300\.0 turns \)|\( C range -108000\.0 \.\. 0\.0 deg = 300\.0 turns \)/.test(top), 'C range in turns at the top');
+  ok(/!! C goes past 99999 deg/.test(top), 'warning past 99999 deg');
+  const p = convert('G21 G90\nG0 X30 Y0.5 Z2\nG1 Z-1 F600\nG1 X-30 Y0.5\nG0 Z5\nM30', { xMin: 0, xMax: 113 });
+  ok(/above 360 deg\/s: [\d.]+ mm of cut/.test(p) && /fastest: \d+ deg\/s at 0\.\d+ mm from the centre, source line 4/.test(p), 'C speed report with the source line');
+  ok(!/goes past/.test(p), 'no limit warning for a short program');
+}
 
 console.log(`input: ${n} checks passed`);

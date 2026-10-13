@@ -67,7 +67,8 @@
     // Every X and rotary word is written through these two functions, so the
     // output profile (letter, direction, radius/diameter) is applied in ONE place.
     function wx(r) { var v = (O.invertX ? -r : r) * X_SCALE; return 'X' + (Math.abs(v) < 5e-5 ? 0 : v).toFixed(4); }
-    function wc(c) { var v = O.invertC ? -c : c; return ROT + (Math.abs(v) < 5e-5 ? 0 : v).toFixed(4); }
+    function wc(c) { var v = O.invertC ? -c : c; if (v < cLo) cLo = v; if (v > cHi) cHi = v;   // 2.13.0: C range
+      return ROT + (Math.abs(v) < 5e-5 ? 0 : v).toFixed(4); }
     // Minimum entry/exit angular separation (degrees) for a centre crossing to be
     // considered "diameter-like" in Auto mode. Close to 180° = truly radial cut;
     // lower values would accept more oblique crossings at the cost of larger
@@ -76,6 +77,15 @@
     // Running count of emitted moves whose X fell outside [X_MIN_LIMIT, X_MAX_LIMIT] —
     // reported to the user at the end of conversion (see xLimitViolations below).
     var xLimitViolations = 0;
+    // ADDED 2.13.0 (Marios: yes, from the 2026-10-13 study of Fanuc AFC / Siemens TRANSMIT): how fast
+    // C must turn to keep the CAM feed. Those controls slow the feed near the centre on their own;
+    // LinuxCNC does too (it stretches a G93 block its axes cannot follow) but says nothing. Only a
+    // report: the motion is not changed and there is no C speed setting (DECISIONS). Bands in deg/s,
+    // so any machine reads the row of its own [AXIS_C] MAX_VELOCITY.
+    var C_BANDS = [90, 180, 360, 720];
+    var cBandLen = [0, 0, 0, 0], cBandBlocks = [0, 0, 0, 0];
+    var cFastest = 0, cFastestR = 0, cFastestLine = null, srcLine = null;
+    var cLo = Infinity, cHi = -Infinity;
 
 
     // Effective C-axis velocity limit: minimum of programmed limit and physical motor limit
@@ -463,6 +473,14 @@
       var T      = Math.max(dist3D / feed, MIN_TIME);         // [min]
       var F_g93  = Math.min(1.0 / T, MAX_F_G93);              // inverse-time word
       out.push('G1 ' + wx(r) + ' ' + wc(outC) + ' Z' + z.toFixed(4) + ' F' + F_g93.toFixed(4));
+      // 2.13.0: C speed this block asks for (deg/s). A spin AT the centre (no path) is left out:
+      // it cuts nothing, so its speed does not matter.
+      if (dist3D > 1e-6 && dC_rad > 0) {
+        var cSpeed = Math.abs(dC_deg) * F_g93 / 60;
+        for (var bI = 0; bI < C_BANDS.length; bI++)
+          if (cSpeed > C_BANDS[bI]) { cBandLen[bI] += dist3D; cBandBlocks[bI]++; }
+        if (cSpeed > cFastest) { cFastest = cSpeed; cFastestR = rAvg; cFastestLine = srcLine; }
+      }
 
       if (r < X_MIN_LIMIT || r > X_MAX_LIMIT) xLimitViolations++;
 
@@ -648,6 +666,7 @@
       var type = ev.kind;
       zKnown = ev.zKnown;
       camFeed = ev.feed;
+      srcLine = ev.line === undefined ? null : ev.line;
       var dx = newX - curX, dy = newY - curY, dz = newZ - curZ;
 
       if (type === 'G0') {
@@ -1194,12 +1213,38 @@
     }
 
     // End of program: write what is still waiting, then this layout's warnings.
+    // ─── 2.13.0: C report ───────────────────────────────────────────────────────
+    // The C range is that of the written blocks (wc), so it includes rapids and turns at the
+    // centre, exactly what the controller will be asked for. The tilting layout calls this with
+    // its own range and axis letter.
+    function reportLines(rot, lo, hi) {
+      var rep = [];
+      if (hi >= lo) {
+        rep.push('( ' + rot + ' range ' + lo.toFixed(1) + ' .. ' + hi.toFixed(1) + ' deg = '
+                 + ((hi - lo) / 360).toFixed(1) + ' turns )');
+        // Many LinuxCNC rotary configs (and the delivered Holzmann .ini) use soft limits of +-99999 deg.
+        if (Math.max(Math.abs(lo), Math.abs(hi)) > 99999)
+          rep.push('( !! ' + rot + ' goes past 99999 deg - if your [AXIS_' + rot + '] MIN_LIMIT/MAX_LIMIT are +-99999 the program stops there; raise them first )');
+      }
+      if (cFastest > C_BANDS[0]) {
+        rep.push('( ' + rot + ' speed needed for the CAM feed. Where it is above your [AXIS_' + rot + '] MAX_VELOCITY, )');
+        rep.push('( LinuxCNC cuts slower than the CAM feed - normal close to the centre: )');
+        for (var bJ = 0; bJ < C_BANDS.length; bJ++)
+          if (cBandBlocks[bJ]) rep.push('(   above ' + C_BANDS[bJ] + ' deg/s: ' + cBandLen[bJ].toFixed(1) + ' mm of cut in ' + cBandBlocks[bJ] + ' blocks )');
+        rep.push('(   fastest: ' + Math.round(cFastest) + ' deg/s at ' + cFastestR.toFixed(3) + ' mm from the centre'
+                 + (cFastestLine ? ', source line ' + cFastestLine : '') + ' )');
+      }
+      return rep;
+    }
+
     function finish() {
       flushDeferred();
     if (xLimitViolations > 0) {
       out.push('( WARNING: ' + xLimitViolations + ' moves exceed configured X travel ['
                + X_MIN_LIMIT.toFixed(1) + ', ' + X_MAX_LIMIT.toFixed(1) + '] mm \u2014 check machine limits! )');
     }
+    // ADDED 2.13.0: C report (see C_BANDS), written at the top with the header.
+    if (Array.isArray(out)) insertReport(out, reportLines(ROT, cLo, cHi));
     }
 
     return {
@@ -1207,8 +1252,16 @@
       move: move,
       flush: function (feed) { camFeed = feed; flushDeferred(); },
       setTool: function (dia) { TOOL_DIA = dia; },
-      finish: finish
+      finish: finish,
+      reportLines: reportLines
     };
   }
-  return { create: create };
+  // 2.13.0: put report lines at the top, after the header comments (before the blank line + G21).
+  function insertReport(out, rep) {
+    if (!rep.length) return;
+    var at = out.indexOf('G21');
+    if (at > 0 && out[at - 1] === '') at--;
+    Array.prototype.splice.apply(out, [at < 0 ? out.length : at, 0].concat(rep));
+  }
+  return { create: create, insertReport: insertReport };
 });

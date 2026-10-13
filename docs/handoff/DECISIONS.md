@@ -57,10 +57,13 @@
 ## REJECTED by Marios — do not propose again
 - **Retracting Z before a large C rotation** (e.g. in Index at Pole): he does not accept any retract that leaves
   material uncut. A partial implementation was reverted at his instruction.
-- C speed/acceleration/corner settings in the converter (removed; the controller decides).
+- C speed/acceleration/corner settings in the converter (removed; the controller decides). The 2.13.0 C report needs
+  none: it lists the mm of cut above fixed bands (90/180/360/720 deg/s) and the user reads the row of his `.ini`.
 - The "rotary axis letter" option is only a rename (C/A/B) of the same machine; it is not a second axis.
 
 ## Machine decisions
+- **No one-direction C approach for holes** (Marios 2026-10-13): his C has no measurable backlash; a small one goes in
+  the `.ini` (`BACKLASH`). Revisit only if hole positions measure off.
 - **No guard for output lines over 251 characters** (Marios 2026-10-11): such lines practically never occur (only a very
   long CAM comment); LinuxCNC would just refuse the file with "Command too long". Limit verified in the source anyway.
 - **No centre-height (router offset) compensation** (Marios 2026-10-11): the router base will be milled on the
