@@ -22,6 +22,10 @@
 - Arcs: chord at tol/2, polar split at 0.4·tol. Rapids (G0) are segmented along the straight Cartesian line
   (`RAPID_TOL = 0.5 mm`), because LinuxCNC interpolates in joint space (a spiral otherwise).
 - Merging of tiny moves checks the real error of the merged block and never drops a point that is off the new block.
+- Leaving Signed-X (back to the pole, spin, out) retraces the line at its own Z, never lower than it or the current Z
+  (2.12.3): only where the tool has already cut.
+- **Independent check:** `tools/linuxcnc-compare.js` (LinuxCNC's own `rs274`) is the second opinion for converter
+  changes, next to sweeps (2.12.3, it found bugs the replay tests could not).
 
 ## Input handling
 - Preserve every G-code word (G43 H, S, M, T, coolant, comments, tool changes) in the correct execution order.
@@ -33,7 +37,9 @@
   radius/angle keeps its last value; `G91 Y` (angle only) turns the angle; G91 with a radius and a first point
   without both values stay refused. **2.12.2: only KNOWN G codes are read** (a whitelist, not a list of bad codes);
   anything else stops with the line number. Also refused: `G4 X`, `,C ,R`, block delete `/`, `G08 P`, G91 on a cycle
-  line. A Fanuc `O1000` program number becomes a comment. Polar interpolation input (G12.1/G112) and `@ ^` stay
+  line. A Fanuc `O1000` program number becomes a comment. **Cycles (2.12.3):** default retract G98 (LinuxCNC: G99) and
+  G85/G89 rapid out above R are kept on purpose (higher = safer, only in the air; README); a code change without G80
+  keeps the initial level like LinuxCNC. Polar interpolation input (G12.1/G112) and `@ ^` stay
   refused (2.11.4). Arcs with both R and I/J → refused like LinuxCNC. Radial rapids = one block.
   **D (Marios):** subprograms (M98/M99, o-word sub/call), o-word loops/conditions and parameters/expressions
   (`#`, `[ ]`) → refused (were passed through / converted out of order).

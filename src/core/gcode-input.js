@@ -581,7 +581,10 @@
         if (!xyKnown || !zKnown) inputError(li, rawLine, 'canned cycle before the tool position is known. The CAM must position with G0 first.');
         var sc = unitScale;
         if (cyc !== null && (!activeCycle || activeCycle.code !== cyc)) {
-          activeCycle = { code: cyc, initialZ: curZ / sc,
+          // FIX 2.12.3: a change of cycle code without G80 keeps the first cycle's initial level, as
+          // LinuxCNC does (cycle_il, reset only by a non-cycle motion). It was the current Z (= R after
+          // a G99 hole), so later G98 holes retracted only to R.
+          activeCycle = { code: cyc, initialZ: activeCycle ? activeCycle.initialZ : curZ / sc,
                           R: activeCycle ? activeCycle.R : null, Z: activeCycle ? activeCycle.Z : null,
                           Q: activeCycle ? activeCycle.Q : null, P: activeCycle ? activeCycle.P : 0 };
         }

@@ -67,7 +67,8 @@ This project solves both:
 - **Leaving the negative-X representation safely.** After a Signed-X pass the tool can sit at, e.g., `X-50 C0`.
   Converting the next point naively gives `X50 C180` — the same physical spot — and LinuxCNC would interpolate
   X and C together, sweeping the tool through the part (measured 14.6 mm off-path). The converter instead
-  retraces the line it has just cut to the pole, spins C by 180° there, and retraces back out. Nothing is gouged.
+  retraces the line it has just cut to the pole, spins C by 180° there, and retraces back out. Nothing is gouged:
+  since 2.12.3 the retrace follows the line's own Z (on a ramp), never lower than it or than the current Z.
   Pure-Z moves (retracts, plunges) never touch X or C at all.
 - **Adaptive chordal segmentation** — subdivides lines/arcs based on distance-to-centre and a chord-tolerance
   setting, denser near the centre where curvature (in polar space) is highest.
@@ -89,7 +90,12 @@ This project solves both:
   the simulator's material map shows the tool centre path only (with a note), Pocket Fill with Auto Stepover is
   refused, and the tilt layout needs the diameter in `tool.tbl`. The motion itself never needs the diameter.
 - **Drilling cycles expanded.** `G81, G82, G83, G73, G85, G89` with `G98/G99`, `R`, `Q`, `P` become plain
-  moves — in polar, a hole is just a position (X, C) followed by Z moves.
+  moves — in polar, a hole is just a position (X, C) followed by Z moves. Two differences from LinuxCNC, both only
+  in the air above R: with **no `G98`/`G99` in the program** the converter retracts to the initial level (`G98`),
+  LinuxCNC starts in `G99` (retract to R) — higher, so safer, a little slower; CAM posts write G98/G99 anyway.
+  **`G85`/`G89` with `G98`** feed out to R and rapid from there to the initial level (Fanuc style); LinuxCNC feeds
+  all the way up. A change of cycle code without `G80` keeps the first cycle's initial level, as LinuxCNC does
+  (2.12.3). An `L` repeat count is ignored (in G90 it would drill the same hole again).
 - **Rejected with the line number** (never converted wrongly): cutter compensation `G41/G42`, tapping and
   threading cycles, offsets set with coordinates, probing, `G68`, `G90.1`, `G93` input, `G18/G19` arcs,
   polar/cylindrical interpolation input (`G12.1/G13.1`, `G112/G113`, `G12.2/G13.2`, `G7.1`, `G107`), `@`/`^` words, `G16` forms that are not certain (see below),
@@ -134,7 +140,14 @@ and use inverse-time feed mode to tell the motion controller how long each move 
 npm install     # one time — installs jsdom, used only by the UI test
 npm test        # all tests below
 node tools/sweeps.js   # heavy random validation (several minutes) - run after any converter change
+node tools/linuxcnc-compare.js --rs274 <path to rs274> program.ngc   # optional second opinion, see below
 ```
+
+**Second opinion from LinuxCNC itself (2.12.3, optional).** `tools/linuxcnc-compare.js` runs the CAM program (as an
+XYZ mill) and the converter output (with the machine `.ini`) through LinuxCNC's own interpreter `rs274` and compares
+what the machine would do: path both ways (chord tolerance + 0.001 mm), rapids (0.5 mm), cutting time (1 %),
+block speed (5 %), dwell and X travel. Unlike `tests/lib/replay.js` it shares nothing with the converter; it found
+the 2.12.3 fixes. `rs274` comes with an installed LinuxCNC or is built once from its source (steps in the file).
 
 The suite runs automatically on every push via GitHub Actions (`.github/workflows/test.yml`).
 

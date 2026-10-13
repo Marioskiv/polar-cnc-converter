@@ -519,26 +519,56 @@
     // representation. Because every Signed-X line passes through the centre
     // along the frozen C direction, steps 1 and 3 run over material that has
     // just been removed: nothing is gouged.
+    // FIX 2.12.3 (found by the LinuxCNC rs274 comparison): steps 1 and 3 ran at the
+    // CURRENT Z. After a line that RAMPED down through the pole the tool went back at the
+    // final, deeper Z over material the ramp had left higher (0.13 mm too deep in the
+    // comparison). The way back now follows the line's own Z (signedTrail), never lower
+    // than that and never lower than the current Z: it only moves where the tool has cut.
+    var signedTrail = [], signedTrailC = 0;
+    function signedPathToPole(zNow) {
+      var last = signedTrail.length ? signedTrail[signedTrail.length - 1] : null;
+      // The trail is valid only if it ends where the tool is (same r, same frozen C).
+      if (!last || Math.abs(last.r - prevR) > 1e-6 || Math.abs(signedTrailC - prevC) > 1e-9)
+        return [{ r: 0, z: zNow }];
+      var pts = [], rPrev = last.r, zPrev = last.z;
+      for (var i = signedTrail.length - 2; i >= 0; i--) {
+        var p = signedTrail[i];
+        if (p.r >= 0) {
+          var zc = (Math.abs(rPrev - p.r) < 1e-12) ? p.z : p.z + (zPrev - p.z) * (0 - p.r) / (rPrev - p.r);
+          pts.push({ r: 0, z: Math.max(zc, zNow) });
+          return pts;
+        }
+        pts.push({ r: p.r, z: Math.max(p.z, zNow) });
+        rPrev = p.r;  zPrev = p.z;
+      }
+      pts.push({ r: 0, z: zNow });   // the trail never reached the pole (not expected)
+      return pts;
+    }
     function unwindSigned(isRapid) {
       // FIX 2.11.2: a short Signed-X move may still be waiting in the merge buffer;
       // write it first, or prevR still shows the old side and the return to the pole
       // is skipped (one block then swung X through 0 while C turned 159 deg: 0.12 mm off).
       if (!isRapid) flushDeferred();
       if (!(prevR < -1e-6)) return;
-      var rOld  = prevR;
+      var rOld  = prevR, zNow = prevZ, cHold = prevC;
       var cFlip = prevC + (prevC > 0 ? -180 : 180);
-      if (isRapid) {
-        out.push('G0 ' + wx(0) + ' ' + wc(prevC) + zw(prevZ));
-        out.push('G0 ' + wx(0) + ' ' + wc(cFlip) + zw(prevZ));
-        out.push('G0 ' + wx(-rOld) + ' ' + wc(cFlip) + zw(prevZ));
-        prevR = -rOld;  prevC = cFlip;
-      } else {
-        flushDeferred();
-        var zHold = prevZ, cHold = prevC;
-        emitG1Forced(0, cHold, zHold);
-        emitG1Forced(0, cFlip, zHold);
-        emitG1Forced(-rOld, cFlip, zHold);
+      // Way in: current point -> pole; drop points that lie on a straight r-z line.
+      var raw = [{ r: rOld, z: zNow }].concat(signedPathToPole(zNow)), path = [raw[0]];
+      for (var k = 1; k < raw.length; k++) {
+        var a = path[path.length - 1], b = raw[k], c = raw[k + 1];
+        if (c && Math.abs(c.r - a.r) > 1e-12 &&
+            Math.abs(a.z + (c.z - a.z) * (b.r - a.r) / (c.r - a.r) - b.z) < 1e-6) continue;
+        path.push(b);
       }
+      var zPole = path[path.length - 1].z;
+      function mv(r, cc, z) {
+        if (isRapid) { out.push('G0 ' + wx(r) + ' ' + wc(cc) + zw(z));  prevR = r;  prevC = cc;  prevZ = z; }
+        else emitG1Forced(r, cc, z);
+      }
+      for (var m = 1; m < path.length; m++) mv(path[m].r, cHold, path[m].z);   // 1. in to the pole
+      mv(0, cFlip, zPole);                                                     // 2. spin at the pole
+      for (var n = path.length - 2; n >= 0; n--) mv(-path[n].r, cFlip, path[n].z);   // 3. same line out
+      signedTrail = [];
       cumC = cFlip;  cInit = true;
     }
 
@@ -700,6 +730,9 @@
               (rS0 < THRESHOLD ||
                (Math.abs(curX * newY - curY * newX) / rS1 <= 1e-3 && curX * newX + curY * newY > 0)))
             nRapid = 1;
+          // 2.12.3: also a rapid INTO the pole (end inside the centre zone): it runs along the ray
+          // at the current C, X alone (was 0.5 mm pieces, e.g. 42 blocks for X21 -> X0).
+          if (rS0 >= THRESHOLD && rS1 < THRESHOLD) nRapid = 1;
         }
         // FIX 1 (2026-09-12): the start of the first positioning move is UNKNOWN
         // (the converter only assumes 0,0,0). Walking a path from an imaginary
@@ -993,6 +1026,11 @@
             // exact. With the tiny automatic centre zone, sizing by the closest
             // approach would cut a facing pass into thousands of blocks.
             var nS = Math.max(1, Math.ceil(dXY / MAX_SEG_G));
+            // 2.12.3: remember the line's r and Z for the way back (unwindSigned).
+            var rTr0 = curX * Math.cos(refRad) + curY * Math.sin(refRad);
+            if (!(prevR < -1e-6) || !signedTrail.length || Math.abs(signedTrailC - refAngle) > 1e-9) {
+              signedTrail = [{ r: rTr0, z: curZ }];  signedTrailC = refAngle;
+            }
             for (var iS = 1; iS <= nS; iS++) {
               var tS  = iS / nS;
               var ixS = curX + dx * tS;
@@ -1000,6 +1038,7 @@
               var izS = curZ + dz * tS;
               var rSigned = ixS * Math.cos(refRad) + iyS * Math.sin(refRad);
               emitG1(rSigned, refAngle, izS);
+              signedTrail.push({ r: rSigned, z: izS });
             }
             cumC = refAngle;   // C is unchanged by this move — no rotation cost
           } else {

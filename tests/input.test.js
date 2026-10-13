@@ -317,4 +317,24 @@ assert.throws(() => convert('G21 G90 G17\nG0 X10 Y0 Z1\nG1 Z-1 F100\nG3 X0 Y10 I
   ok(!o.split('\n').some(l => /^O\d/i.test(l)) && /program O1000/.test(o) && /G0 X10\.0000/.test(o), 'program number O1000 kept as a comment');
 }
 
+// 30. (2.12.3) A cycle that changes code without G80 keeps the first cycle's initial level, as LinuxCNC
+// does (found by the LinuxCNC rs274 comparison): the G98 hole retracted only to R2, not to Z20.
+{
+  const o = convert('G21 G90 G17\nG0 X10 Y0 Z20\nG99 G81 X10 Y0 Z-3 R2 F50\nG98 G83 X30 Y0 Z-5 R2 Q1\nG80\nM30', { xMin: 0, xMax: 113 });
+  const after = o.slice(o.indexOf('G83 expanded'));
+  ok(/\nG0 Z20\.0000/.test(after), 'G98 after G99 without G80: back to the initial level Z20');
+}
+// 31. (2.12.3) A rapid INTO the centre is one block (was 0.5 mm pieces).
+{
+  const g0 = convert('G21 G90\nG0 X15 Y15 Z5\nG0 X0 Y0\nG1 Z-1 F100\nG1 X10 Y0\nM30', { xMin: 0, xMax: 113 }).split('\n').filter(l => /^G0 X/.test(l));
+  ok(g0.length === 2, 'rapid to the centre = one block (got ' + g0.length + ')');
+}
+// 32. (2.12.3) The way back to the pole after a Signed-X ramp follows the ramp's own Z and never goes
+// below the current Z: after a lift to Z2 it stays at Z2 (in the air above the cut line).
+{
+  const o = convert('G21 G90\nG0 X40 Y0 Z5\nG1 Z-1 F300\nG1 X-8 Y0 Z-3 F500\nG1 Z2\nG0 X30 Y20\nG1 Z-1\nM30', { xMin: -10, xMax: 113 });
+  const g0z = o.split('\n').filter(l => /^G0 .*Z/.test(l)).map(l => +l.match(/Z(-?[\d.]+)/)[1]);
+  ok(g0z.length > 2 && Math.min(...g0z) >= 2, 'rapid back to the pole stays at the lifted Z (min ' + Math.min(...g0z) + ')');
+}
+
 console.log(`input: ${n} checks passed`);

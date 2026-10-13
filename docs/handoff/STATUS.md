@@ -1,4 +1,4 @@
-# Status — updated 2026-10-12 (converter v2.12.2)
+# Status — updated 2026-10-13 (converter v2.12.3)
 
 Session history: `LOG.md` (newest first).
 
@@ -113,14 +113,23 @@ trust the computer and tell Marios about the difference.
   expressions refused (all passed through before); also G12.2/G13.2, G7.1, G107. **F DONE (Marios: both parts):** header
   `G8`/`G7` (rotary C only), input G7 refused, input G8 removed; golden 144/144 changed by exactly that one line.
   **E DONE in 2.12.2** (source: Fanuc B-63534EN §8.2): a left-out radius/angle keeps its last value; `G91 Y` turns
-  the angle; G91 with a radius still refused. Fixed inside 2.12.1 (unmerged PR #10): X/Y on the
+  the angle; G91 with a radius still refused. Fixed inside 2.12.1: X/Y on the
   G16 line itself refused (pole vs first point differs between sources).
 - **v2.12.2** (Marios: "if they matter, do them", 2026-10-12), after reading the whole Fanuc 16i/18i-MB manual
   (`references/fanuc-b63534en.md`): only known G codes are read (unknown → line number; before, `G4 X1` moved to X1,
   `G51/G50.1/G22/G29/G45/G60` X/Y became moves, NURBS/involute became lines, `G33`/`G95` passed); `G91` on a cycle's
   own line refused (holes were at absolute X); `/`, `,C ,R`, `G08 P` refused; `O1000` kept as a comment; E (above).
-  Golden 144/144 identical, input 152, sweeps unchanged, FreeCAD programs identical. In PR #10.
+  Golden 144/144 identical, input 152, sweeps unchanged, FreeCAD programs identical.
   Manual stored in the PRIVATE repo `Marioskiv/cnc-manuals` (copyright FANUC — never in this public repo).
+  **2.11.4 – 2.12.2 are on `main`: PR #10 merged by Marios 2026-10-12** (CI and Pages green).
+- **v2.12.3** (2026-10-13, Marios: "do them" after the exhaustive audit): the audit ran CAM input and converter output
+  through LinuxCNC 2.9.10's own interpreter `rs274` (golden, his 3 FreeCAD programs, ~60 edge cases, options, 2000
+  random programs). One-side cutting: no error. Fixed: Signed-X ramp through the centre (both sides only: way back to
+  the pole at the final Z, 0.13-0.33 mm too deep), cycle code change without G80 (initial level lost), rapid INTO the
+  centre one block; docs (cycle differences from LinuxCNC, profile text, vismach C speed 360/720). Kept as an optional
+  tool: `tools/linuxcnc-compare.js`. Golden 144/144 identical, input 155, geometry 84, sweeps unchanged.
+  Not changed (reported): L repeat ignored; default G98 vs LinuxCNC G99; G85/G89 Fanuc-style retract (README);
+  the Signed-X unwind costs time in both-sides mode (p95: 39 s vs CAM 28 s) — would need lookahead.
 - **Research 2026-10-11** (`references/research-2026-10-11.md`) — proposals waiting for Marios's yes:
   (1) DONE 2.12.0 — arcs centred on the chuck axis as exact X-constant blocks;
   (2) dropped — line-length guard not wanted (DECISIONS);
