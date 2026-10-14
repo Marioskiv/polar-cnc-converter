@@ -5,6 +5,17 @@ Short and factual. Current state lives in `STATUS.md`, permanent decisions in `D
 
 ---
 
+## 2026-10-14 (19) — first programs on the machine; the F test is CORRECT
+
+**Marios:** sent FreeCAD programs (MillFacing + Pocket, plastic). Checked each converted file with rs274 + the
+machine `.ini` (0.022 mm, feeds as CAM). Advice taken: H900 V300 (was H200 V400, plunge faster than cut). Air run:
+facing slow (25 % stepover, 14 m) and pulsing at low C speed; pocket smooth. "joint 0 following error" at a pocket
+rapid → X `STEPGEN_MAXACCEL` 125 → 200 (PR #13; the Ethernet link drop in dmesg was 3.5 h earlier). **The F test
+(pocket only) cut correctly.** The Claude app keeps showing PR #11 for this chat (app display, not GitHub).
+**Pending (Marios):** facing joint-space arcs (STATUS). **Open:** photo, C3600 mark check, pulsing test, E-stop.
+
+---
+
 ## 2026-10-14 (18) — delivered machine files installed; C direction wrong → STEP_SCALE sign
 
 **Marios:** merged PR #11; copied the delivered `.ini`/`.hal`/gamepad files from GitHub onto the machine. **Done

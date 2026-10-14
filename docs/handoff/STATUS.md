@@ -5,6 +5,13 @@ Session history: `LOG.md` (newest first).
 The real machine is the source of truth. Where this file and the files on the LinuxCNC computer disagree,
 trust the computer and tell Marios about the difference.
 
+## ✔ 2026-10-14: FIRST REAL CUT — the "F" test is CORRECT (Marios)
+- Program `examples/marios-first-test/polar_xzc_output_F_test.ngc` (converter 2.13.0, FreeCAD pocket, plastic, 5 mm
+  2-flute, H900 V300 S10000), cut after `STEP_SCALE = -91.733333` and `STEPGEN_MAXACCEL 200`: the F reads correctly
+  → C direction, X sign and the converter are proven on the real machine. Photo not yet received.
+- Still open from the session: `G0 C3600`/`C0` mark check, 20 mm distance check on X and Z, C low-speed pulsing test
+  (`G1 C360 F810`), facing joint-space idea (PENDING below), hardware E-stop, X Axis Max on the page = 113.
+
 ## 2026-10-14: the delivered files are INSTALLED (Marios copied them from GitHub)
 - C speed 360/720, mill-style Z (machine Z0 = home park; `G53 G0 Z0` now goes to home, safe), gamepad.hal.
 - Checked by Marios (screenshots): Home All OK, machine X/Z/C = 0 after Home. `G10 L2 P1 X0 C0` done → **G54 X = 0
