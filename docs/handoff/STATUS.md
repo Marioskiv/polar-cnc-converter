@@ -141,6 +141,14 @@ trust the computer and tell Marios about the difference.
   above 90/180/360/720 deg/s + fastest block (source line). His `in.ngc`: 43 turns, 6.7 mm of cut above 360 deg/s.
   Golden 144/144 changed only by the added comment lines. **2.12.3 + 2.13.0 in PR #11** (waiting for his merge).
   One-direction C for holes NOT done (Marios: C has no measurable backlash; he may set `BACKLASH` in the `.ini`).
+- **PENDING (Marios 2026-10-14: "not sure it is right, keep it for later"): arcs split directly in joint space.**
+  FreeCAD facing = arcs whose centre is ~0.18 mm off the axis → today chords then polar pieces (his facing: 11,634
+  blocks of ~0.1 s; on the machine C and X pulse there, the pocket runs smooth). Idea: split such arcs straight into
+  joint-linear blocks (≤ 45° C, error checked ≤ tol) — generalises 2.12.0. Rough prototype: ~730 blocks. Does not
+  shorten the time (CAM: Step Over 60 %, H 1200-1500 does). Open question first: is the pulsing the planner (short
+  blocks) or C motor low-speed resonance? Test: MDI `G1 C360 F810` (one block, slow) vs `G1 C0 F6000`.
+- 2026-10-14 first air run: "joint 0 following error" at a pocket rapid → `[JOINT_0] STEPGEN_MAXACCEL` 125 → 200
+  (PR #13). Ethernet link drop in dmesg was 3.5 h earlier (not the cause). Wi-Fi USB adapter active while cutting.
 - **Research 2026-10-11** (`references/research-2026-10-11.md`) — proposals waiting for Marios's yes:
   (1) DONE 2.12.0 — arcs centred on the chuck axis as exact X-constant blocks;
   (2) dropped — line-length guard not wanted (DECISIONS);
