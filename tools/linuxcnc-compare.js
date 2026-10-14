@@ -14,7 +14,7 @@
 //   - cutting time (G93 F as LinuxCNC applies it) within 1 % of the CAM time, block speed within 5 %;
 //   - dwell time equal, X inside the cutting side.
 // This is a second opinion: tests/lib/replay.js shares the converter's own conventions, rs274 does not.
-// It found the 2.12.3 fixes (Signed-X ramp, cycle initial level). Optional, never part of `npm test`.
+// Optional, never part of `npm test`.
 //
 // rs274 is not on npm: build it once from the LinuxCNC source of the machine's version (2.9.10):
 //   git clone -b v2.9.10 --depth 1 https://github.com/LinuxCNC/linuxcnc && cd linuxcnc/src
@@ -24,7 +24,7 @@
 //
 // Usage: node tools/linuxcnc-compare.js --rs274 <path> [--ini <machine .ini>] [--xmin 0] [--xmax 113]
 //            [--tol 0.025] [--air-z 0] program.ngc [more.ngc ...]
-//   --ini    defaults to docs/handoff/machine-config/holzmann_cnc_mesa_7i92.ini
+//   --ini    your machine's .ini (default: the example XZC sim config in examples/linuxcnc-vismach-xzc-lathe)
 //   --air-z  only moves at or below this Z count as cutting (leaves out feed moves in the air)
 const fs = require('fs'), os = require('os'), path = require('path'), cp = require('child_process');
 const { convert } = require('../src/core/converter.js');
@@ -175,7 +175,7 @@ function compare(input, opts, env) {
 }
 
 function main(argv) {
-  const a = { xmin: 0, xmax: 113, tol: 0.025, ini: path.join(__dirname, '..', 'docs', 'handoff', 'machine-config', 'holzmann_cnc_mesa_7i92.ini') };
+  const a = { xmin: 0, xmax: 113, tol: 0.025, ini: path.join(__dirname, '..', 'examples', 'linuxcnc-vismach-xzc-lathe', 'polarlathe-sim.ini') };
   const files = [];
   for (let i = 0; i < argv.length; i++) {
     const m = argv[i].match(/^--(rs274|ini|xmin|xmax|tol|air-z)$/);

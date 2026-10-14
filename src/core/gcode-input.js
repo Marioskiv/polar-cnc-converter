@@ -230,7 +230,7 @@
     var srcNo = lines.map(function (_, i) { return i + 1; });
     var isGen = lines.map(function () { return false; });   // line produced by a cycle expansion
 
-    // 2.11.0 (Marios): no "Safe retract Z" setting. A machine-coordinate retract
+    // 2.11.0: no "Safe retract Z" setting. A machine-coordinate retract
     // (G53 G0 Z.., G28/G30 Z) goes to the program's OWN highest Z instead - the
     // clearance height the CAM already uses above the part, in work coordinates.
     // It needs nothing about the machine, so it is right on any machine. Found here
@@ -370,7 +370,7 @@
 
     for (var li = 0; li < lines.length; li++) {
       var rawLine = lines[li];
-      // ADDED 2.12.1 (Marios: F): lathe diameter mode G7 in the input is refused - the converter's
+      // ADDED 2.12.1 (F): lathe diameter mode G7 in the input is refused - the converter's
       // X is a radius (or a diameter only through the profile), and a G7 passed to a LinuxCNC lathe
       // configuration halved the part. G8 (radius mode) is removed: the header states the mode.
       if (!isGen[li]) {
@@ -397,7 +397,7 @@
       }
       // ─── POLAR COORDINATE COMMAND G15/G16 (Fanuc) ─────────────────────────
       // 2.11.4 removed G15 (polar off, the default; LinuxCNC does not know it).
-      // ADDED 2.12.1 (Marios): G16 is CONVERTED instead of refused, in the plain form used for
+      // ADDED 2.12.1: G16 is CONVERTED instead of refused, in the plain form used for
       // hand-written bolt circles: XY plane (G17), absolute (G90) - the pole is then the work
       // origin - X = radius, Y = angle in degrees counter-clockwise from +X, both written on
       // every line that moves in X/Y. The line is rewritten to Cartesian X/Y before anything
@@ -431,7 +431,7 @@
             // "G16 X5 Y6" puts the pole at X5 Y6), others a first polar point - not certain, refused.
             if (hasG16 && (px || py))
               inputError(li, rawLine, 'X/Y on the G16 line itself is read differently by different controls (pole position or first point). Put G16 alone on its line, with the pole at the work origin.');
-            // 2.12.2 (Marios: E, from the Fanuc 16i/18i-MB manual B-63534EN/02 section 8.2, p.138-140):
+            // 2.12.2 (E, from the Fanuc 16i/18i-MB manual B-63534EN/02 section 8.2, p.138-140):
             // a radius or angle left out keeps its last value in G16 ("N3 Y150.0 ; a distance of
             // 100 mm and an angle of 150 degrees"), and "G91 Y120.0" turns the angle by +120 degrees
             // with the same radius and the pole still at the work origin. G91 WITH a radius moves
@@ -511,7 +511,7 @@
         inputError(li, rawLine, 'polar interpolation (G12.1/G13.1, G112/G113, G12.2/G13.2) is not supported in the input. Post the job as a 3-axis mill with Cartesian X/Y; the converter makes the polar output itself.');
       if (gSet[7.1] || gSet[107])
         inputError(li, rawLine, 'cylindrical interpolation (G7.1, G107) is not supported. Post the job as a 3-axis mill with Cartesian X/Y.');
-      // ADDED 2.12.1 (Marios: D): program flow the converter cannot follow is refused, never passed
+      // ADDED 2.12.1 (D): program flow the converter cannot follow is refused, never passed
       // through. A subprogram body (M98/M99, LinuxCNC o-word sub/call) was converted where it stands
       // in the file - after M30 - from the position of the line before it, not from the call; loops
       // and conditions (o-word if/while/repeat) run lines a different number of times than written;
@@ -526,7 +526,7 @@
       if (/[@^]/.test(ln))
         inputError(li, rawLine, 'polar words (@ radius, ^ angle) are not supported. Post the job with Cartesian X/Y; the converter makes the polar output itself.');
 
-      // ADDED 2.12.2 (Marios: "if they matter, do them"), after reading the whole Fanuc 16i/18i-MB
+      // ADDED 2.12.2, after reading the whole Fanuc 16i/18i-MB
       // manual B-63534EN/02 and testing its codes on the converter. Until 2.12.1 only a LIST of
       // known-bad codes was refused and everything else passed: "G4 X1" (Fanuc dwell 1 s) moved the
       // tool to X1; the X/Y of G51 (scaling centre), G50.1 (mirror axis), G22 (stroke area), G29,
