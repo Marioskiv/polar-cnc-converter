@@ -77,7 +77,7 @@
     // Running count of emitted moves whose X fell outside [X_MIN_LIMIT, X_MAX_LIMIT] —
     // reported to the user at the end of conversion (see xLimitViolations below).
     var xLimitViolations = 0;
-    // ADDED 2.13.0 (Marios: yes, from the 2026-10-13 study of Fanuc AFC / Siemens TRANSMIT): how fast
+    // ADDED 2.13.0 (from the 2026-10-13 study of Fanuc AFC / Siemens TRANSMIT): how fast
     // C must turn to keep the CAM feed. Those controls slow the feed near the centre on their own;
     // LinuxCNC does too (it stretches a G93 block its axes cannot follow) but says nothing. Only a
     // report: the motion is not changed and there is no C speed setting (DECISIONS). Bands in deg/s,

@@ -2,7 +2,7 @@
   "format": "polar-cnc-profile",
   "version": 1,
   "name": "Generic \u2014 rotary axis on A (e.g. Mach3)",
-  "description": "Same as generic, with the rotary axis named A. Check X travel, Safe retract Z and the rotation direction with a test cut.",
+  "description": "Same as generic, with the rotary axis named A. Check X travel and the rotation direction with a test cut.",
   "options": {
     "chordTol": 0.025,
     "centerMode": "auto",

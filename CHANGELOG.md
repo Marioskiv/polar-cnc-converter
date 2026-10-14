@@ -2,14 +2,13 @@
 
 ## 2.13.0 — C report: range in turns, C speed the CAM feed needs (from Fanuc / Siemens practice)
 
-From the 2026-10-13 study of how professional controls and CAM posts handle polar machining (Marios: "1 and 2,
-do them"). Golden 144/144: each output gains only the new report comment lines at the top (at most 8); every
+From the 2026-10-13 study of how professional controls and CAM posts handle polar machining. Golden 144/144: each output gains only the new report comment lines at the top (at most 8); every
 other byte is the same (checked per output). Sweeps unchanged.
 
 ### Added
 - **C range** at the top of the output: lowest and highest C written (rapids and centre turns included) and the
   turns between them. **Warning past ±99,999°**: the usual LinuxCNC rotary soft limit (also in the delivered
-  Holzmann `.ini`, about 277 turns) — LinuxCNC would stop the program there. Siemens monitors rotary turns, and
+  example machine `.ini`, about 277 turns) — LinuxCNC would stop the program there. Siemens monitors rotary turns, and
   Autodesk's posts check rotary limits, for the same reason.
 - **C speed the CAM feed needs**: the mm of cut (and blocks) that need C faster than 90 / 180 / 360 / 720 deg/s,
   and the fastest block with its distance from the centre and source line. Where this is above the machine's
@@ -18,15 +17,15 @@ other byte is the same (checked per output). Sweeps unchanged.
   (DECISIONS), the motion is not changed. A spin at the centre itself is left out (it cuts nothing).
 - Moves carry their source line number from the input stage to the layout (`ev.line`).
 
-### Not done (Marios, 2026-10-13)
-- One-direction C approach for holes (Okuma, Mastercam): his C has no measurable backlash; LinuxCNC's own
+### Not done
+- One-direction C approach for holes (Okuma, Mastercam): not needed without measurable backlash; LinuxCNC's own
   `[JOINT_n] BACKLASH` covers a small one.
 
 ## 2.12.3 — fixes found by comparing with the real LinuxCNC interpreter
 
-Exhaustive audit (Marios, 2026-10-13): the CAM input and the converter output were both run through LinuxCNC
-2.9.10's own interpreter (`rs274`) and compared — golden programs, Marios's three FreeCAD programs, about 60 edge
-cases, the options, and 2000 random programs. One-side cutting (Marios's machine) had no error. Golden 144/144
+Exhaustive audit (2026-10-13): the CAM input and the converter output were both run through LinuxCNC
+2.9.10's own interpreter (`rs274`) and compared — golden programs, three real FreeCAD programs, about 60 edge
+cases, the options, and 2000 random programs. One-side cutting had no error. Golden 144/144
 identical; FreeCAD programs identical; sweeps unchanged (worst 0.0225 mm).
 
 ### Fixed
@@ -50,7 +49,7 @@ identical; FreeCAD programs identical; sweeps unchanged (worst 0.0225 mm).
 ## 2.12.2 — only known G codes are read; G16 keeps a left-out radius/angle (Fanuc manual)
 
 Found by reading the whole Fanuc Series 16i/18i-MB operator's manual (B-63534EN/02, 1257 pages) and running its
-codes through the converter. Golden 144/144 identical; Marios's FreeCAD programs identical; sweeps unchanged.
+codes through the converter. Golden 144/144 identical; the FreeCAD test programs identical; sweeps unchanged.
 
 ### Fixed
 - **Unknown G codes passed through, some with their X/Y taken as a move.** Until 2.12.1 only a list of known-bad codes
@@ -70,7 +69,7 @@ codes through the converter. Golden 144/144 identical; Marios's FreeCAD programs
   o-word without a keyword. Kept as a comment now.
 
 ### Changed
-- **`G16` (Marios: E):** as in Fanuc B-63534EN §8.2 (p.138-140), a line may leave out the radius or the angle; it
+- **`G16` (E):** as in Fanuc B-63534EN §8.2 (p.138-140), a line may leave out the radius or the angle; it
   keeps its last value (`N3 Y150.0` = 100 mm at 150°, the manual's example). `G91 Y120` turns the angle by +120°
   with the same radius and the pole still at the work origin (example 2). Still refused: `G91` with a radius (the
   pole becomes the current position), and a first point after `G16` without both values.
@@ -98,7 +97,7 @@ codes through the converter. Golden 144/144 identical; Marios's FreeCAD programs
   such a block ("mixed radius-ijk format"). Now refused too.
 
 ### Changed
-- **The program states its X mode** (Marios: F): `G8` (radius) after `G93`, or `G7` when the output profile writes X as
+- **The program states its X mode** (F): `G8` (radius) after `G93`, or `G7` when the output profile writes X as
   a diameter — only for a rotary axis named C (lathe-style XZC); A/B profiles (mill-style controls such as Mach3 Mill)
   get neither. On a LinuxCNC lathe configuration (`LATHE = 1`) a `G7` left active would read the radius X as a
   diameter: a half-size part. A `G7` in the input is now refused; a `G8` in the input is removed (the header sets it).
@@ -108,7 +107,7 @@ codes through the converter. Golden 144/144 identical; Marios's FreeCAD programs
 ### Golden baseline
 - 144/144 outputs changed by exactly ONE line: `G8` inserted after `G93` (checked for every output: removing that
   line gives the old output byte for byte). Input tests 116 (new: G16 conversion = Cartesian version, 5 refusals, `;` comments, mixed
-  R + I/J, radial rapids, subprograms / o-words / parameters). Sweeps and the near-pole stress test unchanged; Marios's FreeCAD programs: same G1 output,
+  R + I/J, radial rapids, subprograms / o-words / parameters). Sweeps and the near-pole stress test unchanged; the FreeCAD test programs: same G1 output,
   one of them 2 rapid blocks fewer.
 
 
@@ -147,7 +146,7 @@ codes through the converter. Golden 144/144 identical; Marios's FreeCAD programs
   know it (`_gees` table: G15 is not a valid G-code), so such a program used to be refused by LinuxCNC itself.
 
 ### Golden baseline
-- 144/144 identical. New input tests (6). Found while reading Fanuc G15/G16 bolt-circle examples (Marios).
+- 144/144 identical. New input tests (6). Found while reading Fanuc G15/G16 bolt-circle examples.
 
 
 ## 2.11.3 — Signed-X only for lines really on the pole axis
@@ -161,7 +160,7 @@ codes through the converter. Golden 144/144 identical; Marios's FreeCAD programs
   Random near-pole sweep: **0/3000** over 0.026 mm on both cutting sides (worst 0.0225 mm).
 
 ### Golden baseline
-- 144/144 outputs **identical** (no change). `tools/sweeps.js` unchanged (worst 0.0225 mm). Marios's FreeCAD programs
+- 144/144 outputs **identical** (no change). `tools/sweeps.js` unchanged (worst 0.0225 mm). the FreeCAD test programs
   give identical output. New input test (the 0.0268 case, both sides); the "no fill" message test uses a line that
   still takes that path.
 
@@ -188,8 +187,8 @@ codes through the converter. Golden 144/144 identical; Marios's FreeCAD programs
 ## 2.11.1 — the page shows its version; no stale cached files
 
 ### Added
-- The header shows the converter version (`v2.11.1`), so it is clear which version is open (Marios saw the old page
-  from his browser's cache on GitHub Pages after 2.11.0 was published).
+- The header shows the converter version (`v2.11.1`), so it is clear which version is open (an old page can stay in the
+  browser cache on GitHub Pages after an update).
 - Every script and stylesheet is loaded with `?v=<version>`: after a new release the browser fetches the new files
   instead of mixing cached old ones with the new page. `tests/ui.test.js` checks they all equal `package.json`.
 
@@ -199,7 +198,7 @@ codes through the converter. Golden 144/144 identical; Marios's FreeCAD programs
 ### Changed
 - `G53 G0 Z…`, `G28 … Z…`, `G30 … Z…` retracts become `G0 Z<the highest Z of the program>` (work coordinates —
   the CAM's own clearance height; drilling R planes count). Nothing about the machine is needed, so it is right on
-  any machine (Marios: the converter must stay universal). The setting, its field and the profile entries are gone.
+  any machine (the converter stays universal). The setting, its field and the profile entries are gone.
 - The retract is an ordinary rapid that the machine layout handles; afterwards Z is known (it was unknown before).
   An incremental mode set on the retract line (`G28 G91 Z0`) is switched off for the move and restored after it.
 - Tilt layout: the router turns upright after a retract at that height, keeping the tool tip in place (rapids).
@@ -217,7 +216,7 @@ codes through the converter. Golden 144/144 identical; Marios's FreeCAD programs
 ## 2.10.0 — machine X settings made plain and required
 
 ### Changed
-- **X Axis Min → "Cutting side"** (Marios): a choice *One side of the centre only* / *Both sides* (+ how far past the
+- **X Axis Min → "Cutting side"**: a choice *One side of the centre only* / *Both sides* (+ how far past the
   centre), with no default. The option `xMin` is unchanged (0 or −distance), so profiles keep working.
 - **X Axis Max is required**: no default. Missing → the conversion stops with a message.
 - The old defaults −1000 / 1000 ("no limit", kept by users who never set them) are gone: `convert()` refuses when
@@ -232,7 +231,7 @@ codes through the converter. Golden 144/144 identical; Marios's FreeCAD programs
 ## 2.9.0 — no Tool Diameter setting: the diameter comes only from the program
 
 ### Removed
-- The **Tool Diameter** field (page, profiles, `toolDia` option; old saved values are ignored). Marios: the CAM states
+- The **Tool Diameter** field (page, profiles, `toolDia` option; old saved values are ignored). The CAM states
   the diameter, so the converter takes it from the program. The motion never depended on it.
 
 ### Changed
@@ -244,7 +243,7 @@ codes through the converter. Golden 144/144 identical; Marios's FreeCAD programs
   only tool listed, no tool change )`) and are otherwise byte-for-byte unchanged.
 
 ### Checked
-- Marios's FreeCAD program (5 mm tool, profile, 5 pockets, concentric facing): T2 D=5 read, worst G1 deviation
+- A FreeCAD test program (5 mm tool, profile, 5 pockets, concentric facing): T2 D=5 read, worst G1 deviation
   0.0151 mm, real feed along the path exactly 278 / 557 mm/min, X 0.30 … 66.74 (inside 0 … 113).
 
 
@@ -316,7 +315,7 @@ Step 2 of the plan for other machine layouts (a tilting router, XZC + B) and for
 
 ## 2.5.0 — real feed on short blocks, Kiri:Moto tool list, works offline
 
-The remaining findings of the 2026-10-07 review, fixed at Marios's request.
+The remaining findings of the 2026-10-07 review, fixed.
 
 ### Fixed
 - **The cutting feed was silently lowered on short blocks.** Every G1 block had a minimum time of 0.06 s
@@ -451,7 +450,7 @@ Found while checking the converter against the Core R-Theta 4-axis printer resea
   The old help text also wrongly said the fallback was Pocket Fill (it is Index at Pole since 2.2.0).
 - Fixed: with X Min = 0, a RAPID crossing the centre still dipped to about -1.4 mm (inside the small
   centre zone). It now stops at the centre, turns C there and leaves on the same side. New test.
-- `profiles/example-marioskiv-holzmann-xzc` updated to the author's final layout: X 0 … 113, one side.
+- `profiles/example-marioskiv-holzmann-xzc` (now `example-lathe-xzc-one-side`) updated to the final layout: X 0 … 113, one side.
 
 
 ## 2.2.0 — machine-independent, everything in the program kept

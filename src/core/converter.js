@@ -25,7 +25,7 @@
     chordTol:      0.025,   // mm   chordal deviation per segment
     threshold:     null,    // mm   centre zone radius; null = automatic (half the chord tolerance)
     centerMode:    'auto',  //      'auto' | 'signed' | 'index' | 'fill'
-    // 2.10.0 (Marios): NO defaults - the old -1000 / 1000 meant "no limit" and was
+    // 2.10.0: NO defaults - the old -1000 / 1000 meant "no limit" and was
     // silently kept by users who never set it. Both must be given, else refused.
     xMin:          null,    // mm   cutting side: 0 = one side of the centre only, < 0 = both sides (how far past it)
     xMax:          null,    // mm   X travel of the machine (largest X, as written to the file), > 0
@@ -92,7 +92,7 @@
       centerMode:    CENTER_MODES.indexOf(o.centerMode) >= 0 ? o.centerMode : D.centerMode,
       xMin:          (function (v) { var p = parseFloat(v); return isFinite(p) ? Math.min(p, 0) : null; })(o.xMin),
       xMax:          (function (v) { var p = parseFloat(v); return (isFinite(p) && p > 0) ? p : null; })(o.xMax),
-      // REMOVED 2.9.0 (Marios): no Tool Diameter setting. The diameter comes only
+      // REMOVED 2.9.0: no Tool Diameter setting. The diameter comes only
       // from the program's tool comments; null = not stated (see gcode-input.js).
       toolDia:       null,
       autoStepover:  (o.autoStepover === undefined) ? D.autoStepover : !!o.autoStepover,
@@ -165,7 +165,7 @@
     var layout = LAYOUTS[O.layout].create(O, out);
     Array.prototype.push.apply(out, layout.header());
     out.push('', 'G21', 'G90', 'G93');
-    // ADDED 2.12.1 (Marios: F): on a LinuxCNC lathe configuration (LATHE = 1) a G7 left in the
+    // ADDED 2.12.1 (F): on a LinuxCNC lathe configuration (LATHE = 1) a G7 left in the
     // control would read our radius X as a DIAMETER (half-size part). The program now states the
     // mode its X needs: G8 (radius) or G7 when the profile writes X as a diameter. Only for a
     // rotary axis named C (lathe-style XZC); A/B profiles are mill-style controls (e.g. Mach3 Mill)
