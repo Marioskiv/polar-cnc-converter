@@ -5,6 +5,13 @@ Session history: `LOG.md` (newest first).
 The real machine is the source of truth. Where this file and the files on the LinuxCNC computer disagree,
 trust the computer and tell Marios about the difference.
 
+## ✔ 2026-10-14: FIRST REAL CUT — the "F" test is CORRECT (Marios)
+- Program `examples/marios-first-test/polar_xzc_output_F_test.ngc` (converter 2.13.0, FreeCAD pocket, plastic, 5 mm
+  2-flute, H900 V300 S10000), cut after `STEP_SCALE = -91.733333` and `STEPGEN_MAXACCEL 200`: the F reads correctly
+  → C direction, X sign and the converter are proven on the real machine. Photo not yet received.
+- Still open from the session: `G0 C3600`/`C0` mark check, 20 mm distance check on X and Z, C low-speed pulsing test
+  (`G1 C360 F810`), facing joint-space idea (PENDING below), hardware E-stop, X Axis Max on the page = 113.
+
 ## 2026-10-14: the delivered files are INSTALLED (Marios copied them from GitHub)
 - C speed 360/720, mill-style Z (machine Z0 = home park; `G53 G0 Z0` now goes to home, safe), gamepad.hal.
 - Checked by Marios (screenshots): Home All OK, machine X/Z/C = 0 after Home. `G10 L2 P1 X0 C0` done → **G54 X = 0
@@ -141,6 +148,14 @@ trust the computer and tell Marios about the difference.
   above 90/180/360/720 deg/s + fastest block (source line). His `in.ngc`: 43 turns, 6.7 mm of cut above 360 deg/s.
   Golden 144/144 changed only by the added comment lines. **2.12.3 + 2.13.0 in PR #11** (waiting for his merge).
   One-direction C for holes NOT done (Marios: C has no measurable backlash; he may set `BACKLASH` in the `.ini`).
+- **PENDING (Marios 2026-10-14: "not sure it is right, keep it for later"): arcs split directly in joint space.**
+  FreeCAD facing = arcs whose centre is ~0.18 mm off the axis → today chords then polar pieces (his facing: 11,634
+  blocks of ~0.1 s; on the machine C and X pulse there, the pocket runs smooth). Idea: split such arcs straight into
+  joint-linear blocks (≤ 45° C, error checked ≤ tol) — generalises 2.12.0. Rough prototype: ~730 blocks. Does not
+  shorten the time (CAM: Step Over 60 %, H 1200-1500 does). Open question first: is the pulsing the planner (short
+  blocks) or C motor low-speed resonance? Test: MDI `G1 C360 F810` (one block, slow) vs `G1 C0 F6000`.
+- 2026-10-14 first air run: "joint 0 following error" at a pocket rapid → `[JOINT_0] STEPGEN_MAXACCEL` 125 → 200
+  (PR #13). Ethernet link drop in dmesg was 3.5 h earlier (not the cause). Wi-Fi USB adapter active while cutting.
 - **Research 2026-10-11** (`references/research-2026-10-11.md`) — proposals waiting for Marios's yes:
   (1) DONE 2.12.0 — arcs centred on the chuck axis as exact X-constant blocks;
   (2) dropped — line-length guard not wanted (DECISIONS);
