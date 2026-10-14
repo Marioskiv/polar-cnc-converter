@@ -5,6 +5,17 @@ Short and factual. Current state lives in `STATUS.md`, permanent decisions in `D
 
 ---
 
+## 2026-10-14 (18) — delivered machine files installed; C direction wrong → STEP_SCALE sign
+
+**Marios:** merged PR #11; copied the delivered `.ini`/`.hal`/gamepad files from GitHub onto the machine. **Done
+together (screenshots):** Home All OK (machine 0/0/0); G54 X had 71.585 → `G10 L2 P1 X0 C0` (first try typed the
+letter O instead of zero); new direction tests: X ✔, Z ✔, **C wrong** (counter-clockwise) → `[JOINT_2] STEP_SCALE`
+−91.733333 given and put in the repo copy (Marios: "yes, also on GitHub"). Marios does not want per-job thickness
+arithmetic → solution 1: FreeCAD Z0 at the stock top, touch off with 0 (probe button later, needs P11).
+**Open:** re-test C after the change, `G0 C3600/C0` mark check, measure 20 mm on X and Z, Z touch-off, then air cut + "F".
+
+---
+
 ## 2026-10-13 (17) — study of professional polar controls / CAM posts; 2.13.0 C report
 
 **Marios:** use as many features of existing polar machines as possible ("find how they handle it and write the code").

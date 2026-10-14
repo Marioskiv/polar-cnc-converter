@@ -1,16 +1,21 @@
-# Status — updated 2026-10-13 (converter v2.13.0)
+# Status — updated 2026-10-14 (converter v2.13.0)
 
 Session history: `LOG.md` (newest first).
 
 The real machine is the source of truth. Where this file and the files on the LinuxCNC computer disagree,
 trust the computer and tell Marios about the difference.
 
-## !! Machine Z0 is at the CHUCK end until the mill-style .ini is installed
-- A mill-style Z numbering `.ini` was delivered 2026-10-04 but is **NOT installed yet** (Marios will install it later).
-  With the currently installed `.ini`, machine Z0 is at the CHUCK end, so `G53 G0 Z0` typed in MDI would rapid toward
-  the chuck. **The converter no longer needs this (2.11.0):** it never outputs G53; CAM retracts become
-  `G0 Z<program's highest Z>`. (2.10.0 and older: Safe retract Z had to be 590.)
-- After installing it: touch off Z again (the G54 Z offset shifts by 590).
+## 2026-10-14: the delivered files are INSTALLED (Marios copied them from GitHub)
+- C speed 360/720, mill-style Z (machine Z0 = home park; `G53 G0 Z0` now goes to home, safe), gamepad.hal.
+- Checked by Marios (screenshots): Home All OK, machine X/Z/C = 0 after Home. `G10 L2 P1 X0 C0` done → **G54 X = 0
+  (X0 = chuck centre), G54 C = 0** — once only. `G53 G1 X20` moves away from the centre ✔, `G53 G1 Z-20` moves
+  toward the chuck ✔ (distances not measured yet).
+- **C direction WRONG:** `G1 C90` turned the chuck counter-clockwise seen from the cutter (must be clockwise →
+  mirrored parts). Fix given and put in the repo copy: `[JOINT_2] STEP_SCALE = -91.733333`. Marios edits the
+  machine file; then re-test `G1 C90`, then the `G0 C3600` / `G0 C0` mark check (not reported yet).
+- **G54 Z still the old 143.644 → touch off Z before any cut.** Marios chose: in FreeCAD put Z0 at the stock TOP
+  (model placement z = −stock height, Stock Extent +Z 0), touch off on the top face with 0. Later: Z probe button
+  when the P11 sensor works.
 
 ## Machine
 - Holzmann lathe converted to a CNC face-milling machine. Chuck = C (rotary), router on the X cross-slide, Z axial.
@@ -34,9 +39,9 @@ trust the computer and tell Marios about the difference.
   X = −20 at the switch, 0 at the centre, soft limits −18 … +113, `STEP_SCALE = -400`, homing toward the switch
   (`HOME_SEARCH_VEL -3`, `HOME_LATCH_VEL 0.5`), `HOME 0`, `HOME_OFFSET -20`. HAL: switch = home + `neg-lim-sw-in`.
   Home works; "+" and the down-arrow move X away from the switch. One side of the centre only; parts up to ~220 mm.
-- C `STEP_SCALE = 91.733333` (see above).
+- C `STEP_SCALE = 91.733333` (see above) — sign to be reversed to −91.733333 (2026-10-14, wrong direction).
 
-## DELIVERED but NOT installed yet (files in `docs/handoff/machine-config/`)
+## DELIVERED 2026-10-04 … 10-12 — INSTALLED 2026-10-14 (see the top; files in `docs/handoff/machine-config/`)
 - **2026-10-12 C speed (Marios: these values are final, no staged test):** `[AXIS_C]`/`[JOINT_2]` MAX_VELOCITY 360,
   MAX_ACCELERATION 720, STEPGEN 450/900, `MAX_ANGULAR_VELOCITY` 360 in `[DISPLAY]` and `[TRAJ]` (60 chuck rpm,
   620 motor rpm). HAL reads them from the `.ini`. Advised once after install: mark on chuck, `G0 C3600` / `G0 C0`,
