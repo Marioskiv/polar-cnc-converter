@@ -10,15 +10,27 @@ uses only widely supported codes (`G0/G1`, `G93/G94`, comments) and has been che
 LinuxCNC interpreter source and the Mach3 G-code list; other controllers that support G93 inverse time should
 work — check yours before the first cut.
 
-Live demo (once GitHub Pages is enabled for this repo): https://marioskiv.github.io/polar-cnc-converter/
+Live version: https://marioskiv.github.io/polar-cnc-converter/
 
 Open [`index.html`](./index.html) directly in any modern browser — no build step, no server and **no internet**
 required (three.js is included in `lib/three/`).
 
 > [!WARNING]
-> **Project Status & Disclaimer:** This software is currently in the **experimental/development** phase. The conversion algorithms and mathematical models have been validated via the built-in 3D simulator and dry-run code analysis, but **the generated G-code has not yet been physically tested on a live CNC machine**. 
-> 
-> If you decide to test this on your hardware, always perform a **dry run** (air cut) first with no stock or tooling installed, and keep your hand close to the E-stop! Use at your own risk.
+> **Project status: working, still in the testing phase.**
+>
+> **Proven on a real machine (2026-10-14):** the author's Holzmann lathe converted to a face mill (LinuxCNC 2.9.10,
+> Mesa 7i92, steppers, router on the cross-slide). FreeCAD programs converted with this tool were run on it: the
+> asymmetric **"F" test came out correct** (not mirrored — rotary direction and X sign right), pockets, a hexagon
+> and a rectangle cut cleanly in plastic. See [`examples/marios-first-test/`](./examples/marios-first-test/).
+>
+> **Not yet proven:** dimensional accuracy (the first cut was made before the cutter was centred on the chuck
+> axis, so straight lines bowed slightly toward the centre — expected, a machine setup step, not the converter),
+> metal parts, other machines and controllers, and the tilting layout (no tilt axis exists yet).
+>
+> Every output is also checked in software: built-in tests, randomized sweeps and a comparison with LinuxCNC's
+> own interpreter (`tools/linuxcnc-compare.js`). Still, **on a new machine always do a dry run first** (air cut,
+> no tool in the material), run the direction check (`G0 C90` and the "F" test), and keep a hand on the E-stop.
+> Use at your own risk.
 
 ## Why this exists
 

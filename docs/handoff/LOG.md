@@ -5,6 +5,15 @@ Short and factual. Current state lives in `STATUS.md`, permanent decisions in `D
 
 ---
 
+## 2026-10-14 (20) — README status: working, still testing
+
+**Marios:** "update the project on GitHub: it works but is still in the test stage (I will post videos on forums)".
+**Done:** README warning replaced by a status block (proven: F test on the real machine; not yet: accuracy before
+X centring, metal, other machines, tilt layout); `examples/marios-first-test/README.md`. Next (Marios, tomorrow):
+X centring with the hole test, facing with step-over 60-70 % + own TC, F test again.
+
+---
+
 ## 2026-10-14 (19) — first programs on the machine; the F test is CORRECT
 
 **Marios:** sent FreeCAD programs (MillFacing + Pocket, plastic). Checked each converted file with rs274 + the
