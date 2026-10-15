@@ -239,7 +239,7 @@ The converter reads ordinary 3-axis milling G-code. Use a LinuxCNC (or grbl) pos
 | mm (`G21`) or inch (`G20`) | Inch is converted to mm; output is always `G21` |
 | Absolute `G90` or incremental `G91` | `G91` is converted to absolute; output is always `G90` |
 | Feed `G94` (units/min) | Required — the converter computes `G93` itself. `G93` input is rejected |
-| Arcs in the XY plane (`G17`, incremental I/J) | Converted. An arc **centred on the chuck axis** (also a helix) is exact: X stays constant and only C turns, at most 45° per block (2.12.0). Arcs in `G18`/`G19` planes are rejected — set the post to output them as lines |
+| Arcs in the XY plane (`G17`, incremental I/J) | Converted. An arc **centred on the chuck axis** (also a helix) is exact: X stays constant and only C turns, at most 45° per block (2.12.0). Any other arc that stays away from the pole is split directly into joint-space blocks whose ends lie on the arc, each checked against the arc (2.14.0): X then moves only where the arc does. Arcs in `G18`/`G19` planes are rejected — set the post to output them as lines |
 | `G53 G0 Z…`, `G28 G91 Z0`, `G30 G91 Z0` retracts | Replaced by `G0 Z<the program's own highest Z>` (work coordinates) — see below |
 | `G28 G91 X0 Y0`, `G53 G0 X… Y…` (park) | Skipped — the tool stays where it is |
 | `%` delimiters | Kept as the first and last line, as LinuxCNC requires |
