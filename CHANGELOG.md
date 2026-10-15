@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.14.1 — simulator: cutter on the side where it is on the machine
+
+### Added
+- **Cutter side** selector next to the view-mode button: right, left, top or bottom, as seen when looking at the
+  chuck from the cutter's side. The Rotary Mill view turns about the chuck axis, so the cutter appears where it
+  sits on the real machine. The part and the cut turn with it, so the direction of rotation stays as it is. Static 3D
+  still shows the part as the CAM drew it. Display only: the G-code does not change. The choice is remembered in
+  the browser.
+
 ## 2.14.0 — arcs off the chuck axis split directly in joint space (smooth X, far fewer blocks)
 
 Found on the first real facing cut: from about 50 mm radius inward, X went in and out on almost every block and the

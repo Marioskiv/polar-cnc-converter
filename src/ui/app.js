@@ -213,6 +213,19 @@ btnView.addEventListener('click', function() {
   }
 });
 
+// --- 2.14.1: cutter side in the Rotary Mill view (display only, remembered in this browser) ---
+(function () {
+  var sel = document.getElementById('selCutterSide');
+  if (!sel) return;
+  var KEY = 'polar-cnc-cutter-side';
+  try { var saved = window.localStorage.getItem(KEY); if (saved !== null && sel.querySelector('option[value="' + saved + '"]')) sel.value = saved; } catch (e) { /* ignore */ }
+  cutterSideDeg = parseFloat(sel.value) || 0;
+  sel.addEventListener('change', function () {
+    cutterSideDeg = parseFloat(sel.value) || 0;
+    try { window.localStorage.setItem(KEY, sel.value); } catch (e) { /* ignore */ }
+  });
+})();
+
 // --- Speed slider & fine-tune buttons ---
 elSpeed.addEventListener('input', function() {
   lblSpeed.textContent = elSpeed.value + '\u00D7';

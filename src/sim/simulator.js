@@ -33,6 +33,7 @@ function initThree() {
   dl1.position.set(100, 150, 200); scene.add(dl1);
   var dl2 = new THREE.DirectionalLight(0x4477cc, 0.25);
   dl2.position.set(-150, -120, -200); scene.add(dl2);
+  viewRoot = new THREE.Group(); scene.add(viewRoot);   // 2.14.1: see state.js
   window.addEventListener('resize', onResize);
   onResize();
   requestAnimationFrame(animLoop);
@@ -53,7 +54,7 @@ function onResize() {
 // ============================================================
 function clearScene() {
   sceneObjects.forEach(function(obj) {
-    scene.remove(obj);
+    viewRoot.remove(obj);
     obj.traverse(function(child) {
       if (child.geometry) child.geometry.dispose();
       if (child.material) {
@@ -70,7 +71,7 @@ function clearScene() {
   segTimeCum     = null;
 }
 
-function reg(obj) { scene.add(obj); sceneObjects.push(obj); return obj; }
+function reg(obj) { viewRoot.add(obj); sceneObjects.push(obj); return obj; }
 
 var simHasTilt = false;   // the program uses the tilt axis (shows the Tilt telemetry row)
 function buildScene(pts) {
@@ -295,6 +296,8 @@ function buildScene(pts) {
 // SECTION 5 - SCENE UPDATER (O(1) per frame)
 // ============================================================
 function updateScene() {
+  // 2.14.1: machine view (Rotary Mill) shows the cutter on its real side; Static 3D stays as the CAM drew it.
+  if (viewRoot) viewRoot.rotation.z = viewMode === 'rotary' ? cutterSideDeg * Math.PI / 180 : 0;
   if (!toolpath.length || !toolGroup) return;
 
   var idx  = Math.min(currentIdx, toolpath.length - 1);
