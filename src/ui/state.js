@@ -70,6 +70,11 @@ var toolGroup      = null;
 var g1LineObj      = null;
 var g0LineObj      = null;
 var sceneObjects   = [];
+// ADDED 2.14.1: everything the simulator draws hangs under viewRoot. In Rotary Mill mode it is
+// turned about the chuck axis so the cutter appears on the side where it sits on the real
+// machine, seen from the cutter (0 = right, 90 = top, 180 = left, 270 = bottom). Display only.
+var viewRoot       = null;
+var cutterSideDeg  = 0;
 var sceneMaxR      = 60;   // updated by buildScene; used for camera snap
 // Material removal (depth map) — see src/core/material.js
 var simToolDia     = null;   // 2.9.0: none - each point carries its tool's diameter from the program
