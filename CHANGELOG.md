@@ -1,5 +1,28 @@
 # Changelog
 
+## 2.14.0 — arcs off the chuck axis split directly in joint space (smooth X, far fewer blocks)
+
+Found on the first real facing cut: from about 50 mm radius inward, X went in and out on almost every block and the
+machine moved in jerks.
+
+### Fixed
+- **Arcs that are not centred on the chuck axis** (and stay away from the pole) are now split **directly into
+  joint-space blocks**. Every block ends on a point ON the arc, X and C move linearly between them, and each block is
+  checked against the arc itself (both ways, within 0.8 of the chord tolerance). Before, an arc was first cut into
+  chords and then each chord into polar pieces. Each chord dips toward the pole in its middle, and the output
+  followed that dip, so on a slightly off-centre arc **X reversed direction on almost every block**. Example: a
+  FreeCAD facing (60° arcs, centre 0.18 mm off the axis): X reversed 7,147 times, 0.007-0.014 mm each, about every
+  0.05 s. The path was within tolerance, but on steppers it made stop-go motion. Now there are 2 reversals, and
+  731 blocks instead of 11,633, with the same path length.
+- The arc's distance from the pole is checked first. An arc that comes within 4 × max(centre zone, chord
+  tolerance) of the pole keeps the previous method, with its pole handling.
+
+### Checked
+- Sweeps: random arcs, worst 0.0223 → **0.0210 mm**; near-pole lines and polylines unchanged (0.0225).
+- Golden 132/144 identical. The 12 that changed are all the `offCircle` program (an off-centre circle), in every
+  option set and centre mode: 64 → 60 blocks, deviation from the CAM path 0.0209 → 0.0198 mm (`alt`, chord tolerance
+  0.05: 46 → 42 blocks, 0.0408 → 0.0396 mm), F on every block. Updated with `--update` after this check.
+
 ## 2.13.0 — C report: range in turns, C speed the CAM feed needs (from Fanuc / Siemens practice)
 
 From the 2026-10-13 study of how professional controls and CAM posts handle polar machining. Golden 144/144: each output gains only the new report comment lines at the top (at most 8); every

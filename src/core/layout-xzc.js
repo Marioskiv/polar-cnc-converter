@@ -1163,6 +1163,74 @@
           cumC = cEnd;  cInit = true;
           return;
         }
+        // ADDED 2.14.0: any other arc that stays away from the pole is split DIRECTLY into
+        // joint-space blocks: every block end is a point ON the arc, X and C move linearly
+        // between them, and each block is checked against the arc itself. The old way (below:
+        // chords first, then each chord split for the polar transform) followed every chord's
+        // dip toward the pole, so on a slightly off-centre arc X went in and out on almost
+        // every block (FreeCAD facing: arcs 0.18 mm off the axis, X reversed 7,147 times,
+        // 0.007-0.014 mm each, and the machine moved in jerks). Same accuracy, X now moves
+        // only where the arc does, and far fewer blocks.
+        if (!ag.degenerate && xyKnown && physicallyAt(curX, curY) && prevR > 0 &&
+            Math.abs(prevZ - curZ) < 1e-6 && Math.abs(ag.sweep) * ag.r > 1e-9) {
+          var arcAt = function (t) {
+            var a = ag.a0 + ag.sweep * t, ri = ag.r + (ag.rEnd - ag.r) * t;
+            return [ag.cx + ri * Math.cos(a), ag.cy + ri * Math.sin(a), curZ + dz * t];
+          };
+          var ARC_POLE_MIN = Math.max(THRESHOLD, CHORD_TOL) * 4;   // closer to the pole: old way
+          var arcFar = true;
+          for (var ks = 0; ks <= 256 && arcFar; ks++) {
+            var ps = arcAt(ks / 256);
+            if (Math.hypot(ps[0], ps[1]) < ARC_POLE_MIN) arcFar = false;
+          }
+          if (arcFar) {
+            var ARC_BUDGET = CHORD_TOL * 0.8;   // leaves room for the merge of tiny moves and rounding
+            var polarOf = function (p, cRef) {
+              return [Math.hypot(p[0], p[1]),
+                      nearestEquivalentAngle(Math.atan2(p[1], p[0]) * 180 / Math.PI, cRef), p[2]];
+            };
+            // Largest distance between the joint-linear block (j0 -> j1) and the arc piece
+            // t0..t1, both ways: block samples to the arc, arc samples to the block.
+            var pieceErr = function (j0, j1, t0, t1) {
+              var N = 16, blk = [], worst = 0, i, k;
+              for (i = 0; i <= N; i++) {
+                var f = i / N, rr = j0[0] + (j1[0] - j0[0]) * f, cc = (j0[1] + (j1[1] - j0[1]) * f) * Math.PI / 180;
+                blk.push([rr * Math.cos(cc), rr * Math.sin(cc), j0[2] + (j1[2] - j0[2]) * f]);
+              }
+              var arc = [];
+              for (i = 0; i <= N; i++) arc.push(arcAt(t0 + (t1 - t0) * i / N));
+              var toPoly = function (p, poly) {
+                var best = Infinity;
+                for (var m = 0; m < poly.length - 1; m++) {
+                  var d = _distSeg(p, poly[m], poly[m + 1]);
+                  if (d < best) best = d;
+                }
+                return best;
+              };
+              for (k = 1; k < N; k++) {
+                worst = Math.max(worst, toPoly(blk[k], arc), toPoly(arc[k], blk));
+              }
+              return worst;
+            };
+            var tCur = 0, jCur = [prevR, prevC, prevZ], guardA = 0;
+            while (tCur < 1 - 1e-12 && guardA++ < 100000) {
+              var step = 1 - tCur, jNext = null, tNext = 1;
+              for (var kk = 0; kk < 80; kk++) {
+                tNext = Math.min(1, tCur + step);
+                var pN = arcAt(tNext);
+                if (tNext >= 1) pN = [newX, newY, newZ];
+                jNext = polarOf(pN, jCur[1]);
+                if (Math.abs(jNext[1] - jCur[1]) <= MAX_DEG_PER_SEG &&
+                    pieceErr(jCur, jNext, tCur, tNext) <= ARC_BUDGET) break;
+                step *= 0.7;
+              }
+              emitG1(jNext[0], jNext[1], jNext[2]);
+              jCur = jNext;  tCur = tNext;
+            }
+            cumC = jCur[1];  cInit = true;
+            return;
+          }
+        }
         var arcPts = linearizeArc(curX, curY, curZ, newX, newY, newZ, nI, nJ, nR, type === 'G2', CHORD_TOL * 0.5);
         // FIX 2.4.0: an arc that LEAVES the pole. At r = 0 the angle is free, so
         // C may still point anywhere; going to the first arc point then turned
