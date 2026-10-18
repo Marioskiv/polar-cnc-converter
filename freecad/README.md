@@ -45,7 +45,7 @@ happens only when the G-code is written.
 ## Polar Face: facing any stock without cutting air
 
 The stock in the chuck is often not round: square or hexagon bar, a plate, a casting, held off the centre in a
-4-jaw chuck. **Polar Face** (third button on the *Polar CNC* toolbar) faces it from the stock top down to the part
+4-jaw chuck. **Polar Face** (on the *Polar CNC* toolbar) faces it from the stock top down to the part
 top (or the depths you set), at every depth only where the stock really is:
 
 - circles round the chuck axis, from the outside in, each cut only where it meets material. On a polar machine
@@ -63,6 +63,31 @@ Measured (`tests/freecad/polarface_geometry_test.py`, Ø6 cutter, step 40 %): no
 touched, no fast move over uncut material, and compared with full circles over the whole swept circle the time is
 16–21 % shorter on round stock, 37–41 % on a square, 44–46 % on a square turned and off the centre, 33–36 % on a
 hexagon and 58–60 % on a plate off the centre.
+
+## The chuck, the 4-jaw chuck and the faceplate
+
+Select the Job and click **Chuck** (*Polar CNC* toolbar). A *Chuck* object is added to the Job; in its
+properties choose a **Preset** or type your own sizes:
+
+| Preset | What |
+|---|---|
+| 3-jaw SC-3 … SC-16 | self-centring scroll chuck, sizes from the usual catalogue table |
+| 4-jaw 12in … 24in | independent jaws: each jaw closes on the stock by itself, so square and off-centre stock is held |
+| Faceplate Ø250 / Ø400 | a plate; the work is held by clamps that you place |
+
+Catalogue letters: **A** diameter, **B** body thickness, **H** jaw length (radial), **J** jaw width,
+**K** jaw height above the face (the one that matters for collisions — measure your own chuck), **L** step.
+*Grip length* is how much of the stock the jaws hold; *First jaw angle* turns the jaws.
+
+- The jaws always close on the real stock. A 3-jaw chuck cannot centre a square or an off-centre stock: the
+  chuck's *Notes* say so (use the 4-jaw chuck).
+- **Faceplate**: select the chuck and click **Add clamp** for each clamp. Give its *Angle* (where round the plate) and
+  change *Length*, *Width*, *Overlap* if you like; it reaches the stock edge by itself and follows the stock if it
+  changes.
+- **Polar Face** keeps *Chuck clearance* (default 2 mm) away from jaws and clamps; the simulator shows the chuck
+  turning with the part (jaws and clamps in red).
+
+Not checked yet: the spindle head against the turning jaws, and other operations' rapids against the jaws.
 
 ## Which operations suit polar machining
 

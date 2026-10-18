@@ -16,6 +16,14 @@
   circles round the chuck axis clipped to the stock at every depth, linked without fast moves over uncut material;
   16–60 % less time than full circles in the tests, nothing left uncut, the part never touched. FreeCAD's Facing
   (bounding rectangle, cuts air) is greyed out in polar Jobs.
+- **Chuck, 4-jaw chuck and faceplate** (*Chuck* / *Add clamp* buttons): a parametric chuck object on the Job.
+  Presets from catalogue tables (3-jaw SC-3 … SC-16, 4-jaw independent 12–24 in, faceplate Ø250/Ø400) or your own
+  sizes. The jaws close on the real stock (4-jaw: each jaw on its own; 3-jaw: a note when the stock cannot be
+  centred, e.g. a square). On a faceplate you place clamps by angle and radius; they reach the stock edge by
+  themselves. Polar Face keeps *Chuck clearance* (2 mm) from jaws and clamps; the simulator shows the chuck
+  turning with the part (jaws and clamps in red).
+- **Polar Face**: a part made of several separate solids is now fully protected (only the first one was before),
+  and a final pass round off-centre parts of the part removes the cusps the rings leave beside them.
 - **Polar simulation in FreeCAD**: plays the polar program (what Post Process writes) — machine view with the part
   turning on the chuck, or part view — with program time, chuck turns and chuck speed.
 - `tests/freecad/run.sh`: tests the addon in a real FreeCAD (golden set inside FreeCAD, refusals, output equal to

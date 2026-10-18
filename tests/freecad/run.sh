@@ -48,6 +48,14 @@ pfr=$(cat "$OUT/pf/result.txt" 2>/dev/null || echo "RESULT: no result (see $OUT/
 echo "polar face: $pfr"
 [ "$pfr" = "RESULT: PASS" ] || result="$result; polar face $pfr"
 
+# the chuck, 4-jaw chuck and faceplate with clamps
+HOME="$OUT/home" PC_OUT="$OUT/ch" PC_REPO="$REPO" xvfb-run -a -s "-screen 0 1600x1000x24" \
+    "$FREECAD" "$REPO/tests/freecad/chuck_test.py" > "$OUT/freecad-ch.log" 2>&1
+cat "$OUT/ch/log.txt" 2>/dev/null
+chr=$(cat "$OUT/ch/result.txt" 2>/dev/null || echo "RESULT: no result (see $OUT/freecad-ch.log)")
+echo "chuck: $chr"
+[ "$chr" = "RESULT: PASS" ] || result="$result; chuck $chr"
+
 same="no"
 if [ -f "$OUT/run/cartesian.ngc" ] && [ -f "$OUT/run/polar.ngc" ]; then
     node "$REPO/tests/freecad/compare.js" "$OUT/run" && same="yes"

@@ -56,8 +56,27 @@ def part_keep(part_shape, z):
                                            App.Vector(bb.XMin - 1, bb.YMin - 1, z)))
     if not above.Solids:
         return None
-    outline = TechDraw.findShapeOutline(above, 1, App.Vector(0, 0, 1))
-    return _flat(Part.makeFace(outline, "Part::FaceMakerBullseye"))
+    # one outline per solid: findShapeOutline gives the outline of only one of several separate
+    # solids (three jaws -> one jaw)
+    out = None
+    for solid in above.Solids:
+        outline = TechDraw.findShapeOutline(solid, 1, App.Vector(0, 0, 1))
+        face = _flat(Part.makeFace(outline, "Part::FaceMakerBullseye"))
+        out = face if out is None else out.fuse(face)
+    return out.removeSplitter()
+
+
+def grow(shape, d):
+    """Offset every face of a (possibly multi-face) flat shape by d and join them: makeOffset2D
+    on a compound of separate faces (the part and the jaws, say) offsets only the first."""
+    faces = shape.Faces
+    if not faces:
+        return shape
+    out = None
+    for f in faces:
+        g = f.makeOffset2D(d, join=0) if abs(d) > 1e-12 else f
+        out = g if out is None else out.fuse(g)
+    return out.removeSplitter() if out is not None else shape
 
 
 def _flat(shape):
@@ -250,8 +269,8 @@ def plan_depth(stock_face, keep_face, radius, step, leave=0.0, cw=True, speeds=N
     region = stock_face.makeOffset2D(radius * EDGE_REACH - EPS, join=0) if EDGE_REACH > 0 else stock_face
     keep = None
     if keep_face is not None:
-        keep = keep_face.makeOffset2D(leave, join=0) if leave > 0 else keep_face
-        region = region.cut(keep.makeOffset2D(radius, join=0))
+        keep = grow(keep_face, leave) if leave > 0 else keep_face
+        region = region.cut(grow(keep, radius))
     plan = Plan()
     if region.isNull() or region.Area < 1e-6:
         return plan
@@ -375,7 +394,41 @@ def plan_depth(stock_face, keep_face, radius, step, leave=0.0, cw=True, speeds=N
         line = ("line", _pt(pos[0], pos[1]), App.Vector(0, 0, 0))
         if not mat.hits_part([line]):
             emit([line])
+    if keep is not None:
+        emit(rest_beside_part(mat, keep, radius))
     return plan
+
+
+def rest_beside_part(mat, keep, radius):
+    """Rings stop where they would meet the part; beside a side of the part that runs round the
+    centre (an off-centre boss) that leaves cusps between two rings. The cutter follows the
+    part's outline, one cutter radius away, only where it still reaches uncut material."""
+    moves = []
+    reach = radius + GRID
+    for wire in grow(keep, radius + EPS).Wires:
+        pts = wire.discretize(Distance=GRID)
+        left = mat.P[mat.uncut]
+        if not len(left):
+            break
+        on = numpy.array([(((left - (p.x, p.y)) ** 2).sum(axis=1) < reach * reach).any()
+                          for p in pts])
+        on = on | numpy.roll(on, 1) | numpy.roll(on, -1)        # one point either side
+        i, n = 0, len(pts)
+        while i < n:
+            if not on[i]:
+                i += 1
+                continue
+            j = i
+            while j + 1 < n and on[j + 1]:
+                j += 1
+            run = [("line", pts[k], pts[k + 1]) for k in range(i, j)]
+            if run and not mat.hits_part(run):
+                moves.append(("lift", pts[i]))
+                moves.extend(run)
+                for mv in run:
+                    mat.cut(mv)
+            i = j + 1
+    return moves
 
 
 def commands(plan, z, safe, feed, vfeed, air):
@@ -414,6 +467,8 @@ PROPERTIES = (
     ("App::PropertyDistance", "StockToLeave", "Material left round the part (sideways)."),
     ("App::PropertyEnumeration", "CutMode", "Climb or Conventional, for a spindle turning "
      "forward (M3)."),
+    ("App::PropertyLength", "ChuckClearance", "How far the cutter keeps from the jaws and clamps "
+     "of the Job's chuck (Polar CNC → Chuck)."),
     ("App::PropertyFloat", "AirFeedFactor", "Where the cutter reaches nothing on its way round "
      "(a pure chuck turn), it goes this many times the cutting feed."),
 )
@@ -436,6 +491,7 @@ class ObjectPolarFace(PathOp.ObjectOp):
         obj.StockToLeave = 0
         obj.CutMode = "Climb"
         obj.AirFeedFactor = 3.0
+        obj.ChuckClearance = 2.0
 
     def opExecute(self, obj):
         radius = self.radius
@@ -445,6 +501,10 @@ class ObjectPolarFace(PathOp.ObjectOp):
             Path.Log.error("Polar Face needs the Job's stock.")
             return
         part = Part.makeCompound([m.Shape for m in self.model if hasattr(m, "Shape")])
+        job = PathUtils.findParentJob(obj)
+        chuck = getattr(job, "PolarChuck", None) if job is not None else None
+        if chuck is not None and chuck.Shape.isNull():
+            chuck = None
         cw = obj.CutMode == "Climb"
         spindle = getattr(obj.ToolController, "SpindleDir", "Forward")
         if spindle == "Reverse":
@@ -462,13 +522,18 @@ class ObjectPolarFace(PathOp.ObjectOp):
                 continue
             rapid = self.horizRapid if self.horizRapid else 50.0       # 3000 mm/min if not set
             speeds = (feed, vfeed or feed, rapid, max(obj.AirFeedFactor, 1.0), max(safe - z, 0.5))
-            plan = plan_depth(sec, part_keep(part, z), radius, step, obj.StockToLeave.Value, cw,
-                              speeds)
+            keep = part_keep(part, z)
+            if chuck is not None:                  # jaws and clamps: kept clear like the part
+                held = part_keep(chuck.Shape, z)
+                if held is not None:
+                    held = grow(held, max(obj.ChuckClearance.Value, 0) + EPS)
+                    keep = held if keep is None else keep.fuse(held).removeSplitter()
+            plan = plan_depth(sec, keep, radius, step, obj.StockToLeave.Value, cw, speeds)
             cmds.extend(commands(plan, z, safe, feed, vfeed, air))
 
 
 def SetupProperties():
-    return ["StepOver", "StockToLeave", "CutMode", "AirFeedFactor"]
+    return ["StepOver", "StockToLeave", "CutMode", "AirFeedFactor", "ChuckClearance"]
 
 
 def Create(name, obj=None, parentJob=None):

@@ -118,13 +118,78 @@ class PolarFaceCommand:
         return polarface_gui.Command().Activated()
 
 
+class ChuckCommand:
+    """The Job's chuck or faceplate: made the first time, selected (to edit) after that."""
+
+    def GetResources(self):
+        return {"Pixmap": os.path.join(os.path.dirname(HERE), "Resources", "PolarChuck.svg"),
+                "MenuText": "Chuck",
+                "ToolTip": "The chuck or faceplate that holds the stock of the polar Job: 3-jaw, "
+                           "4-jaw with independent jaws, or a faceplate with clamps. Choose a "
+                           "catalogue size or enter your own; the jaws close on the real stock. "
+                           "Polar Face keeps clear of it and the simulator shows it."}
+
+    def IsActive(self):
+        try:
+            return policy.is_polar(policy.current_job())
+        except Exception:
+            return False
+
+    def Activated(self):
+        from . import chuck
+        job = policy.current_job()
+        obj = getattr(job, "PolarChuck", None)
+        if obj is None:
+            App.ActiveDocument.openTransaction("Polar chuck")
+            obj = chuck.make_chuck(job)
+            App.ActiveDocument.commitTransaction()
+            _style(obj)
+        Gui.Selection.clearSelection()
+        Gui.Selection.addSelection(obj)
+        for note in obj.Notes:
+            App.Console.PrintMessage("Polar CNC chuck: %s\n" % note)
+
+
+class ClampCommand:
+    def GetResources(self):
+        return {"Pixmap": os.path.join(os.path.dirname(HERE), "Resources", "PolarClamp.svg"),
+                "MenuText": "Add clamp",
+                "ToolTip": "Add a clamp or support to the Job's chuck / faceplate, next to the "
+                           "stock; set its radius, angle and size in its properties."}
+
+    def IsActive(self):
+        try:
+            return getattr(policy.current_job(), "PolarChuck", None) is not None
+        except Exception:
+            return False
+
+    def Activated(self):
+        from . import chuck
+        job = policy.current_job()
+        App.ActiveDocument.openTransaction("Polar clamp")
+        obj = chuck.add_clamp(job.PolarChuck)
+        App.ActiveDocument.commitTransaction()
+        _style(obj, (0.75, 0.2, 0.2))
+        Gui.Selection.clearSelection()
+        Gui.Selection.addSelection(obj)
+
+
+def _style(obj, rgb=(0.5, 0.53, 0.58)):
+    try:
+        obj.ViewObject.ShapeColor = rgb
+        obj.ViewObject.Transparency = 40
+    except Exception:
+        pass
+
+
 def _ensure_toolbar():
     """A 'Polar CNC' toolbar in the CAM workbench (the same mechanism as Tools -> Customize)."""
     grp = App.ParamGet("User parameter:BaseApp/Workbench/CAMWorkbench/Toolbar/PolarCNC")
     if not grp.GetString("Name", ""):
         grp.SetString("Name", "Polar CNC")
         grp.SetBool("Active", True)
-    for cmd in ("PolarCNC_MachineSettings", "PolarCNC_PolarFace", "PolarCNC_Simulate"):
+    for cmd in ("PolarCNC_MachineSettings", "PolarCNC_Chuck", "PolarCNC_Clamp",
+                "PolarCNC_PolarFace", "PolarCNC_Simulate"):
         if not grp.GetString(cmd, ""):
             grp.SetString(cmd, "PolarCNC")
 
@@ -154,6 +219,8 @@ def install():
     Gui.addCommand("PolarCNC_MachineSettings", MachineSettingsCommand())
     Gui.addCommand("PolarCNC_Simulate", SimulateCommand())
     Gui.addCommand("PolarCNC_PolarFace", PolarFaceCommand())
+    Gui.addCommand("PolarCNC_Chuck", ChuckCommand())
+    Gui.addCommand("PolarCNC_Clamp", ClampCommand())
     _ensure_toolbar()
     policy.install_observer()
     Gui.getMainWindow().workbenchActivated.connect(_on_workbench)

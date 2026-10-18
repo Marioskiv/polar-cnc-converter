@@ -101,9 +101,17 @@ def full_circles(sec):
     return t
 
 
-def one(name, st, z):
+# a part of separate solids (two bosses, not joined): findShapeOutline sees only one of them
+PART_SPLIT = Part.makeCompound([Part.makeCylinder(6, 15, V(12, 0, 0)), Part.makeCylinder(5, 15, V(-12, 6, 0))])
+
+
+def one(name, st, z, part=PART):
     sec = pf.stock_section(st, z)
-    keep = pf.part_keep(PART, z)
+    keep = pf.part_keep(part, z)
+    for solid in [s for s in part.Solids if s.BoundBox.ZMax > z]:   # every solid, not only the first
+        c = solid.BoundBox.Center
+        check(keep is not None and keep.isInside(V(c.x, c.y, 0), 1e-6, True),
+              "%s, z=%g: part solid at (%.0f, %.0f) protected" % (name, z, c.x, c.y))
     plan = pf.plan_depth(sec, keep, R, STEP, 0.0, True)
     bb = sec.BoundBox
     xs = np.arange(bb.XMin - R, bb.XMax + R, 0.4)
@@ -152,6 +160,7 @@ try:
     for name, st in STOCKS.items():
         for z in (17.0, 12.0):
             one(name, st, z)
+    one("square 50, part of two separate bosses", STOCKS["square 50"], 12.0, PART_SPLIT)
 except Exception:
     log.write(traceback.format_exc())
     fails.append("exception")

@@ -131,7 +131,22 @@ class Scene:
                 bb.add(s.BoundBox)
         radius = max(abs(bb.XMin), abs(bb.XMax), abs(bb.YMin), abs(bb.YMax)) if bb else 50.0
         zbot = bb.ZMin if bb else 0.0
-        self.part.addChild(self._chuck(radius, zbot))
+        # the chuck in a switch: left out while the view is framed on the part
+        self.chuck_sw = coin.SoSwitch()
+        self.chuck_sw.whichChild.setValue(0)
+        holder = coin.SoSeparator()
+        self.chuck_sw.addChild(holder)
+        chuck = getattr(job, "PolarChuck", None)
+        if chuck is not None and not chuck.Shape.isNull():      # the Job's own chuck / faceplate
+            from . import chuck as chuckmod
+            pieces, _notes = chuckmod.build_parts(chuck)
+            if pieces:
+                holder.addChild(_mesh_node(pieces[0], (0.62, 0.65, 0.7), transparency=0.55, tol=0.5))
+                for piece in pieces[1:]:                          # jaws and clamps
+                    holder.addChild(_mesh_node(piece, (0.8, 0.18, 0.18), tol=0.3))
+        else:
+            holder.addChild(self._chuck(radius, zbot))
+        self.part.addChild(self.chuck_sw)
         for shape in models:
             self.part.addChild(_mesh_node(shape, (0.62, 0.66, 0.74)))
         if stock and not stock.isNull():
@@ -240,11 +255,13 @@ class TaskPanel:
         self.scene = Scene(job, self.motion)
         self.view = Gui.ActiveDocument.ActiveView
         self.view.getSceneGraph().addChild(self.scene.root)
-        try:     # framed while the part is still shown (fitting an all-hidden view zooms wrong)
+        try:     # framed on the part (not on the whole chuck), while the part is still shown
+            self.scene.chuck_sw.whichChild.setValue(-1)
             self.view.viewIsometric()
             self.view.fitAll()
         except Exception:
             pass
+        self.scene.chuck_sw.whichChild.setValue(0)
         # everything of the document is hidden while the simulation shows its own turning copy
         # (the part, the stock and the paths would otherwise stand still on top of it)
         # (all states are read first: hiding a group such as the Job also hides its children)
