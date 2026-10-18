@@ -27,7 +27,8 @@ QLoggingCategory.setFilterRules("qt.qml.usedbeforedeclared=false")
 CORE_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
                         "src", "core")
 # the order index.html loads them in: each file adds itself to PolarCNC
-CORE_FILES = ("geometry.js", "gcode-input.js", "layout-xzc.js", "layout-xzcb.js", "converter.js")
+CORE_FILES = ("geometry.js", "gcode-input.js", "layout-xzc.js", "layout-xzcb.js", "converter.js",
+              "polar-parser.js")
 
 
 class ConverterError(Exception):
@@ -70,3 +71,27 @@ def convert(cartesian, options):
 def default_options():
     eng = _engine()
     return json.loads(eng.evaluate("JSON.stringify(PolarCNC.converter.DEFAULT_OPTIONS)").toString())
+
+
+def parse(polar_text, options):
+    """The polar program as the machine runs it, read back by the web simulator's own parser
+    (src/core/polar-parser.js): blocks interpolated in joint space, as LinuxCNC does.
+    Returns a dict of equal-length lists: r, c (deg), z, rapid (bool), dur (s), line, toolD."""
+    eng = _engine()
+    eng.globalObject().setProperty("SRC", QJSValue(polar_text))
+    eng.globalObject().setProperty("OPT", QJSValue(json.dumps(options)))
+    res = eng.evaluate(
+        "(function () {"
+        "  var o = PolarCNC.converter.normalizeOptions(JSON.parse(OPT));"
+        "  var p = PolarCNC.parser.parsePolarGCode(SRC, o);"
+        "  var out = { r: [], c: [], z: [], rapid: [], dur: [], line: [], toolD: [] };"
+        "  for (var i = 0; i < p.length; i++) {"
+        "    out.r.push(p[i].r); out.c.push(p[i].theta); out.z.push(p[i].z);"
+        "    out.rapid.push(p[i].type === 'G0'); out.dur.push(p[i].segDurNom);"
+        "    out.line.push(p[i].lineNum); out.toolD.push(p[i].toolD);"
+        "  }"
+        "  return JSON.stringify(out);"
+        "})()")
+    if res.isError():
+        raise RuntimeError("Polar CNC: the simulator parser failed: %s" % res.toString())
+    return json.loads(res.toString())

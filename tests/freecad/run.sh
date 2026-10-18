@@ -25,6 +25,14 @@ HOME="$OUT/home" PC_OUT="$OUT/run" PC_REPO="$REPO" xvfb-run -a -s "-screen 0 160
 cat "$OUT/run/log.txt" 2>/dev/null
 result=$(cat "$OUT/run/result.txt" 2>/dev/null || echo "RESULT: no result (see $OUT/freecad.log)")
 
+# the simulator, in its own FreeCAD start (one task dialog per start)
+HOME="$OUT/home" PC_OUT="$OUT/sim" PC_REPO="$REPO" xvfb-run -a -s "-screen 0 1600x1000x24" \
+    "$FREECAD" "$REPO/tests/freecad/simulator_test.py" > "$OUT/freecad-sim.log" 2>&1
+cat "$OUT/sim/log.txt" 2>/dev/null
+sim=$(cat "$OUT/sim/result.txt" 2>/dev/null || echo "RESULT: no result (see $OUT/freecad-sim.log)")
+echo "simulator: $sim"
+[ "$sim" = "RESULT: PASS" ] || result="$result; simulator $sim"
+
 same="no"
 if [ -f "$OUT/run/cartesian.ngc" ] && [ -f "$OUT/run/polar.ngc" ]; then
     node "$REPO/tests/freecad/compare.js" "$OUT/run" && same="yes"

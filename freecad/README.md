@@ -28,7 +28,15 @@ FreeCAD.
    - **Polar Cutting Side**: one side of the centre, or both sides (then **Polar Past Centre**: how far).
    - **Polar Profile** (optional): a `.polar-profile.json` saved from the web page (rotary letter, directions,
      X as diameter, chord tolerance).
-4. **Post Process**. If something cannot be converted safely, no file is written and the message names the line,
+4. **Polar simulation** (second button on the *Polar CNC* toolbar) plays the polar program — exactly what Post
+   Process writes, read back the way LinuxCNC moves the axes:
+   - *Machine view*: the part turns with the chuck and the cutter only moves in X and Z, as on the machine;
+   - *Part view*: the part stands still and the cutter moves over it — compare it with the CAM paths.
+
+   It shows the program time, how many turns the chuck makes, the fastest chuck speed the program asks for, and
+   for every moment the line, X, C, Z and the chuck speed. Play, pause, scrub, speed 1× … 500×. Close puts the
+   document back as it was.
+5. **Post Process**. If something cannot be converted safely, no file is written and the message names the line,
    exactly as on the web page.
 
 The operations stay normal CAM operations, so FreeCAD shows and simulates them as usual. The polar conversion

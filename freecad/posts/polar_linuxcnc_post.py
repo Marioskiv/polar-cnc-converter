@@ -10,7 +10,6 @@
 # https://github.com/Marioskiv/polar-cnc-converter
 # SPDX-License-Identifier: MIT
 
-import importlib.util
 import os
 import sys
 
@@ -23,7 +22,7 @@ _ADDON = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _ADDON not in sys.path:
     sys.path.append(_ADDON)
 
-from polarcnc import bridge, machine  # noqa: E402
+from polarcnc import bridge, machine, program  # noqa: E402
 
 UNITS = "G21"  # the converter always writes mm
 TOOLTIP = """Polar CNC: polar XZC G-code for a lathe converted to face milling (X radius, C chuck,
@@ -31,18 +30,7 @@ Z depth, G93 inverse-time feed). Set the machine in the Job's "Polar CNC" proper
 The arguments are those of FreeCAD's LinuxCNC post, which writes the milling program first."""
 
 
-def _linuxcnc():
-    """A fresh copy of FreeCAD's LinuxCNC post: it keeps its settings in module globals, so a
-    copy left from an earlier run could carry e.g. --inches into this one."""
-    import Path.Post.scripts as scripts
-    path = os.path.join(os.path.dirname(scripts.__file__), "linuxcnc_legacy_post.py")
-    spec = importlib.util.spec_from_file_location("polarcnc_linuxcnc_legacy_post", path)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
-
-
-TOOLTIP_ARGS = _linuxcnc().TOOLTIP_ARGS
+TOOLTIP_ARGS = program.linuxcnc_post().TOOLTIP_ARGS
 
 
 def _job(objectslist):
@@ -77,7 +65,7 @@ def export(objectslist, filename, argstring):
         return _refuse(str(e))
 
     # the milling program, without its editor (it is not what goes to the machine)
-    cartesian = _linuxcnc().export(objectslist, "-", argstring + " --no-show-editor")
+    cartesian = program.cartesian(objectslist, argstring)
     try:
         polar = bridge.convert(cartesian, opts)
     except bridge.ConverterError as e:

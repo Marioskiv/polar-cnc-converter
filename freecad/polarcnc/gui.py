@@ -13,6 +13,7 @@ from . import machine, policy
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ICON = os.path.join(os.path.dirname(HERE), "Resources", "PolarCNC.svg")
+ICON_SIM = os.path.join(os.path.dirname(HERE), "Resources", "PolarSimulate.svg")
 POST = "polar_linuxcnc"
 
 
@@ -70,14 +71,40 @@ class MachineSettingsCommand:
             % job.Label)
 
 
+class SimulateCommand:
+    """Play the polar program of the Job: the chuck turns, the cutter moves in X and Z."""
+
+    def GetResources(self):
+        return {
+            "Pixmap": ICON_SIM,
+            "MenuText": "Polar simulation",
+            "ToolTip": "Simulate the POLAR program of the selected polar Job (what Post Process "
+                       "writes): the part turns with the chuck and the cutter moves only in X "
+                       "and Z. A part view shows the same with the part standing still.",
+        }
+
+    def IsActive(self):
+        try:
+            return policy.is_polar(policy.current_job()) and Gui.Control.activeDialog() is False
+        except Exception:
+            return False
+
+    def Activated(self):
+        from . import simulator
+        job = policy.current_job()
+        if policy.is_polar(job):
+            simulator.open_for(job)
+
+
 def _ensure_toolbar():
     """A 'Polar CNC' toolbar in the CAM workbench (the same mechanism as Tools -> Customize)."""
     grp = App.ParamGet("User parameter:BaseApp/Workbench/CAMWorkbench/Toolbar/PolarCNC")
     if not grp.GetString("Name", ""):
         grp.SetString("Name", "Polar CNC")
         grp.SetBool("Active", True)
-    if not grp.GetString("PolarCNC_MachineSettings", ""):
-        grp.SetString("PolarCNC_MachineSettings", "PolarCNC")
+    for cmd in ("PolarCNC_MachineSettings", "PolarCNC_Simulate"):
+        if not grp.GetString(cmd, ""):
+            grp.SetString(cmd, "PolarCNC")
 
 
 def register_post():
@@ -101,6 +128,7 @@ def _on_workbench(name):
 def install():
     register_post()
     Gui.addCommand("PolarCNC_MachineSettings", MachineSettingsCommand())
+    Gui.addCommand("PolarCNC_Simulate", SimulateCommand())
     _ensure_toolbar()
     policy.install_observer()
     Gui.getMainWindow().workbenchActivated.connect(_on_workbench)

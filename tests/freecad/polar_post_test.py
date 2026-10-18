@@ -12,56 +12,15 @@
 
 import json
 import os
+import sys
 import traceback
 
 import FreeCAD as App
 import FreeCADGui as Gui
 from PySide import QtCore, QtGui
 
-OUT = os.environ["PC_OUT"]
-REPO = os.environ["PC_REPO"]
-os.makedirs(OUT, exist_ok=True)
-log = open(os.path.join(OUT, "log.txt"), "w")
-fails = []
-
-
-def check(cond, what):
-    log.write("%s %s\n" % ("ok  " if cond else "FAIL", what))
-    log.flush()
-    if not cond:
-        fails.append(what)
-
-
-def build_job():
-    import Part
-    from Path.Main import Job as PathJob
-    from Path.Main.Gui import Job as PathJobGui
-    import Path.Op.Profile as Profile
-    import Path.Op.PocketShape as PocketShape
-    doc = App.newDocument("PolarTest")
-    disk = doc.addObject("Part::Feature", "Disk")
-    disk.Shape = Part.makeCylinder(50, 10)            # centred on X0 Y0 = the chuck axis
-    doc.recompute()
-    job = PathJob.Create("Job", [disk], None)
-    job.ViewObject.Proxy = PathJobGui.ViewProvider(job.ViewObject)
-    doc.recompute()
-    model = job.Model.Group[0]
-    top = [n for n, f in enumerate(model.Shape.Faces, 1) if abs(f.CenterOfMass.z - 10) < 1e-6][0]
-    prof = Profile.Create("Profile")
-    prof.Base = [(model, ())]
-    pocket = PocketShape.Create("Pocket")
-    pocket.Base = [(model, ("Face%d" % top,))]
-    pocket.FinalDepth = 8
-    pocket.ClearingPattern = "Offset"
-    doc.recompute()
-    return doc, job, [prof, pocket]
-
-
-def pump(ms=50):
-    import time
-    end = time.monotonic() + ms / 1000.0
-    while time.monotonic() < end:
-        QtGui.QApplication.processEvents()
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from common import REPO, OUT, build_job, check, fails, finish, log, pump  # noqa: E402
 
 
 def op_policy(doc, job):
@@ -169,14 +128,10 @@ def go():
                   "X within X Max")
         # the milling program FreeCAD itself writes for the same Job, for run.sh to convert with Node
         import polarcnc.machine as machine
-        import importlib.util
-        spec = importlib.util.spec_from_file_location(
-            "pc_post", os.path.join(REPO, "freecad", "posts", "polar_linuxcnc_post.py"))
-        sys_post = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(sys_post)
+        from polarcnc import program
         objs = PostProcessorFactory.get_post_processor(job, "polar_linuxcnc")._buildPostList()[0][1]
         open(os.path.join(OUT, "cartesian.ngc"), "w").write(
-            sys_post._linuxcnc().export(objs, "-", "--no-show-editor"))
+            program.cartesian(objs, job.PostProcessorArgs))
         json.dump(machine.options(job), open(os.path.join(OUT, "options.json"), "w"))
 
         # 4. the golden set through FreeCAD's JavaScript engine
@@ -198,10 +153,7 @@ def go():
     except Exception:
         log.write(traceback.format_exc())
         fails.append("exception")
-    with open(os.path.join(OUT, "result.txt"), "w") as f:
-        f.write("RESULT: %s\n" % ("PASS" if not fails else "FAIL " + "; ".join(fails)))
-    log.close()
-    os._exit(0)
+    finish()
 
 
 QtCore.QTimer.singleShot(3000, go)

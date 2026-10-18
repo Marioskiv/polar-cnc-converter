@@ -9,6 +9,11 @@
   itself, through Qt's JavaScript engine: no second copy, the web page and FreeCAD always convert the same way.
   The converter itself is unchanged (golden 144/144). See [freecad/README.md](freecad/README.md) and
   [docs/FREECAD.md](docs/FREECAD.md).
+- **Polar Jobs offer only polar operations**: 3D Pocket, 3D Surface, Waterline, Planar/Rotary Surface and Probe
+  are greyed out while the current Job is polar; new Pockets default to Offset and Facings to Spiral; Adaptive,
+  V-carve, Slot, Deburr, Thread milling and line-by-line patterns get a warning (Report view, never a dialog).
+- **Polar simulation in FreeCAD**: plays the polar program (what Post Process writes) — machine view with the part
+  turning on the chuck, or part view — with program time, chuck turns and chuck speed.
 - `tests/freecad/run.sh`: tests the addon in a real FreeCAD (golden set inside FreeCAD, refusals, output equal to
   the Node converter on FreeCAD's own LinuxCNC output).
 

@@ -25,6 +25,8 @@ bridge turns that logging category off, or it fills FreeCAD's report view on eve
 | machine settings | `freecad/polarcnc/machine.py` | Job properties, group *Polar CNC*: `PolarXMax` (required, 0 = not set), `PolarCuttingSide`, `PolarPastCentre`, `PolarProfile` (the web page's profile file). Builds the converter options; nothing is guessed |
 | command + toolbar | `freecad/polarcnc/gui.py` | *Polar machine settings*: adds the properties to the selected Job and picks the post. The toolbar is created through `BaseApp/Workbench/CAMWorkbench/Toolbar/PolarCNC` (the same mechanism as Tools → Customize) |
 | polar Job policy | `freecad/polarcnc/policy.py` | greys out 3D operations and Probe while the current Job is polar, by wrapping `IsActive` of their Python command objects (`Path.Op.Gui.<Op>.Command`; the original is kept and called) — no toolbar rebuild, works in toolbars, menus and shortcuts. Sets the Job's SetupSheet operation defaults (`setFromTemplate`). A document observer warns (deferred to the next event-loop turn: CAM sets temporary values while creating an operation) about warned operations and line-by-line patterns |
+| program | `freecad/polarcnc/program.py` | the Job's milling program (a fresh copy of FreeCAD's LinuxCNC post) and its polar conversion; used by the post and the simulator, so both see the same program |
+| simulator | `freecad/polarcnc/simulator.py` | converts the Job like Post Process, reads the polar program back with the web simulator's parser (`src/core/polar-parser.js`, joint-space interpolation as LinuxCNC does) and plays it in the 3D view with Coin nodes: a turning group (chuck, model and stock tessellated, path) and a cutter that only moves in X and Z. All document objects are hidden while it runs and every visibility is put back on close (hiding a group also hides its children, so states are read first). `View3D.saveImage` renders without these nodes; tests capture the window |
 | start-up | `freecad/InitGui.py`, `package.xml` | `package.xml` at the repository root declares a workbench item in the subdirectory `freecad` (FreeCAD runs its `InitGui.py`) |
 
 **FreeCAD 26.3 facts found while building it**
@@ -54,7 +56,9 @@ npm test                                          # the converter, as always
 FREECAD=/path/to/bin/freecad sh tests/freecad/run.sh   # the addon, in a real FreeCAD
 ```
 
-`tests/freecad/run.sh` makes a throw-away FreeCAD user folder with this repository linked as the PolarCNC
+`tests/freecad/run.sh` runs two FreeCAD starts (one task dialog per start): `polar_post_test.py` and
+`simulator_test.py` (cutter position in both views, playback, everything hidden and restored, screenshots).
+It makes a throw-away FreeCAD user folder with this repository linked as the PolarCNC
 addon, runs `polar_post_test.py` under `xvfb-run`, and then converts FreeCAD's own LinuxCNC output with the
 Node converter (`compare.js`): the post's output must be the same. The test checks that the post is offered
 for Jobs, that the command adds the settings without guessing X Max, that a Job without X Max and a tool
