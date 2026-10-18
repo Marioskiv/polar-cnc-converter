@@ -302,7 +302,11 @@ class Scene:
 class TaskPanel:
     def __init__(self, job, polar_text, opts):
         self.job = job
+        self._visibility = []
         self.motion = Motion(bridge.parse(polar_text, opts))
+        if len(self.motion) < 2:
+            raise ValueError("the program has no moves to show (are all operations switched "
+                             "off, or without a path?).")
         self.scene = Scene(job, self.motion, opts)
         self.view = Gui.ActiveDocument.ActiveView
         self.view.getSceneGraph().addChild(self.scene.root)
@@ -323,17 +327,21 @@ class TaskPanel:
         # (all states are read first: hiding a group such as the Job also hides its children)
         self._visibility = [(o, o.ViewObject.Visibility) for o in job.Document.Objects
                             if getattr(o, "ViewObject", None) is not None]
-        for obj, shown in self._visibility:
-            if shown:
-                obj.ViewObject.Visibility = False
-        self.t = 0.0
-        self.playing = False
-        self._last = None
         self.timer = QtCore.QTimer()
-        self.timer.setInterval(33)
-        self.timer.timeout.connect(self._tick)
-        self.form = self._build_form()
-        self._show()
+        try:
+            for obj, shown in self._visibility:
+                if shown:
+                    obj.ViewObject.Visibility = False
+            self.t = 0.0
+            self.playing = False
+            self._last = None
+            self.timer.setInterval(33)
+            self.timer.timeout.connect(self._tick)
+            self.form = self._build_form()
+            self._show()
+        except Exception:
+            self._cleanup()          # the document back as it was, then the error goes up
+            raise
 
     # ---- form ----
     def _build_form(self):
@@ -422,7 +430,8 @@ class TaskPanel:
     def _stop(self):
         self.playing = False
         self.timer.stop()
-        self.b_play.setText("▶")
+        if getattr(self, "b_play", None) is not None:
+            self.b_play.setText("▶")
 
     def _jump(self, t):
         self.t = t
@@ -468,12 +477,19 @@ def _hms(s):
 
 
 def open_for(job):
-    """Convert the Job like Post Process and open the simulator. Problems -> a message."""
+    """Convert the Job like Post Process and open the simulator. Problems -> a message; whatever
+    happens, the document is never left with its objects hidden."""
+    panel = None
     try:
         text, opts = program.polar(job)
-    except (ValueError, OSError, bridge.ConverterError) as e:
+        panel = TaskPanel(job, text, opts)
+        Gui.Control.showDialog(panel)
+        return panel
+    except Exception as e:
+        if panel is not None:
+            panel._cleanup()
+        if not isinstance(e, (ValueError, OSError, bridge.ConverterError)):
+            import traceback
+            App.Console.PrintError(traceback.format_exc())
         QtGui.QMessageBox.warning(None, "Polar CNC", "Cannot simulate: %s" % e)
         return None
-    panel = TaskPanel(job, text, opts)
-    Gui.Control.showDialog(panel)
-    return panel

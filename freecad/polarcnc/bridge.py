@@ -36,7 +36,20 @@ class ConverterError(Exception):
     """The converter refused the program; the message names the line, as on the web page."""
 
 
+_ENGINE = []
+
+
 def _engine():
+    """One engine with the converter loaded, kept: loading the core files takes a moment and the
+    converter keeps no state between calls (each call builds its own)."""
+    if _ENGINE:
+        return _ENGINE[0]
+    eng = _load_engine()
+    _ENGINE.append(eng)
+    return eng
+
+
+def _load_engine():
     eng = QJSEngine()
     # the files register themselves on `self` (browser) or `module` (Node); give them `self`
     eng.evaluate("var self = this; var module = undefined;")

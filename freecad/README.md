@@ -67,6 +67,10 @@ chuck). **Nothing is drawn flat**: the part is used as it is.
    (G93, X = radius, C round, Z along) and refuses it if the router would run into the chuck (often a rapid next to
    the jaws).
 
+**Tool length in Wrap:** the router lies sideways, so its length runs along X. Put each tool's length in the **X
+column** of the LinuxCNC tool table and tick the Job's **Polar Wrap Tool Length In X**; until then a program with
+G43 is refused (it would shift everything along the part).
+
 In a Wrap Job only Polar Wrap operations are used (the other CAM operations work on a flat face; they are warned
 about and Post Process refuses them). Undercuts (a groove narrower than the cutter, a wall leaning over) are cut
 only as far as the cutter fits. The web page keeps its own Wrap input: a program of the surface drawn flat, from any
@@ -128,9 +132,15 @@ Measure your chuck and correct them. *Grip length* is how much of the stock the 
   posting: the cutter keeps clear of them, but the collet nut and spindle are not checked, so the cutter must stick
   out of the nut more than the depth shown.
 
+- **Round stock: the jaws are checked as a ring.** A round bar can be clamped with the jaws at any angle, and
+  nothing ties C0 on the machine to them, so below the jaw tops (+ clearance) nothing is cut beside the jaws all
+  the way round. Tick the chuck's **Jaws At Known Angle** only if you set C0 so that the jaws really are where the
+  CAM shows them. (Square, hexagon or off-centre stock: the jaws are where they grip it.)
+- The clearance holds in height too: a cut at the jaw tops would rub them.
 - **Every operation is checked against the chuck** (Profile, Pocket, Drilling, … and their rapid moves): the
   cutter, tip and everything above it, against the body, the jaws and the clamps. A hit is reported in the Report
-  view, and **Post Process writes no file** and names the operation, the move and the place.
+  view, and **Post Process writes no file** and names the operation, the move and the place. Post Process then
+  checks the polar program itself, as the machine moves it (a rapid curves between its end points).
 
 Not done yet: the jaws' angle on the machine is not tied to C0 (see *Open items* in
 [docs/FREECAD.md](../docs/FREECAD.md)).

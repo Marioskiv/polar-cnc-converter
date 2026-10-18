@@ -85,6 +85,9 @@ PROPS = (
      "bottom up. 0 = the stock stands on the chuck face / faceplate."),
     ("App::PropertyAngle", "FirstJawAngle", "Direction of the first jaw (the others follow at "
      "120° or 90°). Turn it so the jaws meet the flats of a hexagon or a square."),
+    ("App::PropertyBool", "JawsAtKnownAngle", "Round stock can be clamped with the jaws anywhere "
+     "round it, so the checks treat each jaw as a full ring round the part. Tick this only if C0 on "
+     "the machine is set so that the jaws really are where the CAM shows them."),
     ("App::PropertyLinkList", "Clamps", "Clamps and supports (Polar CNC clamps or any solids): they "
      "turn with the chuck and are kept clear like the jaws."),
     ("App::PropertyStringList", "Notes", "What the chuck found when it closed on the stock."),
@@ -105,6 +108,9 @@ class Chuck:
     def onDocumentRestored(self, obj):
         self._presetting = True             # files saved before a type or preset was added
         try:
+            for typ, name, tip in PROPS:        # properties added in later versions
+                if name not in obj.PropertiesList and name != "Stock":
+                    obj.addProperty(typ, name, GROUP, tip)
             if "Job" in obj.PropertiesList:     # an early version linked the Job (a cycle)
                 job = obj.Job
                 obj.removeProperty("Job")
@@ -272,10 +278,46 @@ def build(obj):
 def build_parts(obj):
     """[body, jaw or clamp, ...] and notes. The chuck face is where the stock bottom is, lowered
     by (jaw height - grip length) for jaw chucks."""
+    b = _build(obj)
+    return [b["body"]] + [j for j, _r in b["jaws"]] + b["clamps"] if b["body"] else [], b["notes"]
+
+
+def keepout_parts(obj):
+    """What the checks keep the cutter away from: the body, the jaws and the clamps; but on round
+    stock (unless JawsAtKnownAngle) every jaw swept all the way round, because a round bar can be
+    clamped with the jaws at any angle and C0 on the machine is not tied to them."""
+    b = _build(obj)
+    if not b["body"]:
+        return []
+    jaws = [j for j, _r in b["jaws"]]
+    if b["jaws"] and b["round"] and not getattr(obj, "JawsAtKnownAngle", False):
+        rings = []
+        for j, r_in in b["jaws"]:
+            bb = j.BoundBox
+            r_out = max(math.hypot(x, y) for x in (bb.XMin, bb.XMax) for y in (bb.YMin, bb.YMax))
+            ring = Part.makeCylinder(r_out, bb.ZLength, App.Vector(0, 0, bb.ZMin))
+            if r_in > 1e-6:
+                ring = ring.cut(Part.makeCylinder(r_in, bb.ZLength + 2, App.Vector(0, 0, bb.ZMin - 1)))
+            rings.append(ring)
+        jaws = rings[:1] if rings else []     # the rings of the jaws are the same ring
+    return [b["body"]] + jaws + b["clamps"]
+
+
+def stock_is_round(section, n=36, tol=0.05):
+    """True if the stock section is round about the chuck axis (contact radius the same all round)."""
+    if section is None:
+        return False
+    rs = [contact_radius(section, 2 * math.pi * k / n) for k in range(n)]
+    rs = [r for r in rs if r is not None]
+    return len(rs) == n and max(rs) - min(rs) <= tol
+
+
+def _build(obj):
     notes = []
     stock = stock_of(obj)
     if stock is None:
-        return [], ["No Job stock: the chuck cannot be placed."]
+        return {"body": None, "jaws": [], "clamps": [], "round": False,
+                "notes": ["No Job stock: the chuck cannot be placed."]}
     sb = stock.BoundBox
     kind = obj.ChuckType
     grip = min(obj.GripLength.Value, sb.ZLength)
@@ -285,7 +327,8 @@ def build_parts(obj):
         notes.append("Grip length %.1f is more than the jaw height %.1f: the jaws hold only %.1f."
                      % (grip, jaw_h, jaw_h))
     n = 0 if kind == FACEPLATE else (3 if kind == THREE_JAW else 4)
-    parts = [_body(obj, fz, n, math.radians(obj.FirstJawAngle.Value))]
+    body = _body(obj, fz, n, math.radians(obj.FirstJawAngle.Value))
+    jaws, clamps, round_ = [], [], False
     if kind != FACEPLATE:
         z_grip = sb.ZMin + max(grip, 0.5) * 0.5
         wires = stock.slice(App.Vector(0, 0, 1), min(z_grip, sb.ZMax - 1e-3))
@@ -301,7 +344,7 @@ def build_parts(obj):
             if r + obj.JawLength.Value > obj.Diameter.Value / 2 + obj.JawLength.Value * 0.5:
                 notes.append("Jaw %d would stand %.0f mm out of the chuck: the stock is too big for "
                              "this chuck." % (k + 1, r + obj.JawLength.Value - obj.Diameter.Value / 2))
-            parts.append(_jaw(r, obj.JawLength.Value, obj.JawWidth.Value, fz, jaw_h, a, chamfer=1.0))
+            jaws.append((_jaw(r, obj.JawLength.Value, obj.JawWidth.Value, fz, jaw_h, a, chamfer=1.0), r))
         if kind in SELF_CENTRING and radii and max(radii) - min(radii) > 0.05:
             notes.append("A self-centring chuck cannot hold this stock as it is placed: the jaws "
                          "would meet it at %s mm. Centre the stock on X0 Y0, turn the jaws "
@@ -309,12 +352,16 @@ def build_parts(obj):
                          % ", ".join("%.2f" % r for r in radii))
         if radii and not notes:
             notes.append("Jaws closed on the stock at %s mm." % ", ".join("%.2f" % r for r in radii))
+        round_ = stock_is_round(section)
+        if round_ and not getattr(obj, "JawsAtKnownAngle", False):
+            notes.append("Round stock: the jaws may sit at any angle on the machine, so they are "
+                         "checked as a ring all the way round.")
     for c in obj.Clamps:
         if isinstance(getattr(c, "Proxy", None), Clamp):      # built here, on this chuck's face
-            parts.append(clamp_shape(c, fz))
+            clamps.append(clamp_shape(c, fz))
         elif hasattr(c, "Shape") and not c.Shape.isNull():
-            parts.append(c.Shape)
-    return parts, notes
+            clamps.append(c.Shape)
+    return {"body": body, "jaws": jaws, "clamps": clamps, "round": round_, "notes": notes}
 
 
 def obstacles_above(chuck, z):

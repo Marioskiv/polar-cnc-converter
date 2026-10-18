@@ -32,6 +32,9 @@ PROPERTIES = (
      "X0 Y0, and the Polar Wrap operation machines it."),
     ("PolarWrapDiameter", "App::PropertyLength",
      "Wrap only: the diameter of the stock (the bar in the chuck). Required."),
+    ("PolarWrapToolLengthInX", "App::PropertyBool",
+     "Wrap only: tick when the tool lengths are in the X column of the LinuxCNC tool table (the "
+     "router lies sideways, so its length runs along X). Until then a program with G43 is refused."),
     ("PolarProfile", "App::PropertyFile",
      "Optional machine profile (.polar-profile.json, saved from the web page): rotary letter, "
      "directions, X as diameter, chord tolerance, centre mode."),

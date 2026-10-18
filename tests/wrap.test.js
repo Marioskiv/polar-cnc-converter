@@ -169,8 +169,7 @@ assert.throws(() => convert('G21 G90\nG0 Z2\nG0 X0 Y0\nG1 Z-12 F300\nM30', { lay
               /past the chuck axis/);
 checks++;
 // no cutting side needed for wrap; X max still reported
-{
-  const out = convert('G21 G90\nG0 Z2\nG0 X0 Y0\nG1 Z-1 F300\nG1 X10 F500\nM30', { layout: 'wrap', wrapRadius: 150, xMax: 100 });
-  ok(/moves go past X max 100\.0/.test(out), 'X past X max is reported');
-}
+assert.throws(() => convert('G21 G90\nG0 Z2\nG0 X0 Y0\nG1 Z-1 F300\nG1 X10 F500\nM30',
+                            { layout: 'wrap', wrapRadius: 150, xMax: 100 }), /goes past X Axis Max/);
+checks++;
 console.log(`wrap: ${checks} checks passed`);

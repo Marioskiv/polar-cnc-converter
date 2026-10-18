@@ -47,7 +47,11 @@ class MachineSettingsCommand:
         if job is None:
             return
         App.ActiveDocument.openTransaction("Polar machine settings")
-        machine.add_settings(job)
+        try:
+            machine.add_settings(job)
+        except Exception:
+            App.ActiveDocument.abortTransaction()
+            raise
         if POST in job.getEnumerationsOfProperty("PostProcessor"):
             job.PostProcessor = POST
         else:

@@ -60,7 +60,11 @@
                         + 'surface at the wrap radius.');
       if (r < xLo) xLo = r;
       if (r > xHi) xHi = r;
-      if (O.xMax !== null && r * X_SCALE > O.xMax + 1e-9) overTravel++;
+      // 2.15.1: refused, not only reported - LinuxCNC refuses the file at load anyway
+      if (O.xMax !== null && r * X_SCALE > O.xMax + 1e-9)
+        throw new Error('Line ' + srcLine + ': X ' + (r * X_SCALE).toFixed(3) + ' goes past X Axis Max '
+                        + O.xMax + ' (wrap radius ' + R0 + ' + Z ' + w.toFixed(3) + '). Lower the safe '
+                        + 'height of the program or check the wrap radius.');
       var v = (O.invertX ? -r : r) * X_SCALE;
       return 'X' + (Math.abs(v) < 5e-5 ? 0 : v).toFixed(4);
     }

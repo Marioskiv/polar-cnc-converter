@@ -1,5 +1,28 @@
 # Changelog
 
+## Unreleased
+
+### Fixed (from a professional review)
+- **Polar Face could pass over the jaw tops** (clearance sideways only); jaws within the clearance below the cut
+  are now kept clear. Found when the chuck got its real shape.
+- **Offsets of joined areas could go the wrong way**: a face that came out of a boolean upside down was shrunk
+  instead of grown (`grow`); the direction is now checked by the area, holes one by one.
+- Round stock: the jaws can be anywhere round it, so they are kept clear as a ring (chuck property *Jaws At Known
+  Angle* to use their drawn angle).
+- Post Process checks the polar program as the machine moves it (joint space), not only the CAM paths; never
+  shows a raw traceback; adds setup lines (where Z0 is, the chuck and grip) at the top.
+- Wrap: G43 refused until the tool lengths are in the X column (*Polar Wrap Tool Length In X*); inactive
+  operations no longer refused; a part with a gap along Z refused (the cutter would go to the axis); X past
+  X Axis Max refused, not only reported; warnings when the stock diameter or length differs from the part.
+- Polar Face: refuses a tool controller without feed; warns when X0 Y0 is outside the stock; raises a Safe Height
+  that is below the jaw tops.
+- Simulator: an empty program or any error never leaves the document hidden; it frames the whole chuck.
+- The live chuck check runs only for paths of a usual size (big paths are checked by Post Process); the converter
+  engine is loaded once; Wrap paths are thinned where the joint move is exact.
+
+### Changed
+- The chuck looks like the real one: chamfered body, bore, jaw slots, steel colours.
+
 ## 2.15.0 — FreeCAD addon (Polar CNC for the CAM workbench, in testing) and Wrap
 
 ### Added

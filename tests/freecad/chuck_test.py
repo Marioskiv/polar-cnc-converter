@@ -126,17 +126,29 @@ def go():
         gap = min_clearance(op, c, jaw_top + op.ChuckClearance.Value)  # also just above the jaw tops
         check(gap >= op.ChuckClearance.Value - 0.05, "A: Polar Face keeps %.2f mm from the jaws (needs %.1f)"
               % (gap, op.ChuckClearance.Value))
-        # the path follows the chuck: jaws turned 45 deg -> the path is made again round them
+        # round stock: the jaws may sit anywhere round it, so they are kept clear as a ring -
+        # nothing is cut beside them at all below their tops
         def arcs(o):
             return [(round(x.Parameters.get("X", 0), 2), round(x.Parameters.get("Y", 0), 2))
                     for x in o.Path.Commands if x.Name in ("G2", "G3")]
-        before = arcs(op)
+        low = [math.hypot(x.Parameters["X"], x.Parameters["Y"]) for x in op.Path.Commands
+               if x.Name in ("G1", "G2", "G3") and "X" in x.Parameters and x.Parameters.get("Z", 99) < 10 + 2]
+        check(low and max(low) <= 30 - 2 - 2.5 + 0.05,
+              "A: round stock, jaws as a ring: below the jaw tops nothing is cut past r %.2f" % max(low or [0]))
+        ringed = arcs(op)
         c.FirstJawAngle = 45
+        doc.recompute()
+        check(arcs(op) == ringed, "A: round stock: turning the jaws changes nothing (they are a ring)")
+        # with C0 set to the jaws, they are where the CAM shows them: the path follows them
+        c.JawsAtKnownAngle = True
+        doc.recompute()
+        before = arcs(op)
+        c.FirstJawAngle = 0
         doc.recompute()
         gap = min_clearance(op, c, c.Shape.BoundBox.ZMax + op.ChuckClearance.Value)
         check(op.PolarChuck == c and arcs(op) != before and gap >= op.ChuckClearance.Value - 0.05,
-              "A: jaws turned -> Polar Face made again by itself, keeps %.2f mm" % gap)
-        c.FirstJawAngle = 0
+              "A: jaws at a known angle, turned -> Polar Face made again by itself, keeps %.2f mm" % gap)
+        c.JawsAtKnownAngle = False
         doc.recompute()
         warn = [m for m in policy.problems(op) if "below the top of the jaws" in m]
         check(len(warn) == 1 and "4.00 mm below" in warn[0], "A: warns about the collet nut: %s" % warn)
