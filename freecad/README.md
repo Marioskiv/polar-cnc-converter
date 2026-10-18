@@ -22,8 +22,9 @@ FreeCAD.
 1. Draw the part with its **face centre at X0 Y0**: that point is the chuck axis. Make the CAM Job as usual
    (stock, tool controllers with **feeds**, operations).
 2. Select the Job and click **Polar machine settings** (toolbar *Polar CNC* in the CAM workbench). This adds a
-   **Polar CNC** group to the Job's properties and chooses the `polar_linuxcnc` post-processor.
-3. In the Job's properties, group **Polar CNC**, set:
+   **Polar CNC** group to the Job's properties, chooses the `polar_linuxcnc` post-processor and opens a small
+   dialog for the settings below (they stay editable in the properties).
+3. The settings (dialog, or the Job's properties, group **Polar CNC**):
    - **Polar X Max**: the largest X your machine can reach (its X soft limit). Required.
    - **Polar Cutting Side**: one side of the centre, or both sides (then **Polar Past Centre**: how far).
    - **Polar Profile** (optional): a `.polar-profile.json` saved from the web page (rotary letter, directions,

@@ -401,6 +401,7 @@ def save_icon():
 
 
 def run():
+    App.ParamGet("User parameter:BaseApp/Preferences/Mod/PolarCNC").SetBool("SettingsDialog", False)
     light_view()
     save_icon()
     Gui.activateWorkbench("CAMWorkbench")

@@ -182,6 +182,63 @@ def run():
     help.build_card, QtGui.QMessageBox.warning = keep_build, keep_box
     check(seen == ["X Axis Max is not set"], "a broken card falls back to a message box")
 
+    # the machine settings dialog
+    import Part
+    from Path.Main import Job as PathJob
+    from Path.Main.Gui import Job as PathJobGui
+    from polarcnc import chuck, dialogs, machine
+    doc = App.newDocument("HelpDialogs")
+    part = doc.addObject("Part::Feature", "Part")
+    part.Shape = Part.makeCylinder(20, 10)
+    doc.recompute()
+    job = PathJob.Create("Job", [part], None)
+    job.ViewObject.Proxy = PathJobGui.ViewProvider(job.ViewObject)
+    doc.recompute()
+    machine.add_settings(job)
+    help.set_setting("el")
+    dlg = dialogs.SettingsDialog(job, Gui.getMainWindow())
+    dlg.show()
+    pump(200)
+    check(len(dlg.findChildren(QtGui.QToolButton, "polarFieldHelp")) == 6, "settings: a ? on every field")
+    check(not dlg.diameter.isEnabled() and not dlg.past.isEnabled(), "settings: Wrap and both-sides fields off for Face")
+    dlg.accept()
+    check(dlg.isVisible() and "X Max" in dlg.findChild(QtGui.QLabel, "problem").text(),
+          "settings: OK without X Max is refused, in Greek: %r" % dlg.findChild(QtGui.QLabel, "problem").text())
+    dlg.xmax.setValue(125)
+    dlg.layout_box.setCurrentIndex(1)
+    pump(50)
+    check(dlg.diameter.isEnabled() and dlg.in_x.isEnabled(), "settings: Wrap fields on for Wrap")
+    dlg.accept()
+    check(dlg.isVisible() and "διάμετρο" in dlg.findChild(QtGui.QLabel, "problem").text(), "settings: Wrap without a diameter refused")
+    dlg.diameter.setValue(40)
+    dlg.side.setCurrentIndex(1)
+    dlg.past.setValue(3)
+    grab(dlg, "settings_el.png")
+    dlg.accept()
+    pump(50)
+    check(not dlg.isVisible() and job.PolarXMax.Value == 125 and machine.is_wrap(job)
+          and job.PolarWrapDiameter.Value == 40 and job.PolarCuttingSide == machine.BOTH_SIDES
+          and job.PolarPastCentre.Value == 3, "settings: OK writes them into the Job")
+
+    # the chuck chooser: type, then size
+    dlg = dialogs.ChuckDialog(chuck.PRESETS, chuck.CUSTOM, "4-jaw SAN OU K72-125 independent (Ø125)", Gui.getMainWindow())
+    dlg.show()
+    pump(200)
+    check(dlg.type_box.currentText() == "4άρι (ανεξάρτητες σιαγόνες)" and "21.7" in dlg.findChild(QtGui.QLabel, "sizes").text(),
+          "chuck: K72 shown as a 4-jaw independent, its sizes under it: %r" % dlg.findChild(QtGui.QLabel, "sizes").text())
+    grab(dlg, "chuck_chooser_el.png")
+    dlg.type_box.setCurrentIndex(0)
+    pump(50)
+    names = [dlg.size_box.itemText(i) for i in range(dlg.size_box.count())]
+    check(names and all(chuck.PRESETS[n][0] == dlg.types[0] for n in names), "chuck: sizes of the chosen type only")
+    dlg.type_box.setCurrentIndex(dlg.type_box.count() - 1)
+    pump(50)
+    check(dlg.textValue() == chuck.CUSTOM and not dlg.size_box.isEnabled(), "chuck: Custom")
+    dlg.setTextValue("Faceplate Ø250")
+    check(dlg.textValue() == "Faceplate Ø250" and "250" in dlg.findChild(QtGui.QLabel, "sizes").text(), "chuck: faceplate")
+    dlg.close()
+    App.closeDocument(doc.Name)
+
     # the language command
     check(Gui.Command.get("PolarCNC_Help") is not None, "the help language command exists")
     help.set_setting("auto")

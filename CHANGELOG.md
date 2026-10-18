@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.16.0 — help inside FreeCAD (Greek/English), settings dialog, review fixes
 
 ### Added
 - **Help inside Polar CNC, Greek and English.** Hovering a *Polar CNC* toolbar button shows a card with what it
@@ -9,6 +9,9 @@
   **error cards**: what happened, why, what to do, and the original message. Language follows FreeCAD (Greek or
   English); toolbar button *Polar CNC help language* chooses it or switches the popups off. No extra packages.
   Test: `tests/freecad/help_test.py`.
+- **Machine settings in one small dialog** when a Job becomes polar: Face or Wrap, X Max (required, never
+  guessed), cutting side, bar diameter, tool lengths in X; each with its **?**. Cancel keeps the properties.
+- **Chuck chooser: type first, then the size**, with the sizes of the choice shown under it.
 
 ### Fixed (from a professional review)
 - **Polar Face could pass over the jaw tops** (clearance sideways only); jaws within the clearance below the cut

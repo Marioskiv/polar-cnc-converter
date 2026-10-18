@@ -101,7 +101,11 @@ Lessons carried over from other FreeCAD addon work (FreeCAD 26.3):
   jaws in the CAM match the jaws on the machine.
 - Spindle head / collet nut against the turning jaws (needs the nut diameter and the cutter stick-out).
 - The C axis max velocity from the machine's `.ini`, for the near-centre time estimate.
-- Wrap (4th axis), then 4-axis.
+- Wrap is done (Polar Wrap). Still open: Kiri:Moto-style XYZA input, and 4-axis.
+- Stepped jaws (the real K72 jaws have steps): needs a photo or the sizes of the steps.
+- An axis-layout helper on the web page, so that others can describe their own machine layout.
+- Help animations: re-record with `tools/help_gifs` when a command's look changes (the texts are in
+  `freecad/help/help.json`, en and el).
 - SAN OU K12-125 and 3-jaw 125 presets: jaw length / width (and the 3-jaw's jaw height) are scaled from catalogue
   drawings, not measured. K72-125 is measured.
 

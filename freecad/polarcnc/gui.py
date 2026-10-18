@@ -52,6 +52,13 @@ class MachineSettingsCommand:
         except Exception:
             App.ActiveDocument.abortTransaction()
             raise
+        try:      # X Max, cutting side, Face or Wrap in one small dialog (Cancel keeps them as they are)
+            from . import dialogs
+            if dialogs.ask_settings_on():
+                dialogs.run(dialogs.SettingsDialog(job, Gui.getMainWindow()))
+        except Exception as e:
+            App.Console.PrintWarning("Polar CNC: the settings dialog failed (%s); set them in the "
+                                     "Job's properties, group 'Polar CNC'.\n" % e)
         if POST in job.getEnumerationsOfProperty("PostProcessor"):
             job.PostProcessor = POST
         else:
@@ -70,9 +77,9 @@ class MachineSettingsCommand:
         Gui.Selection.clearSelection()
         Gui.Selection.addSelection(job)   # the property editor shows the new "Polar CNC" group
         App.Console.PrintMessage(
-            "Polar CNC: Job '%s' is now polar. Set Polar X Max (and the cutting side) in its "
-            "properties, group 'Polar CNC'. The CAM work origin X0 Y0 must be the chuck centre.\n"
-            % job.Label)
+            "Polar CNC: Job '%s' is now polar. The settings are in its properties, group 'Polar "
+            "CNC'%s. The CAM work origin X0 Y0 must be the chuck centre.\n"
+            % (job.Label, "" if job.PolarXMax.Value > 0 else " (Polar X Max is still to be set)"))
 
 
 class SimulateCommand:
@@ -170,11 +177,11 @@ class ChuckCommand:
         obj = getattr(job, "PolarChuck", None)
         names = list(chuck.PRESETS)
         current = obj.Preset if obj is not None else names[1]
-        from PySide import QtGui
-        name, ok = QtGui.QInputDialog.getItem(
-            Gui.getMainWindow(), "Polar CNC — chuck",
-            "Chuck or faceplate (choose \"%s\" to type the sizes in the properties):"
-            % chuck.CUSTOM, names, names.index(current) if current in names else 0, False)
+        from . import dialogs
+        dlg = dialogs.ChuckDialog(chuck.PRESETS, chuck.CUSTOM, current if current in names else names[1],
+                                  Gui.getMainWindow())
+        ok = dialogs.run(dlg)
+        name = dlg.textValue()
         if not ok:
             if obj is None:
                 return

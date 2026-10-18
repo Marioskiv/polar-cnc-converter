@@ -14,6 +14,8 @@ from PySide import QtGui
 OUT = os.environ["PC_OUT"]
 REPO = os.environ["PC_REPO"]
 os.makedirs(OUT, exist_ok=True)
+# the machine settings dialog would wait for a person: the tests set the properties themselves
+App.ParamGet("User parameter:BaseApp/Preferences/Mod/PolarCNC").SetBool("SettingsDialog", False)
 log = open(os.path.join(OUT, "log.txt"), "w")
 fails = []
 
