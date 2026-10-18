@@ -64,6 +64,20 @@ def export(objectslist, filename, argstring):
     except (ValueError, OSError) as e:
         return _refuse(str(e))
 
+    held = getattr(job, "PolarChuck", None)
+    if held is not None:
+        from polarcnc import chuck, collision
+        obs = collision.obstacles(held)
+        ops = [getattr(item, "source", item) for item in objectslist]
+        hits = ["%s: %s" % (o.Label, m) for o in ops
+                for m in [collision.hit_message(o, obs)] if m]
+        if hits:            # the cutter would run into the chuck: no file
+            return _refuse("the program runs into the chuck.\n" + "\n".join(hits))
+        for o in ops:       # cuts below the jaw / clamp tops: a reminder, never a refusal
+            msg = chuck.head_warning(held, getattr(o, "Path", None))
+            if msg:
+                FreeCAD.Console.PrintWarning("Polar CNC (%s): %s\n" % (o.Label, msg))
+
     # the milling program, without its editor (it is not what goes to the machine)
     cartesian = program.cartesian(objectslist, argstring)
     try:
@@ -71,16 +85,6 @@ def export(objectslist, filename, argstring):
     except bridge.ConverterError as e:
         # the converter's own words; its line numbers are those of the milling program
         return _refuse("the program was not converted.\n%s" % e)
-
-    try:     # cuts below the jaw / clamp tops: a reminder, never a refusal
-        from polarcnc import chuck
-        for item in objectslist:
-            obj = getattr(item, "source", item)
-            msg = chuck.head_warning(getattr(job, "PolarChuck", None), getattr(obj, "Path", None))
-            if msg:
-                FreeCAD.Console.PrintWarning("Polar CNC (%s): %s\n" % (obj.Label, msg))
-    except Exception:
-        pass
 
     if FreeCAD.GuiUp and "--no-show-editor" not in argstring:
         if len(polar) > 100000:

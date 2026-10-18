@@ -151,6 +151,37 @@ def go():
         op = polar_face(job, 6)
         gap = min_clearance(op, c, c.Shape.BoundBox.ZMax)
         check(gap >= op.ChuckClearance.Value - 0.05, "B: keeps %.2f mm from the jaws" % gap)
+        # the collision check of every operation: Polar Face is clear, a cut onto a jaw and a
+        # rapid into a jaw are found, and Post Process writes no file
+        from polarcnc import collision
+        obs = collision.obstacles(c)
+        res = collision.check(obs, op.Path, collision.tool_radius(op))
+        check(res is not None and res["clearance"] >= op.ChuckClearance.Value - 0.05,
+              "B: collision check agrees: Polar Face keeps %.2f mm" % (res or {}).get("clearance", -1))
+        import Path.Op.Custom as Custom
+        bad = Custom.Create("OntoJaw", parentJob=job)
+        bad.Source = "Text"
+        bad.Gcode = ["G0 X40 Y0 Z30", "G1 Z5 F100", "G0 Z30"]
+        doc.recompute()
+        msgs = [m for m in policy.problems(bad) if "runs into" in m]
+        check(len(msgs) == 1 and "The cut runs into the jaw" in msgs[0], "B: cut onto a jaw found: %s" % msgs)
+        bad.Gcode = ["G0 X40 Y0 Z30", "G0 Z5", "G0 Z30"]
+        doc.recompute()
+        msgs = [m for m in policy.problems(bad) if "runs into" in m]
+        check(len(msgs) == 1 and "A rapid move runs into" in msgs[0], "B: rapid into a jaw found: %s" % msgs)
+        from Path.Post.Processor import PostProcessorFactory
+        job.PostProcessorArgs = "--no-show-editor"
+        boxes = []
+        warn_box = QtGui.QMessageBox.warning
+        QtGui.QMessageBox.warning = staticmethod(lambda *a, **k: boxes.append(a[2]))
+        res = PostProcessorFactory.get_post_processor(job, "polar_linuxcnc").export()
+        QtGui.QMessageBox.warning = warn_box
+        check(res and all(r[1] is None for r in res) and boxes and "runs into the chuck" in boxes[-1],
+              "B: Post Process refuses a program that hits the chuck: %r" % (boxes[-1:] or "")[:160])
+        doc.removeObject(bad.Name)
+        doc.recompute()
+        res = PostProcessorFactory.get_post_processor(job, "polar_linuxcnc").export()
+        check(res and res[0][1] is not None and "G93" in res[0][1], "B: without it the program is written")
         panel = simulator.open_for(job)
         panel.machine.setChecked(True)
         panel._jump(panel.motion.total * 0.3)

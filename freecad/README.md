@@ -98,8 +98,12 @@ Measure your chuck and correct them. *Grip length* is how much of the stock the 
   posting: the cutter keeps clear of them, but the collet nut and spindle are not checked, so the cutter must stick
   out of the nut more than the depth shown.
 
+- **Every operation is checked against the chuck** (Profile, Pocket, Drilling, … and their rapid moves): the
+  cutter, tip and everything above it, against the body, the jaws and the clamps. A hit is reported in the Report
+  view, and **Post Process writes no file** and names the operation, the move and the place.
+
 Not done yet: the jaws' angle on the machine is not tied to C0 (see *Open items* in
-[docs/FREECAD.md](../docs/FREECAD.md)); other operations (Profile, Pocket, …) are not checked against the jaws.
+[docs/FREECAD.md](../docs/FREECAD.md)).
 
 ## Which operations suit polar machining
 

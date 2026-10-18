@@ -175,8 +175,12 @@ def problems(obj):
         if val in bad:
             out.append("%s %s %s Use %s." % (prop, val, PATTERN_REASON, bad[val]))
     if hasattr(obj, "Path") and obj in getattr(getattr(job, "Operations", None), "Group", []):
-        from . import chuck
-        msg = chuck.head_warning(getattr(job, "PolarChuck", None), obj.Path)
+        from . import chuck, collision
+        held = getattr(job, "PolarChuck", None)
+        msg = collision.hit_message(obj, collision.obstacles(held)) if held is not None else None
+        if msg:
+            out.append(msg)
+        msg = chuck.head_warning(held, obj.Path)
         if msg:
             out.append(msg)
     if getattr(obj, "Proxy", None) and mod == "Path.Op.Drilling" and \
