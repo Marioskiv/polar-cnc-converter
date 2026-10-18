@@ -28,6 +28,7 @@ import PathScripts.PathUtils as PathUtils
 EPS = 0.01          # mm: the cutter just touching the stock edge counts as outside it
 MIN_ARC = 0.05      # mm: shorter arcs are not worth cutting
 GRID = 0.25         # mm: the grid the uncut material is followed on
+EXACT_TOL = 0.005   # mm: the exact check allows this much (a ring that runs along an edge)
 MIN_AIR = 2.0       # mm: a free stretch shorter than this is not worth speeding up for
 EDGE_REACH = 0.0    # how far the cutter centre goes past the stock edge, in cutter radii
                     # (0: to the edge — the shortest path that still leaves nothing; measured)
@@ -164,6 +165,9 @@ class Raster:
 
     def __init__(self, stock_face, keep_face, radius, grid=GRID):
         self.r, self.g = radius, grid
+        # the exact check behind the grid: where the cutter centre must never be (the grid
+        # alone lets a move come up to a grid step too close)
+        self.forbid = grow(keep_face, radius - EXACT_TOL) if keep_face is not None else None
         bb = stock_face.BoundBox
         m = radius + grid
         self.xs = numpy.arange(bb.XMin - m, bb.XMax + m + grid, grid)
@@ -269,6 +273,9 @@ class Raster:
         ang = numpy.linspace(a, a - sweep if cw else a + sweep, n + 1)
         if self._reached(self.P[self.part], r, a, sweep, cw, n, self.r - self.g).any():
             return None
+        near = self._reached(self.P[self.part], r, a, sweep, cw, n, self.r + 2 * self.g)
+        if near.any() and self.enters(("air", r, a, a - sweep if cw else a + sweep, cw)):
+            return None
         touch = self._reached(self.P[self.uncut | self.part], r, a, sweep, cw, n, self.r + self.g)
         runs, i = [], 0
         while i < n:
@@ -292,8 +299,32 @@ class Raster:
     def hits_part(self, moves):
         hit = numpy.zeros(len(self.P), bool)
         for mv in moves:
-            hit |= self.dist(mv) < self.r - self.g
-        return bool((hit & self.part).any())
+            d = self.dist(mv)
+            if (self.part & (d < self.r - self.g)).any():
+                return True
+            if (self.part & (d < self.r + 2 * self.g)).any() and self.enters(mv):
+                return True             # near: the exact check decides
+        return False
+
+    def enters(self, mv):
+        """Exactly: does the cutter centre on this move come nearer than the cutter radius to
+        what must not be touched (the part, the jaws and clamps with their clearance)?"""
+        if self.forbid is None:
+            return False
+        if mv[0] in ("cut", "air"):
+            _, r, a, b, cw = mv
+            sweep = ((a - b) if cw else (b - a)) % (2 * math.pi)
+            if sweep < 1e-9 or r < 1e-9:
+                return False
+            lo = b if cw else a
+            edge = Part.makeCircle(r, App.Vector(0, 0, 0), App.Vector(0, 0, 1),
+                                   math.degrees(lo), math.degrees(lo + sweep))
+        else:
+            if (mv[2] - mv[1]).Length < 1e-9:
+                return False
+            edge = Part.makeLine(mv[1], mv[2])
+        common = edge.common(self.forbid)
+        return any(e.Length > EXACT_TOL for e in common.Edges)
 
 
 class Plan:
@@ -483,11 +514,82 @@ def rest_beside_part(mat, keep, radius):
     return moves
 
 
-def commands(plan, z, safe, feed, vfeed, air):
-    """The Path commands of one depth's plan (feeds in FreeCAD's internal units)."""
+RAMP_STEP = math.radians(3)     # the ramp along a circle is written as straight moves this far apart
+RAMP_SAG = 0.002               # mm: how far a ramp chord may cut inside its circle
+RAMP_PASSES = 20                # back and forth at most this often on a short cut
+RAMP_ABOVE = 0.5               # mm: the ramp starts this far above the material
+RAMP_MIN = 1.0                  # a ramp shorter than this (mm) is no use: straight down instead
+
+
+def _path_of(moves, length):
+    """Points along the first `length` mm of the cutting moves that follow (arcs round the origin
+    and lines, as long as they join up), and the length really available."""
+    pts, got = [], 0.0
+    for mv in moves:
+        if got >= length - 1e-9 or mv[0] not in ("cut", "line"):
+            break
+        if mv[0] == "cut":
+            _, r, a, b, cw_ = mv
+            sweep = ((a - b) if cw_ else (b - a)) % (2 * math.pi) or 2 * math.pi
+            use = min((length - got) / max(r, 1e-9), sweep)
+            # chords short enough to stay on the circle (inside it by at most RAMP_SAG)
+            step = min(RAMP_STEP, 2 * math.acos(max(1 - RAMP_SAG / max(r, 1e-9), -1.0)))
+            n = max(int(math.ceil(use / step)), 1)
+            seg = [_pt(r, a - use * k / n if cw_ else a + use * k / n) for k in range(n + 1)]
+            got += use * r
+        else:
+            p0, p1 = mv[1], mv[2]
+            d = p1 - p0
+            if d.Length < 1e-9:
+                continue
+            use = min(length - got, d.Length)
+            seg = [p0, p0 + d * (use / d.Length)]
+            got += use
+        if pts and (seg[0] - pts[-1]).Length > 1e-6:
+            break                               # does not join the path so far
+        pts.extend(seg[1:] if pts else seg)
+    return pts, got
+
+
+def ramp_in(following, z, z_top, angle):
+    """Into the material without plunging: from just above it, down along the start of the cut that
+    follows (on a circle the chuck turns while Z goes down: a helix round the axis), back and forth
+    if that cut is shorter than the ramp, then back to its start at depth. The ramp stays on that
+    cut's own path, so it goes only where the cut goes anyway. None when there is no room (then
+    straight down)."""
+    if angle <= 0 or not following or following[0][0] not in ("cut", "line"):
+        return None
+    drop = z_top - z
+    if drop <= 1e-6:
+        return None
+    need = drop / math.tan(angle)
+    pts, got = _path_of(following, need)
+    if got < RAMP_MIN or len(pts) < 2:
+        return None
+    passes = min(int(math.ceil(need / got - 1e-9)), RAMP_PASSES)
+    seg = [(pts[k] - pts[k - 1]).Length for k in range(1, len(pts))]
+    total = sum(seg) * passes
+    out, done, zq = [], 0.0, z_top
+    for n in range(passes):
+        order = range(1, len(pts)) if n % 2 == 0 else range(len(pts) - 2, -1, -1)
+        for k in order:
+            done += seg[k - 1] if n % 2 == 0 else seg[k]
+            zq = z_top - drop * done / total
+            out.append((pts[k], zq))
+    if passes % 2 == 1:                          # at the far end: back to the start at depth
+        for p in reversed(pts[:-1]):
+            out.append((p, z))
+    return out
+
+
+def commands(plan, z, safe, feed, vfeed, air, z_top=None, ramp=0.0):
+    """The Path commands of one depth's plan (feeds in FreeCAD's internal units). z_top: where the
+    material starts above this depth (the previous depth); ramp: ramp angle in radians, 0 = go
+    straight down into the material."""
     out = []
     up = True
-    for mv in plan.moves:
+    moves = plan.moves
+    for i, mv in enumerate(moves):
         kind = mv[0]
         if kind == "lift":
             p = mv[1]
@@ -495,7 +597,14 @@ def commands(plan, z, safe, feed, vfeed, air):
                 out.append(Path.Command("G0", {"Z": safe}))
             out.append(Path.Command("G0", {"X": p.x, "Y": p.y}))
             out.append(Path.Command("G0", {"Z": safe}))
-            out.append(Path.Command("G1", {"Z": z, "F": vfeed}))
+            start = min(z_top + RAMP_ABOVE, safe) if z_top is not None else None
+            way = ramp_in(moves[i + 1:i + 400], z, start, ramp) if start is not None else None
+            if way is None:
+                out.append(Path.Command("G1", {"Z": z, "F": vfeed}))
+            else:
+                out.append(Path.Command("G1", {"Z": start, "F": vfeed}))
+                for q, zq in way:
+                    out.append(Path.Command("G1", {"X": q.x, "Y": q.y, "Z": zq, "F": feed}))
             up = False
         elif kind in ("line", "airline"):
             p = mv[2]
@@ -524,6 +633,8 @@ PROPERTIES = (
      "stock: everything outside the part is cut away down to the final depth (a square bar "
      "becomes the round part). Only round the part: a band of Band Width round the part, the "
      "rest of the stock stays as it is."),
+    ("App::PropertyAngle", "RampAngle", "Into the material at this angle along the circle (the "
+     "chuck turns while Z goes down), instead of plunging straight down. 0 = straight down."),
     ("App::PropertyLength", "BandWidth", "Only round the part: width of the band cut round it "
      "(0 = 1.5 cutter diameters)."),
     ("App::PropertyPercent", "StepOver", "Distance between the circles, in % of the cutter "
@@ -560,6 +671,8 @@ class ObjectPolarFace(PathOp.ObjectOp):
                 obj.addProperty(typ, name, "Polar Face", tip)
                 if name == "ChuckClearance":
                     obj.ChuckClearance = 2.0
+                if name == "RampAngle":
+                    obj.RampAngle = 3.0
                 if name == "Clearing":
                     obj.Clearing = CLEARINGS
                     obj.Clearing = FACE_ONLY
@@ -598,6 +711,7 @@ class ObjectPolarFace(PathOp.ObjectOp):
         obj.ChuckClearance = 2.0
         obj.Clearing = FACE_ONLY
         obj.BandWidth = 0
+        obj.RampAngle = 3.0
         if job is not None and getattr(job, "PolarChuck", None) is not None:
             obj.PolarChuck = job.PolarChuck
 
@@ -652,7 +766,10 @@ class ObjectPolarFace(PathOp.ObjectOp):
             band = grow(outline, width + max(obj.StockToLeave.Value, 0))
         cmds = self.commandlist
         cmds.append(Path.Command("G0", {"Z": clearance}))
+        z_top = obj.StartDepth.Value
+        ramp = math.radians(max(min(obj.RampAngle.Value, 89.0), 0.0))
         for z in depths:
+            above, z_top = z_top, z
             sec = stock_section(stock, z)
             if sec is None:
                 continue
@@ -672,12 +789,12 @@ class ObjectPolarFace(PathOp.ObjectOp):
                     rest = _flat(rest)
                     held = rest if held is None else held.fuse(rest).removeSplitter()
             plan = plan_depth(sec, keep, radius, step, obj.StockToLeave.Value, cw, speeds, held)
-            cmds.extend(commands(plan, z, safe, feed, vfeed, air))
+            cmds.extend(commands(plan, z, safe, feed, vfeed, air, above, ramp))
 
 
 def SetupProperties():
     return ["StepOver", "StockToLeave", "CutMode", "AirFeedFactor", "ChuckClearance", "Clearing",
-            "BandWidth"]
+            "BandWidth", "RampAngle"]
 
 
 def Create(name, obj=None, parentJob=None):

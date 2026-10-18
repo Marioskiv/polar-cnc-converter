@@ -157,6 +157,41 @@ def go():
         check(band_len < 0.7 * whole_len, "the band cuts less than clearing everything (%.0f vs %.0f mm)" % (band_len, whole_len))
         top = at(max(zs))
         check(top and max(top) < 15 + 6 + 0.05, "band: above the part only the band (and the part top) is cut")
+        # into the material: ramps along the circle, no plunge (the band is closed in by stock)
+        def plunges():
+            """Straight-down G1 moves that end below the depth before them (into material)."""
+            n = 0
+            levels = sorted({c.Parameters["Z"] for c in op.Path.Commands
+                             if c.Name in ("G2", "G3") and "Z" in c.Parameters}, reverse=True)
+            for c in op.Path.Commands:
+                pr = c.Parameters
+                if c.Name == "G1" and set(pr) <= {"Z", "F"} and "Z" in pr:
+                    above = [l for l in levels if l > pr["Z"] + 1e-6]
+                    if above and pr["Z"] < min(above) - 1e-6 and pr["Z"] in levels:
+                        n += 1
+
+            return n
+
+        def steepest():
+            worst, x, y, zz = 0.0, None, None, None
+            for c in op.Path.Commands:
+                pr = c.Parameters
+                nx, ny, nz = pr.get("X", x), pr.get("Y", y), pr.get("Z", zz)
+                if c.Name == "G1" and x is not None and zz is not None and nz < zz - 1e-9:
+                    d = math.hypot(nx - x, ny - y)
+                    if d > 1e-6:
+                        worst = max(worst, math.degrees(math.atan2(zz - nz, d)))
+                x, y, zz = nx, ny, nz
+            return worst
+
+        check(abs(op.RampAngle.Value - 3) < 1e-9, "ramp angle 3 degrees by default")
+        check(plunges() == 0, "band: no straight plunge into the material (%d)" % plunges())
+        check(0 < steepest() <= 3.0 + 0.01, "band: ramps at most 3 degrees (%.2f)" % steepest())
+        op.RampAngle = 0
+        doc.recompute()
+        check(plunges() > 0 and steepest() == 0, "ramp 0: straight down again (%d plunges)" % plunges())
+        op.RampAngle = 3
+        doc.recompute()
         panel_ok = True
         try:
             from polarcnc import polarface_gui

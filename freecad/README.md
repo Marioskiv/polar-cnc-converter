@@ -117,6 +117,11 @@ top (or the depths you set), at every depth only where the stock really is:
 
 Round or square stock, any shape: the same choices. The final depth can always be typed in by hand.
 
+**Into the material without plunging:** where the cutter has to go down into stock (a band closed in by material,
+the first cut of a layer), it ramps down along the cut it is about to make — on a circle the chuck turns while Z
+goes down, a helix round the axis — at *Ramp angle* (3° by default), back and forth on a short cut, then back to
+the start at depth. 0 = straight down (then use an end mill that cuts at the centre).
+
 **Where the zero is:** X0 Y0 = the chuck axis (draw the part with its centre there). Z0 = the **stock top** (the face
 you touch the cutter off on): in FreeCAD put the top of the stock at Z 0, or the program header says where the top
 is (`( Setup: … )` and a note when Z0 is not on the stock top). The chuck is placed from the stock (bottom + grip),
@@ -137,7 +142,7 @@ it; the choice is also the chuck's **Preset** property.
 |---|---|
 | 4-jaw SAN OU K72-125 | the default: 4 independent jaws, Ø125, body 56 (SAN OU K72 table); jaws 21.7 above the face, 56 long, 18 wide (measured on a real chuck) |
 | 4-jaw SAN OU K12-125 | 4 jaws that move together (self-centring), Ø125, body 58, jaws 26 above the face (H 84 − H1 58) |
-| 3-jaw SAN OU 125 | Ø125, body 58 |
+| 3-jaw SAN OU K11-125 | 3 jaws that move together, Ø125, body 58 (K11 table: H 84 − H1 58), bore Ø30; jaws 25.5 above the face, 53 long, 16 wide (measured). Holds Ø2.5–40 with the normal jaws, Ø38–110 reversed: the chuck says so when the stock needs the reversed jaws |
 | 3-jaw SC-3 … SC-16 | self-centring scroll chuck, sizes from the usual catalogue table |
 | 4-jaw 12in … 24in | independent jaws: each jaw closes on the stock by itself, so square and off-centre stock is held |
 | Faceplate Ø250 / Ø400 | a plate; the work is held by clamps that you place |
@@ -145,7 +150,7 @@ it; the choice is also the chuck's **Preset** property.
 Catalogue letters: **A** diameter, **B** body thickness, **H** jaw length (radial), **J** jaw width,
 **K** jaw height above the face (the one that matters for collisions — measure your own chuck), **L** step.
 For the SAN OU presets the tables give the body, but not always the jaw height above the face, the jaw length
-and width: for the K12-125 and the 3-jaw 125 those were scaled from the catalogue drawings (3-jaw 125: 18 / 39 / 14 mm).
+and width: the K72-125 and K11-125 ones were measured on real chucks, the K12-125 ones scaled from the drawings.
 Measure your chuck and correct them. *Grip length* is how much of the stock the jaws hold; *First jaw angle* turns the jaws.
 
 - The jaws always close on the real stock. A self-centring chuck (3 or 4 jaws that move together) holds only
