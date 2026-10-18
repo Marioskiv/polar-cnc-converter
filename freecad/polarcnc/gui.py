@@ -85,7 +85,8 @@ class SimulateCommand:
 
     def IsActive(self):
         try:
-            return policy.is_polar(policy.current_job()) and Gui.Control.activeDialog() is False
+            job = policy.current_job()      # face or wrap Job
+            return job is not None and machine.has_settings(job) and Gui.Control.activeDialog() is False
         except Exception:
             return False
 
@@ -131,7 +132,8 @@ class ChuckCommand:
 
     def IsActive(self):
         try:
-            return policy.is_polar(policy.current_job())
+            job = policy.current_job()      # face or wrap Job
+            return job is not None and machine.has_settings(job)
         except Exception:
             return False
 
@@ -156,6 +158,8 @@ class ChuckCommand:
                 if obj is None:
                     obj = chuck.make_chuck(job, name if name != chuck.CUSTOM else names[1])
                     _style(obj)
+                    if machine.is_wrap(job):      # in the machine frame, not the unrolled one
+                        obj.ViewObject.Visibility = False
                 obj.Preset = name              # Custom keeps the sizes, ready to be changed
                 doc.recompute()
             except Exception:

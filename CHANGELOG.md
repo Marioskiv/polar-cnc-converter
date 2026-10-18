@@ -10,6 +10,8 @@
   chord tolerance; G93 times use the true path of the tool tip at its real radius. Simulator: the cylinder with the
   router radial. FreeCAD: Job → *Polar Layout* = Wrap and *Polar Wrap Radius*. `tests/wrap.test.js` replays the
   output in joint space; `tests/freecad/wrap_test.py` runs a Wrap Job through Post Process and the simulator.
+  The chuck works in Wrap too: it holds the cylinder from the chuck end (X min of the unrolled stock), is shown in
+  the simulator, and Post Process refuses a wrapped program whose radial router runs into the body or the jaws.
 - **FreeCAD addon** (`freecad/`, `package.xml`): polar face machining from the FreeCAD CAM workbench. A
   post-processor `polar_linuxcnc` turns a normal CAM Job into polar G-code; the command *Polar machine settings*
   adds the Job's machine settings (X Axis Max, cutting side, optional profile). It runs the converter in `src/core`

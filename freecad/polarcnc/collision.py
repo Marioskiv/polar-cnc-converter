@@ -124,6 +124,44 @@ def check(obs, path, radius):
     return best
 
 
+def wrap_hits(chuck, data, radius, step=0.5):
+    """Wrap (router radial): the cutter is a cylinder from its tip OUTWARD along the radius. Its
+    moves come from the polar program read back as the machine runs it (data: bridge.parse);
+    everything is in the part's frame, where the chuck stands still. Returns a sentence for the
+    first move that runs into the chuck body, a jaw or a clamp, else None."""
+    import FreeCAD as App
+    import Part
+    from . import chuck as chuckmod
+    parts, _notes = chuckmod.build_parts(chuck)
+    if not parts:
+        return None
+    obs = Part.makeCompound(parts)
+    bb = obs.BoundBox
+    zlo, zhi = bb.ZMin - radius, bb.ZMax + radius
+    outer = max(abs(bb.XMin), abs(bb.XMax), abs(bb.YMin), abs(bb.YMax)) + radius + 5
+    r, c, z, rapid, line = data["r"], data["c"], data["z"], data["rapid"], data["line"]
+    for i in range(1, len(r)):
+        if not (min(z[i - 1], z[i]) <= zhi and max(z[i - 1], z[i]) >= zlo):
+            continue
+        a0, a1 = math.radians(c[i - 1]), math.radians(c[i])
+        L = math.hypot(r[i] - r[i - 1], z[i] - z[i - 1]) + abs(a1 - a0) * max(r[i - 1], r[i])
+        n = max(int(L / step), 1)
+        for k in range(n + 1):
+            t = k / n
+            rr, aa, zz = r[i - 1] + (r[i] - r[i - 1]) * t, a0 + (a1 - a0) * t, z[i - 1] + (z[i] - z[i - 1]) * t
+            if not zlo <= zz <= zhi or rr >= outer:
+                continue
+            d = App.Vector(math.cos(aa), math.sin(aa), 0)
+            tool = Part.makeLine(d * rr + App.Vector(0, 0, zz), d * outer + App.Vector(0, 0, zz))
+            gap = tool.distToShape(obs)[0] - radius
+            if gap < -TOUCH:
+                return ("%s runs into the chuck at X %.2f C %.1f Z %.2f (line %s of the program). "
+                        "Change the operation, the grip length or the jaw position."
+                        % ("A rapid move" if rapid[i] else "The cut", rr, math.degrees(aa) % 360,
+                           zz, line[i]))
+    return None
+
+
 def tool_radius(op):
     tc = getattr(op, "ToolController", None)
     tool = getattr(tc, "Tool", None)

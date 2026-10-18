@@ -177,7 +177,20 @@ def stock_of(obj):
         stock = obj.Stock
     if stock is None or stock.Shape.isNull():
         return None
+    if job is not None and getattr(job, "PolarLayout", "").startswith("Wrap"):
+        return wrap_stock(job, stock.Shape)
     return stock.Shape
+
+
+def wrap_stock(job, flat):
+    """A Wrap Job is drawn unrolled; in the machine the part is a cylinder of the wrap radius
+    along Z, from the unrolled stock's X min (the chuck end) to its X max (machine Z = CAM X)."""
+    r = getattr(job, "PolarWrapRadius", None)
+    r = r.Value if r is not None else 0.0
+    bb = flat.BoundBox
+    if r <= 0 or bb.XLength <= 0:
+        return None
+    return Part.makeCylinder(r, bb.XLength, App.Vector(0, 0, bb.XMin))
 
 
 def face_z(obj, stock=None):

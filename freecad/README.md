@@ -49,7 +49,13 @@ With the router turned to look at the part (the machine axes stay as they are), 
 **unrolled flat**: X along the part, Y round it (a width of 2π × radius is one full turn), Z 0 on the surface and
 negative into it. Use any operation (Profile, Pocket, Engrave, V-carve, Adaptive, 3D); nothing is greyed out, lines
 and zigzags are fine. Post Process wraps it (X = radius + Z, C = Y / radius, Z = X) and the simulator shows the
-cylinder with the router radial. The chuck and Polar Face are for the face only.
+cylinder with the router radial. Polar Face is for the face only.
+
+**The chuck in Wrap:** click **Chuck** as for the face. The part is the cylinder of the wrap radius along Z, from the
+unrolled stock's **X min (the chuck end)** to its X max; the jaws hold it *Grip length* deep from that end. The
+simulator shows the chuck turning with the part, and Post Process checks every move of the wrapped program — the
+router radial, from its tip outward — against the body and the jaws: a move that runs into them (often a rapid at
+"safe height", which near the chuck is not above the jaws) is refused with its line and place.
 
 ## Polar Face: facing any stock without cutting air
 

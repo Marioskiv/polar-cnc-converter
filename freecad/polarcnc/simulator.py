@@ -142,8 +142,8 @@ class Scene:
         holder = coin.SoSeparator()
         self.chuck_sw.addChild(holder)
         chuck = getattr(job, "PolarChuck", None)
-        if self.wrap:
-            pass                                                  # no chuck in the unrolled frame
+        if self.wrap and (chuck is None or chuck.Shape.isNull()):
+            pass                                                  # no chuck set up for this Job
         elif chuck is not None and not chuck.Shape.isNull():      # the Job's own chuck / faceplate
             from . import chuck as chuckmod
             pieces, _notes = chuckmod.build_parts(chuck)

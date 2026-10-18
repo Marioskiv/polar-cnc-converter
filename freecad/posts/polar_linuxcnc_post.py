@@ -86,6 +86,14 @@ def export(objectslist, filename, argstring):
         # the converter's own words; its line numbers are those of the milling program
         return _refuse("the program was not converted.\n%s" % e)
 
+    if held is not None and machine.is_wrap(job):      # wrap: the router is radial
+        from polarcnc import collision
+        ops = [getattr(item, "source", item) for item in objectslist]
+        radius = max([collision.tool_radius(o) for o in ops] + [0.0])
+        msg = collision.wrap_hits(held, bridge.parse(polar, opts), radius)
+        if msg:
+            return _refuse("the program runs into the chuck.\n" + msg)
+
     if FreeCAD.GuiUp and "--no-show-editor" not in argstring:
         if len(polar) > 100000:
             FreeCAD.Console.PrintMessage("Polar CNC: editor skipped, the output is over 100 kB\n")

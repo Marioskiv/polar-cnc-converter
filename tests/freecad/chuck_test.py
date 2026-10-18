@@ -60,7 +60,10 @@ def polar_face(job, final):
     cmd = polarface_gui.Command()
     cmd.res.job = job
     op = polarface_gui.create(cmd.res)
-    pump(300)
+    for _ in range(50):                  # the task panel opens on a later event-loop turn
+        pump(100)
+        if Gui.Control.activeTaskDialog() is not None:
+            break
     Gui.Control.activeTaskDialog().accept()
     pump(200)
     op.setExpression("FinalDepth", None)

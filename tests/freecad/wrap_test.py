@@ -3,7 +3,8 @@
 # The outside of a cylinder R20 drawn UNROLLED: a plate 60 long (X, along the part) and 2 pi 20
 # wide (Y, round it), its top at Z0 (the surface), with a slot and a groove all the way round
 # (cut by Custom operations: what is tested here is the wrap, not CAM's pocketing). Checks: a
-# Wrap Job is not a face Job (nothing greyed out, no chuck), no wrap radius is refused, Post
+# Wrap Job is not a face Job (nothing greyed out), no wrap radius is refused, the chuck holds
+# the cylinder and a groove inside the jaws is refused, Post
 # Process writes the wrapped program (X = 20 + Z, C = Y / 20, Z = X), and the simulator shows
 # the cylinder with the router radial. Screenshots for a person to look at.
 #
@@ -71,8 +72,9 @@ def go():
         job.PostProcessorArgs = "--no-show-editor"
         doc.recompute()
         policy._cache[0] = 0.0
-        check(not policy.is_polar(job), "a Wrap Job is not a face Job (no greying out, no chuck)")
-        check(not Gui.Command.get("PolarCNC_Chuck").isActive(), "Chuck is not offered for a Wrap Job")
+        check(not policy.is_polar(job), "a Wrap Job is not a face Job (no greying out)")
+        check(Gui.Command.get("PolarCNC_Chuck").isActive() and not Gui.Command.get("PolarCNC_PolarFace").isActive(),
+              "Wrap Job: Chuck offered, Polar Face not")
 
         boxes = []
         QtGui.QMessageBox.warning = staticmethod(lambda *a, **k: boxes.append(a[2]))
@@ -94,6 +96,27 @@ def go():
                   "groove: a full turn (C 360) at X 19.5")
             check(all(0 <= v["Z"] <= 60 for v in vals), "Z along the part, inside 0 .. 60")
             check("G93" in text and "G8" in text, "G93 and G8 (X radius)")
+
+        # the chuck: the part (a cylinder R20 from the stock's X min, the chuck end) held 10 mm
+        # deep in the SAN OU K72-125; the groove at X 5 is inside the jaws -> refused
+        from polarcnc import chuck as ch
+        held = ch.make_chuck(job)
+        held.GripLength = 10
+        doc.recompute()
+        check(any("closed on the stock at 20.00, 20.00, 20.00, 20.00" in n for n in held.Notes),
+              "wrap: the jaws close on the cylinder R20: %s" % held.Notes)
+        top = job.Stock.Shape.BoundBox.XMin + 10        # the Job's stock has a margin round the model
+        check(abs(held.Shape.BoundBox.ZMax - top) < 1e-6,
+              "wrap: jaw tops at the chuck end + grip 10 (Z %.2f)" % held.Shape.BoundBox.ZMax)
+        boxes[:] = []
+        res = PostProcessorFactory.get_post_processor(job, "polar_linuxcnc").export()
+        check(res and res[0][1] is None and boxes and "runs into the chuck" in boxes[-1],
+              "groove inside the jaws -> refused: %r" % (boxes[-1:] or "")[:140])
+        groove.Gcode = ["G0 Z3", "G0 X30 Y0", "G1 Z-0.5 F200", "G1 Y%.4f F600" % ROUND, "G0 Z3"]
+        doc.recompute()
+        res = PostProcessorFactory.get_post_processor(job, "polar_linuxcnc").export()
+        check(res and res[0][1] is not None, "groove moved to X 30, clear of the jaws -> written: %r"
+              % (boxes[-1:] if res and res[0][1] is None else ""))
 
         panel = simulator.open_for(job)
         pump(300)
