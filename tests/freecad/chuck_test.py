@@ -1,7 +1,8 @@
 # Polar CNC — the chuck / faceplate in a real FreeCAD (run by tests/freecad/run.sh, own start).
 #
-# Four set-ups: round stock in a 3-jaw SC-10, square stock in a 4-jaw chuck (jaws on the flats),
-# off-centre square in a 3-jaw (must be refused with a note), a plate on a faceplate with three
+# Set-ups: round stock in a 3-jaw SC-10, square stock in a 4-jaw chuck (jaws on the flats),
+# off-centre square in a 3-jaw (must be refused with a note), a square and a rectangle in the
+# SAN OU K12-125 4-jaw self-centring chuck (the rectangle refused), a plate on a faceplate with three
 # clamps. Checks: presets fill the sizes, the jaws meet the stock where they should, Polar Face cut
 # below the top of the jaws keeps the chuck clearance from every jaw and clamp, and screenshots
 # of the simulator with the real chuck.
@@ -148,6 +149,27 @@ def go():
         c.GripLength = 10
         doc.recompute()
         check(any("self-centring chuck cannot hold" in n for n in c.Notes), "C: %s" % c.Notes)
+        App.closeDocument(doc.Name)
+
+        # E: SAN OU K12-125, 4 jaws self-centring: a centred square is held, a rectangle is not
+        doc = App.newDocument("ChuckE")
+        job = job_for(doc, Part.makeCylinder(8, 15), Part.makeBox(40, 40, 20, App.Vector(-20, -20, 0)))
+        c = ch.make_chuck(job)
+        c.GripLength = 10
+        doc.recompute()
+        check(c.ChuckType == ch.FOUR_JAW_SC and abs(c.JawHeight.Value - 26) < 1e-9,
+              "E: default chuck is the SAN OU K12-125, jaws 26 mm above the face")
+        check(any("closed on the stock at 20.00, 20.00, 20.00, 20.00" in n for n in c.Notes), "E: %s" % c.Notes)
+        op = polar_face(job, 6)
+        gap = min_clearance(op, c, 10)
+        check(gap >= op.ChuckClearance.Value - 0.05, "E: keeps %.2f mm from the jaws" % gap)
+        App.closeDocument(doc.Name)
+        doc = App.newDocument("ChuckE2")
+        job = job_for(doc, Part.makeCylinder(8, 15), Part.makeBox(50, 30, 20, App.Vector(-25, -15, 0)))
+        c = ch.make_chuck(job)
+        c.GripLength = 10
+        doc.recompute()
+        check(any("self-centring chuck cannot hold" in n for n in c.Notes), "E: rectangle refused: %s" % c.Notes)
         App.closeDocument(doc.Name)
 
         # D: a plate on a faceplate with three clamps

@@ -71,6 +71,7 @@ properties choose a **Preset** or type your own sizes:
 
 | Preset | What |
 |---|---|
+| 4-jaw SAN OU K12-125 | the default: 4 jaws that move together (self-centring), Ø125, body 58, jaws 26 mm above the face (from the SAN OU table: H 84 − H1 58). Jaw length 40 and width 14 are taken from the drawing: measure them and correct |
 | 3-jaw SC-3 … SC-16 | self-centring scroll chuck, sizes from the usual catalogue table |
 | 4-jaw 12in … 24in | independent jaws: each jaw closes on the stock by itself, so square and off-centre stock is held |
 | Faceplate Ø250 / Ø400 | a plate; the work is held by clamps that you place |
@@ -79,8 +80,9 @@ Catalogue letters: **A** diameter, **B** body thickness, **H** jaw length (radia
 **K** jaw height above the face (the one that matters for collisions — measure your own chuck), **L** step.
 *Grip length* is how much of the stock the jaws hold; *First jaw angle* turns the jaws.
 
-- The jaws always close on the real stock. A 3-jaw chuck cannot centre a square or an off-centre stock: the
-  chuck's *Notes* say so (use the 4-jaw chuck).
+- The jaws always close on the real stock. A self-centring chuck (3 or 4 jaws that move together) holds only
+  stock that it can centre: a 3-jaw not a square, a 4-jaw self-centring not a rectangle or an off-centre stock.
+  The chuck's *Notes* then say so (use a 4-jaw chuck with independent jaws).
 - **Faceplate**: select the chuck and click **Add clamp** for each clamp. Give its *Angle* (where round the plate) and
   change *Length*, *Width*, *Overlap* if you like; it reaches the stock edge by itself and follows the stock if it
   changes.

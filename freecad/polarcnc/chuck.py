@@ -26,12 +26,17 @@ import Part
 
 THREE_JAW = "3-jaw (self-centring)"
 FOUR_JAW = "4-jaw (independent jaws)"
+FOUR_JAW_SC = "4-jaw (self-centring)"
 FACEPLATE = "Faceplate with clamps"
-TYPES = [THREE_JAW, FOUR_JAW, FACEPLATE]
+TYPES = [THREE_JAW, FOUR_JAW_SC, FOUR_JAW, FACEPLATE]
+SELF_CENTRING = (THREE_JAW, FOUR_JAW_SC)
 
 # catalogue sizes: (type, A diameter, B body, H jaw length, J jaw width, K jaw height)
 PRESETS = {
     "Custom": None,
+    # SAN OU K12 (4 jaws, one key): D 125, H1 58 body, H 84 overall -> jaws 26 above the face.
+    # Jaw length and width are not in the table: taken from the drawing, measure them.
+    "4-jaw SAN OU K12-125 (Ø125)": (FOUR_JAW_SC, 125, 58, 40, 14, 26),
     "3-jaw SC-3 (Ø86)": (THREE_JAW, 86, 46, 36, 11, 14.3),
     "3-jaw SC-4 (Ø112)": (THREE_JAW, 112, 60, 42, 14, 16.6),
     "3-jaw SC-5 (Ø132)": (THREE_JAW, 132, 60, 50, 16, 20.3),
@@ -57,8 +62,8 @@ PROPS = (
     ("App::PropertyLink", "Job", "The CAM Job whose stock this chuck holds."),
     ("App::PropertyEnumeration", "Preset", "A catalogue size; choosing one fills in the sizes below "
      "(they can still be changed: the preset then reads Custom)."),
-    ("App::PropertyEnumeration", "ChuckType", "3-jaw self-centring, 4-jaw with independent jaws, "
-     "or a faceplate with clamps you place yourself."),
+    ("App::PropertyEnumeration", "ChuckType", "3-jaw or 4-jaw self-centring (all jaws move together), "
+     "4-jaw with independent jaws, or a faceplate with clamps you place yourself."),
     ("App::PropertyLength", "Diameter", "Chuck (or faceplate) diameter, A in the catalogues."),
     ("App::PropertyLength", "BodyThickness", "Body (or faceplate) thickness, B."),
     ("App::PropertyLength", "JawLength", "Radial length of a jaw, H."),
@@ -88,6 +93,14 @@ class Chuck:
 
     def onDocumentRestored(self, obj):
         self._presetting = False
+        self._presetting = True             # files saved before a type or preset was added
+        try:
+            kind, preset = obj.ChuckType, obj.Preset
+            obj.ChuckType, obj.Preset = TYPES, list(PRESETS)
+            obj.ChuckType = kind
+            obj.Preset = preset if preset in PRESETS else "Custom"
+        finally:
+            self._presetting = False
 
     def onChanged(self, obj, prop):
         if getattr(self, "_presetting", False) or "Restore" in obj.State:
@@ -195,10 +208,10 @@ def build_parts(obj):
                 notes.append("Jaw %d would stand %.0f mm out of the chuck: the stock is too big for "
                              "this chuck." % (k + 1, r + obj.JawLength.Value - obj.Diameter.Value / 2))
             parts.append(_jaw(r, obj.JawLength.Value, obj.JawWidth.Value, face_z, jaw_h, a))
-        if kind == THREE_JAW and radii and max(radii) - min(radii) > 0.05:
+        if kind in SELF_CENTRING and radii and max(radii) - min(radii) > 0.05:
             notes.append("A self-centring chuck cannot hold this stock as it is placed: the jaws "
                          "would meet it at %s mm. Centre the stock on X0 Y0, turn the jaws "
-                         "(First Jaw Angle) or use a 4-jaw chuck."
+                         "(First Jaw Angle) or use a 4-jaw chuck with independent jaws."
                          % ", ".join("%.2f" % r for r in radii))
         if radii and not notes:
             notes.append("Jaws closed on the stock at %s mm." % ", ".join("%.2f" % r for r in radii))
@@ -260,7 +273,7 @@ class Clamp:
         return None
 
 
-def make_chuck(job, preset="3-jaw SC-10 (Ø273)"):
+def make_chuck(job, preset="4-jaw SAN OU K12-125 (Ø125)"):
     doc = job.Document
     obj = doc.addObject("Part::FeaturePython", "PolarChuck")
     Chuck(obj)
