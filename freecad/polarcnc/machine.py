@@ -30,6 +30,9 @@ PROPERTIES = (
      "Face: the router looks at the face of the part (parallel to Z). Wrap: the router is turned to "
      "look at the outside of the part (radial); the part is drawn as it is, its axis on Z through "
      "X0 Y0, and the Polar Wrap operation machines it."),
+    ("PolarWrapXMax", "App::PropertyLength",
+     "Wrap only: the largest X with the router radial (the Wrap profile of the machine has its "
+     "own travel and X zero). 0 = the same as Polar X Max."),
     ("PolarWrapDiameter", "App::PropertyLength",
      "Wrap only: the diameter of the stock (the bar in the chuck). Required."),
     ("PolarWrapToolLengthInX", "App::PropertyBool",
@@ -45,8 +48,33 @@ def has_settings(job):
     return hasattr(job, "PolarXMax")
 
 
+NORMAL_POST = "linuxcnc"
+
+
+def remove_settings(job):
+    """Back to an ordinary CAM Job: the Polar CNC properties go, the post-processor it had before
+    comes back. (A chuck stays in the document; it is linked again if the Job becomes polar.)"""
+    before = getattr(job, "PolarPreviousPost", "") or NORMAL_POST
+    for name, _typ, _tip in PROPERTIES:
+        if hasattr(job, name):
+            job.removeProperty(name)
+    if hasattr(job, "PolarPreviousPost"):
+        job.removeProperty("PolarPreviousPost")
+    choices = job.getEnumerationsOfProperty("PostProcessor")
+    for post in (before, NORMAL_POST, NORMAL_POST + "_legacy", ""):    # "" = none chosen
+        if post in choices:
+            job.PostProcessor = post
+            break
+
+
 def add_settings(job):
     """Add the Polar CNC properties to a Job (no values are guessed: X Max stays 0 = not set)."""
+    if not hasattr(job, "PolarPreviousPost"):       # to go back to an ordinary Job later
+        job.addProperty("App::PropertyString", "PolarPreviousPost", GROUP,
+                        "The post-processor the Job had before it became polar.")
+        job.setEditorMode("PolarPreviousPost", 2)
+        post = getattr(job, "PostProcessor", "") or ""
+        job.PolarPreviousPost = post if post and not post.startswith("polar") else NORMAL_POST
     for name, typ, tip in PROPERTIES:
         if not hasattr(job, name):
             job.addProperty(typ, name, GROUP, tip)
@@ -72,7 +100,7 @@ def options(job):
     """Converter options for this Job. Raises ValueError (in plain words) if something is missing."""
     if not has_settings(job):
         raise ValueError("This Job has no Polar CNC machine settings. Select the Job and use "
-                         "Polar CNC -> Machine settings first.")
+                         "Polar CNC -> Machining type first.")
     opts = {}
     if job.PolarProfile:
         with open(job.PolarProfile, encoding="utf-8") as f:
@@ -81,10 +109,14 @@ def options(job):
             raise ValueError("%s is not a Polar CNC profile." % job.PolarProfile)
         opts.update(prof.get("options") or {})
     # the two machine settings always come from the Job (a profile may carry old ones)
-    if job.PolarXMax.Value <= 0:
+    x_max = job.PolarXMax.Value
+    wrap_max = getattr(job, "PolarWrapXMax", None)
+    if is_wrap(job) and wrap_max is not None and wrap_max.Value > 0:
+        x_max = wrap_max.Value                 # the Wrap profile of the machine
+    if x_max <= 0:
         raise ValueError("X Axis Max is not set: enter the largest X your machine can reach "
-                         "(Job -> Polar CNC -> Polar X Max).")
-    opts["xMax"] = job.PolarXMax.Value
+                         "(button Machining type, or Job -> Polar CNC -> Polar X Max).")
+    opts["xMax"] = x_max
     opts["xMin"] = 0 if job.PolarCuttingSide == ONE_SIDE else -job.PolarPastCentre.Value
     if is_wrap(job):
         d = getattr(job, "PolarWrapDiameter", None)

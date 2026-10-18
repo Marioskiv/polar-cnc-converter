@@ -207,6 +207,62 @@ def go():
         op.Clearing = pf.FACE_ONLY
         doc.recompute()
         check(abs(op.FinalDepth.Value - 15) < 1e-6, "back to face only: down to the part top again")
+        check(op.Pattern == pf.AUTO and len([c for c in op.Path.Commands if c.Name in ("G2", "G3")]) > 20,
+              "square stock, pattern Auto: rings")
+
+        # round stock: the face as one spiral from the edge to the centre
+        import Draft
+        import Part
+        from Path.Main import Job as PathJob
+        from Path.Main.Gui import Job as PathJobGui
+        doc2 = App.newDocument("Spiral")
+        p2 = doc2.addObject("Part::Feature", "Disk")
+        p2.Shape = Part.makeCylinder(20, 10)
+        bar = doc2.addObject("Part::Feature", "Bar")
+        bar.Shape = Part.makeCylinder(25, 15)
+        doc2.recompute()
+        job2 = PathJob.Create("Job", [p2], None)
+        job2.ViewObject.Proxy = PathJobGui.ViewProvider(job2.ViewObject)
+        old = job2.Stock
+        job2.Stock = Draft.make_clone(bar)
+        doc2.removeObject(old.Name)
+        bar.ViewObject.Visibility = False
+        doc2.recompute()
+        Gui.Selection.clearSelection()
+        Gui.Selection.addSelection(job2)
+        Gui.runCommand("PolarCNC_MachineSettings")
+        job2.PolarXMax = 125
+        tc2 = job2.Tools.Group[0]
+        tc2.HorizFeed, tc2.VertFeed = "600 mm/min", "200 mm/min"
+        doc2.recompute()
+        cmd.res.job = job2
+        op2 = polarface_gui.create(cmd.res)
+        pump(500)
+        Gui.Control.activeTaskDialog().accept()
+        pump(300)
+        doc2.recompute()
+        cuts = [c for c in op2.Path.Commands if c.Name in ("G1", "G2", "G3")]
+        arcs2 = [c for c in cuts if c.Name != "G1"]
+        rs = []
+        x = y = z = None
+        for c in op2.Path.Commands:
+            pr = c.Parameters
+            x, y, z = pr.get("X", x), pr.get("Y", y), pr.get("Z", z)
+            if c.Name == "G1" and x is not None and z is not None and abs(z - 10) < 1e-6:
+                rs.append(math.hypot(x, y))
+        falling = rs[1:]     # rs[0]: the plunge beside the stock, in the air
+        check(not arcs2 and len(rs) > 100, "round stock, Auto: a spiral (%d moves, no arcs)" % len(rs))
+        check(falling and all(b <= a + 1e-9 for a, b in zip(falling, falling[1:])) and falling[-1] < 1e-6
+              and abs(max(falling) - 25) < 0.01,
+              "the spiral runs from the stock edge R25 steadily in to the centre (%s .. %s, max %.3f, up at %s)"
+              % (["%.2f" % r for r in falling[:4]], ["%.3f" % r for r in falling[-3:]], max(falling or [0]),
+                 [k for k, (a, b) in enumerate(zip(falling, falling[1:])) if b > a + 1e-9][:5]))
+        text2, _o = program.polar(job2)
+        check("G93" in text2, "the spiral converts to polar G-code")
+        op2.Pattern = pf.RINGS
+        doc2.recompute()
+        check(len([c for c in op2.Path.Commands if c.Name in ("G2", "G3")]) > 10, "Pattern Rings: circles again")
+        App.closeDocument(doc2.Name)
     except Exception:
         log.write(traceback.format_exc())
         fails.append("exception")

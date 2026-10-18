@@ -31,6 +31,31 @@ BLOCKED = {
     "CAM_MillFacing": "Path.Op.Gui.MillFacing",
 }
 
+# a Wrap Job is machined with Polar Wrap only (the router is radial): every operation that cuts a
+# flat face from above is greyed out there (Post Process would refuse it anyway)
+WRAP_BLOCKED = {
+    "CAM_Profile": "Path.Op.Gui.Profile",
+    "CAM_Pocket_Shape": "Path.Op.Gui.PocketShape",
+    "CAM_Pocket3D": "Path.Op.Gui.Pocket",
+    "CAM_MillFacing": "Path.Op.Gui.MillFacing",
+    "CAM_MillFace": "Path.Op.Gui.MillFace",
+    "CAM_Helix": "Path.Op.Gui.Helix",
+    "CAM_Drilling": "Path.Op.Gui.Drilling",
+    "CAM_Tapping": "Path.Op.Gui.Tapping",
+    "CAM_Adaptive": "Path.Op.Gui.Adaptive",
+    "CAM_Engrave": "Path.Op.Gui.Engrave",
+    "CAM_Vcarve": "Path.Op.Gui.Vcarve",
+    "CAM_Slot": "Path.Op.Gui.Slot",
+    "CAM_Deburr": "Path.Op.Gui.Deburr",
+    "CAM_ThreadMilling": "Path.Op.Gui.ThreadMilling",
+    "CAM_Flute": "Path.Op.Gui.Flute",
+    "CAM_Surface": "Path.Op.Gui.Surface",
+    "CAM_Waterline": "Path.Op.Gui.Waterline",
+    "CAM_PlanarSurface": "Path.Op.Gui.PlanarSurface",
+    "CAM_RotarySurface": "Path.Op.Gui.RotarySurface",
+    "CAM_Probe": "Path.Op.Gui.Probe",
+}
+
 # operations allowed in a polar Job with a word of warning: operation module -> reason
 WARN_OPS = {
     "Path.Op.Adaptive": "Adaptive works, but its many short moves make the chuck change direction "
@@ -111,6 +136,10 @@ def current_job():
 _original = {}
 
 
+def is_wrap_job(job):
+    return job is not None and machine.has_settings(job) and machine.is_wrap(job)
+
+
 def _wrap(name, module):
     try:
         cmd = importlib.import_module(module).Command
@@ -120,10 +149,12 @@ def _wrap(name, module):
         return True
     orig = cmd.IsActive
     _original[name] = (cmd, orig)
+    in_face, in_wrap = name in BLOCKED, name in WRAP_BLOCKED
 
     def IsActive():
         try:
-            if is_polar(current_job()):
+            job = current_job()
+            if (in_face and is_polar(job)) or (in_wrap and is_wrap_job(job)):
                 return False
         except Exception:
             pass
@@ -134,9 +165,12 @@ def _wrap(name, module):
 
 
 def install_blocking():
-    """Grey out the unsuitable operations while the current Job is polar (everywhere: toolbars,
-    menus, shortcuts). Returns the commands that were wrapped."""
-    return [name for name, module in BLOCKED.items() if _wrap(name, module)]
+    """Grey out the unsuitable operations while the current Job is polar, and every operation but
+    Polar Wrap while it is a Wrap Job (everywhere: toolbars, menus, shortcuts). Returns the
+    commands that were wrapped."""
+    both = dict(WRAP_BLOCKED)
+    both.update(BLOCKED)
+    return [name for name, module in both.items() if _wrap(name, module)]
 
 
 def uninstall_blocking():

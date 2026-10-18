@@ -21,11 +21,15 @@ FreeCAD.
 
 1. Draw the part with its **face centre at X0 Y0**: that point is the chuck axis. Make the CAM Job as usual
    (stock, tool controllers with **feeds**, operations).
-2. Select the Job and click **Polar machine settings** (toolbar *Polar CNC* in the CAM workbench). This adds a
-   **Polar CNC** group to the Job's properties, chooses the `polar_linuxcnc` post-processor and opens a small
-   dialog for the settings below (they stay editable in the properties).
+2. Select the Job and click **Machining type** (first button of the *Polar CNC* toolbar in the CAM workbench).
+   Choose **Ordinary CAM**, **Polar** (the chuck turns, the router looks at the face) or **Wrap** (the router turned
+   to a bar). It sets the post-processor, adds a **Polar CNC** group to the Job's properties and greys out the
+   operations that do not suit the choice. **Ordinary CAM** takes the Job back: the Polar CNC settings go and its
+   former post-processor comes back.
 3. The settings (dialog, or the Job's properties, group **Polar CNC**):
    - **Polar X Max**: the largest X your machine can reach (its X soft limit). Required.
+   - **Polar Wrap X Max** (Wrap): the largest X of the machine's Wrap profile (the router turned has its own travel
+     and X zero); 0 = the same as Polar X Max.
    - **Polar Cutting Side**: one side of the centre, or both sides (then **Polar Past Centre**: how far).
    - **Polar Profile** (optional): a `.polar-profile.json` saved from the web page (rotary letter, directions,
      X as diameter, chord tolerance).
@@ -65,8 +69,8 @@ Turn the router so that it looks at the part (the machine axes stay as they are:
 chuck). **Nothing is drawn flat**: the part is used as it is.
 
 1. Make the part (a solid, or import an STL) with its **axis on Z through X0 Y0**, its **lower end in the chuck**.
-2. Make the Job, click **Polar machine settings**, then in the Job's properties set **Polar Layout = Wrap** and
-   **Polar Wrap Diameter** = the diameter of the bar in the chuck.
+2. Make the Job, click **Machining type**, choose **Wrap**, enter the **bar diameter** and the Wrap X Max. In a
+   Wrap Job every other operation is greyed out: the whole job is done with Polar Wrap.
 3. **Chuck** (optional, recommended): choose your chuck and the *Grip length*.
 4. **Polar Wrap** (Polar CNC toolbar): the part is unrolled automatically — its radius round the axis is mapped
    on a fine grid (*Resolution*, 0.25 mm) — and the cutter runs **helices round it**, from the free end toward the
@@ -119,6 +123,11 @@ top (or the depths you set), at every depth only where the stock really is:
 | *Only round the part (leave the rest)* | a band of *Band width* round the part (auto = 1.5 cutter diameters); the rest of the stock stays and is kept clear like the jaws | as above |
 
 Round or square stock, any shape: the same choices. The final depth can always be typed in by hand.
+
+**Pattern:** *Rings* (circles round the chuck axis: on the machine only the chuck turns on each, any stock) or
+*Spiral* (one spiral from the edge to the centre: X falls steadily while the chuck turns, one smooth cut with no
+step-in marks; for the top of round stock). *Auto* (the default) uses the spiral where the area is one round disc
+(round stock, *Face only*) and rings everywhere else.
 
 **Into the material without plunging:** where the cutter has to go down into stock (a band closed in by material,
 the first cut of a layer), it ramps down along the cut it is about to make — on a circle the chuck turns while Z
@@ -220,7 +229,7 @@ Only three things are the addon's own: **Polar Face** (FreeCAD's Facing works on
 the air on round stock), **Polar Wrap** (FreeCAD has no radial router) and the **chuck** (not a tool: what holds the
 part, so that every operation is checked against it). Everything was run end to end in `tests/freecad/ops_test.py`.
 
-- The defaults are the Job's own *Operation defaults* (SetupSheet), set by *Polar machine settings*; they apply
+- The defaults are the Job's own *Operation defaults* (SetupSheet), set by *Machining type*; they apply
   to operations made after that. Operations that were already there are checked once and reported.
 - If a pattern that crosses the face line by line is chosen (ZigZag, Line, Grid, ZigZag Offset; Facing ZigZag,
   Bidirectional, Directional), a warning appears in the Report view and the status bar — never a dialog. The same

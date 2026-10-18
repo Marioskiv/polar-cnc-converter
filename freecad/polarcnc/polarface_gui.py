@@ -40,6 +40,10 @@ class TaskPanelOpPage(PathOpGui.TaskPanelPage):
         help.add_row(lay, "PolarFace:BandWidth", "Band width", self.band)
         self.clearing.currentIndexChanged.connect(
             lambda i: self.band.setEnabled(polarface.CLEARINGS[i] == polarface.BAND))
+        self.pattern = QtGui.QComboBox()
+        self.pattern.addItems(polarface.PATTERNS)
+        self.pattern.setToolTip(polarface_tip("Pattern"))
+        help.add_row(lay, "PolarFace:Pattern", "Pattern", self.pattern)
         self.step = QtGui.QSpinBox()
         self.step.setRange(5, 100)
         self.step.setSuffix(" %")
@@ -74,6 +78,8 @@ class TaskPanelOpPage(PathOpGui.TaskPanelPage):
         return w
 
     def getFields(self, obj):
+        if obj.Pattern != self.pattern.currentText():
+            obj.Pattern = self.pattern.currentText()
         if obj.Clearing != self.clearing.currentText():
             obj.Clearing = self.clearing.currentText()
         if abs(obj.BandWidth.Value - self.band.value()) > 1e-9:
@@ -91,6 +97,7 @@ class TaskPanelOpPage(PathOpGui.TaskPanelPage):
 
     def setFields(self, obj):
         self.clearing.setCurrentIndex(max(self.clearing.findText(obj.Clearing), 0))
+        self.pattern.setCurrentIndex(max(self.pattern.findText(obj.Pattern), 0))
         self.band.setValue(obj.BandWidth.Value)
         self.band.setEnabled(obj.Clearing == polarface.BAND)
         self.step.setValue(obj.StepOver)

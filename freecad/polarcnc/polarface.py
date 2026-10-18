@@ -405,10 +405,48 @@ class Plan:
     def __init__(self):
         self.moves = []
         self.start = None
+        self.spiral = False
+
+
+SPIRAL_SAG = 0.005      # mm: the spiral is written as straight moves this close to the curve
+
+
+def _round_disc(region):
+    """The radius if the area to cut is one full disc round the chuck axis, else None."""
+    if len(region.Faces) != 1 or len(region.Faces[0].Wires) != 1:
+        return None
+    edges = region.Faces[0].Wires[0].Edges
+    r = None
+    for e in edges:
+        c = getattr(e, "Curve", None)
+        if c is None or c.__class__.__name__ != "Circle" or c.Center.Length > 1e-6:
+            return None
+        if r is not None and abs(c.Radius - r) > 1e-6:
+            return None
+        r = c.Radius
+    return r
+
+
+def spiral_moves(r_max, step, cw):
+    """One spiral from the edge of a round stock in to the centre, `step` closer to the axis per
+    turn (on the polar machine: X falling steadily while the chuck turns, one smooth move with
+    no step-in marks). Starts in the air beside the stock and goes in to the spiral."""
+    a = 0.0
+    p_out = _pt(r_max + step + 1.0, a)
+    moves = [("lift", p_out), ("line", p_out, _pt(r_max, a))]
+    r, prev = r_max, _pt(r_max, a)
+    while r > 1e-6:
+        da = min(0.2, 2 * math.acos(max(1.0 - SPIRAL_SAG / max(r, SPIRAL_SAG), -1.0)))
+        a = a - da if cw else a + da
+        r = max(r - step * da / (2 * math.pi), 0.0)
+        p = _pt(r, a)
+        moves.append(("line", prev, p))
+        prev = p
+    return moves
 
 
 def plan_depth(stock_face, keep_face, radius, step, leave=0.0, cw=True, speeds=None, held=None,
-               tick=None):
+               tick=None, spiral=False):
     """Rings for one depth. stock_face: the stock section; keep_face: the part (or None);
     held: the jaws and clamps, already grown by their clearance (not by `leave`);
     radius: cutter radius; step: distance between rings; speeds: (cutting feed, plunge feed,
@@ -431,6 +469,13 @@ def plan_depth(stock_face, keep_face, radius, step, leave=0.0, cw=True, speeds=N
     centre_in = region.isInside(App.Vector(0, 0, 0), 1e-6, True)
     stock_reach = max(p.Length for e in stock_face.Edges for p in e.discretize(Deflection=0.005))
 
+    if spiral and keep is None:
+        r_disc = _round_disc(region)
+        if r_disc is not None and centre_in:
+            plan.moves = spiral_moves(r_disc, step, cw)
+            plan.start = plan.moves[0][1]
+            plan.spiral = True
+            return plan
     mat = Raster(stock_face, keep, radius)
 
     def travel(a, b, cw_):
@@ -724,6 +769,10 @@ class Progress:
 
 
 # ---- the CAM operation -----------------------------------------------------------------------
+AUTO = "Auto (spiral on round stock)"
+RINGS = "Rings"
+SPIRAL = "Spiral"
+PATTERNS = [AUTO, RINGS, SPIRAL]
 FACE_ONLY = "Face only (down to the part top)"
 WHOLE = "All the stock round the part"
 BAND = "Only round the part (leave the rest)"
@@ -735,6 +784,9 @@ PROPERTIES = (
      "stock: everything outside the part is cut away down to the final depth (a square bar "
      "becomes the round part). Only round the part: a band of Band Width round the part, the "
      "rest of the stock stays as it is."),
+    ("App::PropertyEnumeration", "Pattern", "Rings: circles round the chuck axis (any stock). "
+     "Spiral: one spiral from the edge to the centre, for the top of round stock (no step-in "
+     "marks); elsewhere rings are used. Auto: spiral where it can be used."),
     ("App::PropertyAngle", "RampAngle", "Into the material at this angle along the circle (the "
      "chuck turns while Z goes down), instead of plunging straight down. 0 = straight down."),
     ("App::PropertyLength", "BandWidth", "Only round the part: width of the band cut round it "
@@ -765,6 +817,7 @@ class ObjectPolarFace(PathOp.ObjectOp):
                 obj.addProperty(typ, name, "Polar Face", tip)
         obj.CutMode = ["Climb", "Conventional"]
         obj.Clearing = CLEARINGS
+        obj.Pattern = PATTERNS
         obj.setEditorMode("PolarChuck", 1)
 
     def opOnDocumentRestored(self, obj):
@@ -775,6 +828,9 @@ class ObjectPolarFace(PathOp.ObjectOp):
                     obj.ChuckClearance = 2.0
                 if name == "RampAngle":
                     obj.RampAngle = 3.0
+                if name == "Pattern":
+                    obj.Pattern = PATTERNS
+                    obj.Pattern = RINGS            # as the path was made before
                 if name == "Clearing":
                     obj.Clearing = CLEARINGS
                     obj.Clearing = FACE_ONLY
@@ -814,6 +870,7 @@ class ObjectPolarFace(PathOp.ObjectOp):
         obj.Clearing = FACE_ONLY
         obj.BandWidth = 0
         obj.RampAngle = 3.0
+        obj.Pattern = AUTO
         if job is not None and getattr(job, "PolarChuck", None) is not None:
             obj.PolarChuck = job.PolarChuck
 
@@ -883,6 +940,7 @@ class ObjectPolarFace(PathOp.ObjectOp):
     def _depths(self, obj, depths, stock, part, chuck, keepout, band, radius, step, cw, safe,
                 feed, vfeed, air, ramp, cmds, tick):
         z_top = obj.StartDepth.Value
+        said_rings = False
         for z in depths:
             above, z_top = z_top, z
             sec = stock_section(stock, z)
@@ -903,13 +961,20 @@ class ObjectPolarFace(PathOp.ObjectOp):
                 if not rest.isNull() and rest.Area > 1e-6:
                     rest = _flat(rest)
                     held = rest if held is None else held.fuse(rest).removeSplitter()
-            plan = plan_depth(sec, keep, radius, step, obj.StockToLeave.Value, cw, speeds, held, tick)
-            cmds.extend(commands(plan, z, safe, feed, vfeed, air, above, ramp))
+            want = obj.Pattern == SPIRAL or (obj.Pattern == AUTO and obj.Clearing == FACE_ONLY)
+            plan = plan_depth(sec, keep, radius, step, obj.StockToLeave.Value, cw, speeds, held, tick,
+                              spiral=want and held is None)
+            if obj.Pattern == SPIRAL and not plan.spiral and plan.moves and not said_rings:
+                said_rings = True
+                Path.Log.warning("Polar Face: at Z %.2f the area is not one round disc (square stock, "
+                                 "the part or the jaws are there): rings are cut there." % z)
+            # a spiral starts beside the stock, in the air: straight down there, no ramp
+            cmds.extend(commands(plan, z, safe, feed, vfeed, air, above, 0.0 if plan.spiral else ramp))
 
 
 def SetupProperties():
     return ["StepOver", "StockToLeave", "CutMode", "AirFeedFactor", "ChuckClearance", "Clearing",
-            "BandWidth", "RampAngle"]
+            "BandWidth", "RampAngle", "Pattern"]
 
 
 def Create(name, obj=None, parentJob=None):

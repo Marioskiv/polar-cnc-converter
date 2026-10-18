@@ -28,15 +28,17 @@ def _selected_job():
 
 
 class MachineSettingsCommand:
-    """Make the selected Job a polar Job: the Polar CNC properties and the polar post."""
+    """The machining type of the selected Job: ordinary CAM, polar (the face, the chuck turns)
+    or Wrap (the router radial, round a bar); with the machine settings of each."""
 
     def GetResources(self):
         return {
             "Pixmap": ICON,
-            "MenuText": "Polar machine settings",
-            "ToolTip": "Make the selected CAM Job a polar Job: adds the Polar CNC machine settings "
-                       "(cutting side, X Axis Max, profile) and chooses the polar_linuxcnc "
-                       "post-processor. Post Process then writes polar G-code.",
+            "MenuText": "Machining type",
+            "ToolTip": "The machining type of the selected CAM Job: ordinary CAM, polar (the chuck "
+                       "turns, the router looks at the face) or Wrap (the router turned to the "
+                       "bar). Sets the post-processor and the machine settings; the unsuitable "
+                       "operations are greyed out. Choose ordinary to go back.",
         }
 
     def IsActive(self):
@@ -46,40 +48,57 @@ class MachineSettingsCommand:
         job = _selected_job()
         if job is None:
             return
-        App.ActiveDocument.openTransaction("Polar machine settings")
+        doc = App.ActiveDocument
+        was_polar = machine.has_settings(job)
+        doc.openTransaction("Machining type")
         try:
-            machine.add_settings(job)
-        except Exception:
-            App.ActiveDocument.abortTransaction()
-            raise
-        try:      # X Max, cutting side, Face or Wrap in one small dialog (Cancel keeps them as they are)
             from . import dialogs
+            kind = "face"
             if dialogs.ask_settings_on():
-                dialogs.run(dialogs.SettingsDialog(job, Gui.getMainWindow()))
-        except Exception as e:
-            App.Console.PrintWarning("Polar CNC: the settings dialog failed (%s); set them in the "
-                                     "Job's properties, group 'Polar CNC'.\n" % e)
-        if POST in job.getEnumerationsOfProperty("PostProcessor"):
-            job.PostProcessor = POST
-        else:
-            App.Console.PrintWarning("Polar CNC: the %s post-processor was not found; check that "
-                                     "the addon is installed.\n" % POST)
-        try:
-            ops = policy.apply_defaults(job)
-            App.Console.PrintMessage("Polar CNC: polar defaults for new operations: %s\n"
-                                     % ", ".join(ops))
-        except Exception as e:
-            App.Console.PrintWarning("Polar CNC: could not set the operation defaults: %s\n" % e)
-        App.ActiveDocument.commitTransaction()
+                dlg = dialogs.SettingsDialog(job, Gui.getMainWindow())
+                if not dialogs.run(dlg):
+                    doc.abortTransaction()           # Cancel: the Job stays as it was
+                    return
+                kind = dlg.kind
+            else:
+                machine.add_settings(job)
+            if kind == "normal":
+                if was_polar:
+                    machine.remove_settings(job)
+                doc.commitTransaction()
+                doc.recompute()
+                policy._cache[0] = 0.0
+                App.Console.PrintMessage("Polar CNC: Job '%s' is an ordinary CAM Job (post %s).\n"
+                                         % (job.Label, job.PostProcessor))
+                return
+            if POST in job.getEnumerationsOfProperty("PostProcessor"):
+                job.PostProcessor = POST
+            else:
+                App.Console.PrintWarning("Polar CNC: the %s post-processor was not found; check "
+                                         "that the addon is installed.\n" % POST)
+            try:
+                ops = policy.apply_defaults(job)
+                App.Console.PrintMessage("Polar CNC: polar defaults for new operations: %s\n"
+                                         % ", ".join(ops))
+            except Exception as e:
+                App.Console.PrintWarning("Polar CNC: could not set the operation defaults: %s\n" % e)
+        except Exception:
+            doc.abortTransaction()
+            raise
+        doc.commitTransaction()
+        doc.recompute()
+        policy._cache[0] = 0.0
         for op in job.Operations.Group:     # operations made before the Job became polar
             for msg in policy.problems(op):
                 App.Console.PrintWarning("Polar CNC (%s): %s\n" % (op.Label, msg))
         Gui.Selection.clearSelection()
-        Gui.Selection.addSelection(job)   # the property editor shows the new "Polar CNC" group
+        Gui.Selection.addSelection(job)   # the property editor shows the "Polar CNC" group
         App.Console.PrintMessage(
-            "Polar CNC: Job '%s' is now polar. The settings are in its properties, group 'Polar "
+            "Polar CNC: Job '%s' is now %s. The settings are in its properties, group 'Polar "
             "CNC'%s. The CAM work origin X0 Y0 must be the chuck centre.\n"
-            % (job.Label, "" if job.PolarXMax.Value > 0 else " (Polar X Max is still to be set)"))
+            % (job.Label, "Wrap" if machine.is_wrap(job) else "polar",
+               "" if job.PolarXMax.Value > 0 or job.PolarWrapXMax.Value > 0
+               else " (Polar X Max is still to be set)"))
 
 
 class SimulateCommand:

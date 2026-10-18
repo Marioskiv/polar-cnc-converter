@@ -34,33 +34,51 @@ def _length(lo, hi, value):
 
 
 class SettingsDialog(QtGui.QDialog):
-    """The Job's Polar CNC settings in one place, instead of the property editor."""
+    """The machining type of the Job (ordinary CAM, polar or Wrap) and its settings, in one
+    place. After OK, `kind` is "normal", "face" or "wrap"."""
+
+    KINDS = ("normal", "face", "wrap")
 
     def __init__(self, job, parent=None):
         super().__init__(parent)
         self.job = job
+        self.kind = None
         self.setObjectName("PolarSettings")
         self.setWindowTitle(text("settings"))
         lay = QtGui.QVBoxLayout(self)
         form = QtGui.QFormLayout()
         lay.addLayout(form)
-        self.layout_box = QtGui.QComboBox()
-        self.layout_box.addItems([text("face"), text("wrap")])
-        self.layout_box.setCurrentIndex(1 if machine.is_wrap(job) else 0)
-        help.add_row(form, "Settings:Layout", "Router", self.layout_box)
-        self.xmax = _length(0, 10000, job.PolarXMax.Value)
+        self.kind_box = QtGui.QComboBox()
+        self.kind_box.addItems([text("kind_normal"), text("kind_face"), text("kind_wrap")])
+        polar = machine.has_settings(job)
+        self.kind_box.setCurrentIndex(0 if not polar else (2 if machine.is_wrap(job) else 1))
+        if not polar:
+            self.kind_box.setCurrentIndex(1)       # pressed on an ordinary Job: it is to be polar
+        help.add_row(form, "Settings:Kind", "Machining type", self.kind_box)
+
+        def value(name):
+            v = getattr(job, name, None)
+            return getattr(v, "Value", 0.0) if v is not None else 0.0
+        self.xmax = _length(0, 10000, value("PolarXMax"))
         help.add_row(form, "Settings:XMax", "X Max", self.xmax)
         self.side = QtGui.QComboBox()
         self.side.addItems([text("one"), text("both")])
-        self.side.setCurrentIndex(1 if job.PolarCuttingSide == machine.BOTH_SIDES else 0)
+        self.side.setCurrentIndex(1 if getattr(job, "PolarCuttingSide", "") == machine.BOTH_SIDES else 0)
         help.add_row(form, "Settings:Side", "Cutting side", self.side)
-        self.past = _length(0, 1000, job.PolarPastCentre.Value)
+        self.past = _length(0, 1000, value("PolarPastCentre"))
         help.add_row(form, "Settings:PastCentre", "Past the centre", self.past)
-        self.diameter = _length(0, 10000, job.PolarWrapDiameter.Value)
+        self.wrap_xmax = _length(0, 10000, value("PolarWrapXMax"))
+        help.add_row(form, "Settings:WrapXMax", "Wrap X Max", self.wrap_xmax)
+        self.diameter = _length(0, 10000, value("PolarWrapDiameter"))
         help.add_row(form, "Settings:WrapDiameter", "Bar diameter", self.diameter)
         self.in_x = QtGui.QCheckBox()
-        self.in_x.setChecked(bool(job.PolarWrapToolLengthInX))
+        self.in_x.setChecked(bool(getattr(job, "PolarWrapToolLengthInX", False)))
         help.add_row(form, "Settings:ToolLengthInX", "Tool lengths in X", self.in_x)
+        self.what = QtGui.QLabel()
+        self.what.setObjectName("what")
+        self.what.setWordWrap(True)
+        self.what.setStyleSheet("color: #334e68;")
+        lay.addWidget(self.what)
         self.problem = QtGui.QLabel()
         self.problem.setObjectName("problem")
         self.problem.setStyleSheet("color: #9b1c1c;")
@@ -70,36 +88,54 @@ class SettingsDialog(QtGui.QDialog):
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         lay.addWidget(buttons)
-        self.layout_box.currentIndexChanged.connect(self._enable)
+        self.kind_box.currentIndexChanged.connect(self._enable)
         self.side.currentIndexChanged.connect(self._enable)
-        for box in (self.xmax, self.diameter):
+        for box in (self.xmax, self.wrap_xmax, self.diameter):
             box.valueChanged.connect(lambda *_: self.problem.setText(""))
         self._enable()
-        self.setMinimumWidth(460)
+        self.setMinimumWidth(500)
+
+    def _chosen(self):
+        return self.KINDS[self.kind_box.currentIndex()]
 
     def _enable(self, *_):
-        wrap = self.layout_box.currentIndex() == 1
-        self.past.setEnabled(self.side.currentIndex() == 1)
+        kind = self._chosen()
+        face, wrap = kind == "face", kind == "wrap"
+        self.xmax.setEnabled(face or wrap)
+        self.side.setEnabled(face)
+        self.past.setEnabled(face and self.side.currentIndex() == 1)
+        self.wrap_xmax.setEnabled(wrap)
         self.diameter.setEnabled(wrap)
         self.in_x.setEnabled(wrap)
+        self.what.setText(text("what_" + kind))
+        self.problem.setText("")
 
     def accept(self):
-        if self.xmax.value() <= 0:
-            self.problem.setText(text("need_x"))
-            self.xmax.setFocus()
+        kind = self._chosen()
+        if kind == "normal":
+            self.kind = kind
+            super().accept()
             return
-        wrap = self.layout_box.currentIndex() == 1
+        wrap = kind == "wrap"
+        x_max = self.wrap_xmax.value() if wrap and self.wrap_xmax.value() > 0 else self.xmax.value()
+        if x_max <= 0:
+            self.problem.setText(text("need_x"))
+            (self.wrap_xmax if wrap else self.xmax).setFocus()
+            return
         if wrap and self.diameter.value() <= 0:
             self.problem.setText(text("need_d"))
             self.diameter.setFocus()
             return
         job = self.job
+        machine.add_settings(job)
         job.PolarLayout = machine.WRAP if wrap else machine.FACE
         job.PolarXMax = self.xmax.value()
         job.PolarCuttingSide = machine.BOTH_SIDES if self.side.currentIndex() == 1 else machine.ONE_SIDE
         job.PolarPastCentre = self.past.value()
+        job.PolarWrapXMax = self.wrap_xmax.value()
         job.PolarWrapDiameter = self.diameter.value()
         job.PolarWrapToolLengthInX = self.in_x.isChecked()
+        self.kind = kind
         super().accept()
 
 
