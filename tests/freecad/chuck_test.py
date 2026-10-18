@@ -122,6 +122,11 @@ def go():
         gap = min_clearance(op, c, jaw_top)
         check(gap >= op.ChuckClearance.Value - 0.05, "A: Polar Face keeps %.2f mm from the jaws (needs %.1f)"
               % (gap, op.ChuckClearance.Value))
+        warn = [m for m in policy.problems(op) if "below the top of the jaws" in m]
+        check(len(warn) == 1 and "4.00 mm below" in warn[0], "A: warns about the collet nut: %s" % warn)
+        import Path
+        check(ch.head_warning(c, Path.Path([Path.Command("G1", {"X": 0, "Z": 12})])) is None,
+              "A: no warning for a cut above the jaws")
         App.closeDocument(doc.Name)
 
         # B: square stock in a 4-jaw chuck, jaws on the flats
@@ -229,6 +234,8 @@ def go():
         gap = min_clearance(op, c, c.Shape.BoundBox.ZMax)
         check(gap >= op.ChuckClearance.Value - 0.05, "D: keeps %.2f mm from the clamps" % gap)
         check(len([x for x in op.Path.Commands if x.Name in ("G2", "G3")]) > 10, "D: still faces the plate")
+        warn = [m for m in policy.problems(op) if "below the top of the clamps" in m]
+        check(len(warn) == 1, "D: warns that the cut is below the clamp tops: %s" % warn)
         panel = simulator.open_for(job)
         panel.partv.setChecked(True)
         panel._jump(panel.motion.total)

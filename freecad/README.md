@@ -94,7 +94,12 @@ Measure your chuck and correct them. *Grip length* is how much of the stock the 
 - **Polar Face** keeps *Chuck clearance* (default 2 mm) away from jaws and clamps; the simulator shows the chuck
   turning with the part (jaws and clamps in red).
 
-Not checked yet: the spindle head against the turning jaws, and other operations' rapids against the jaws.
+- An operation that cuts lower than the top of the jaws (or clamps) gets a warning in the Report view and when
+  posting: the cutter keeps clear of them, but the collet nut and spindle are not checked, so the cutter must stick
+  out of the nut more than the depth shown.
+
+Not done yet: the jaws' angle on the machine is not tied to C0 (see *Open items* in
+[docs/FREECAD.md](../docs/FREECAD.md)); other operations (Profile, Pocket, …) are not checked against the jaws.
 
 ## Which operations suit polar machining
 

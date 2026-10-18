@@ -72,6 +72,16 @@ def export(objectslist, filename, argstring):
         # the converter's own words; its line numbers are those of the milling program
         return _refuse("the program was not converted.\n%s" % e)
 
+    try:     # cuts below the jaw / clamp tops: a reminder, never a refusal
+        from polarcnc import chuck
+        for item in objectslist:
+            obj = getattr(item, "source", item)
+            msg = chuck.head_warning(getattr(job, "PolarChuck", None), getattr(obj, "Path", None))
+            if msg:
+                FreeCAD.Console.PrintWarning("Polar CNC (%s): %s\n" % (obj.Label, msg))
+    except Exception:
+        pass
+
     if FreeCAD.GuiUp and "--no-show-editor" not in argstring:
         if len(polar) > 100000:
             FreeCAD.Console.PrintMessage("Polar CNC: editor skipped, the output is over 100 kB\n")

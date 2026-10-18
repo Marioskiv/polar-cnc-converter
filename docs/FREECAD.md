@@ -84,3 +84,18 @@ Lessons carried over from other FreeCAD addon work (FreeCAD 26.3):
   dialog per FreeCAD start. Close a dialog the way Cancel does: `Gui.Control.activeTaskDialog().reject()`.
 - Everything that runs at start-up is wrapped in `try/except`: an addon must never stop FreeCAD from starting.
 - Bump `<version>` in `package.xml` on every release, or the Addon Manager offers no update.
+
+## Open items
+
+- **Jaws in the CAM at their real angle.** The cutter is zeroed on the stock face, so heights are right; where
+  the jaws are round the axis is not: *First jaw angle* is a CAM setting with nothing on the machine tied to it.
+  Plan: a known start point for C (C0 at a reference that LinuxCNC knows, e.g. a mark or home on the chuck) so the
+  jaws in the CAM match the jaws on the machine.
+- Collision check of every operation and its rapids against the jaws / clamps (today: Polar Face keeps clear of
+  them; the others only get the "cuts below the jaw tops" warning).
+- Spindle head / collet nut against the turning jaws (needs the nut diameter and the cutter stick-out).
+- The C axis max velocity from the machine's `.ini`, for the near-centre time estimate.
+- Wrap (4th axis), then 4-axis.
+- SAN OU K12-125 and 3-jaw 125 presets: jaw length / width (and the 3-jaw's jaw height) are scaled from catalogue
+  drawings, not measured. K72-125 is measured.
+

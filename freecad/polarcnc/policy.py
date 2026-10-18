@@ -174,6 +174,11 @@ def problems(obj):
         val = getattr(obj, prop, None)
         if val in bad:
             out.append("%s %s %s Use %s." % (prop, val, PATTERN_REASON, bad[val]))
+    if hasattr(obj, "Path") and obj in getattr(getattr(job, "Operations", None), "Group", []):
+        from . import chuck
+        msg = chuck.head_warning(getattr(job, "PolarChuck", None), obj.Path)
+        if msg:
+            out.append(msg)
     if getattr(obj, "Proxy", None) and mod == "Path.Op.Drilling" and \
             getattr(obj, "Strategy", "") == "Tapping":
         out.append("Tapping is not converted to polar (the converter refuses tapping cycles).")
@@ -185,7 +190,7 @@ class Observer:
     pattern that does not suit it. Checks are deferred: CAM sets temporary values while it
     creates an operation (e.g. ZigZag first, then the Job's default)."""
 
-    WATCH = ("ClearingPattern", "CutPattern", "Strategy", "Base")
+    WATCH = ("ClearingPattern", "CutPattern", "Strategy", "Base", "Path")
 
     def __init__(self):
         self._said = {}

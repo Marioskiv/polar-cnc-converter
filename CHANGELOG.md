@@ -22,7 +22,8 @@
   sizes. The jaws close on the real stock (independent 4-jaw: each jaw on its own; self-centring 3- or 4-jaw: a
   note when the stock cannot be centred, e.g. a square in a 3-jaw, a rectangle in a 4-jaw). On a faceplate you place clamps by angle and radius; they reach the stock edge by
   themselves. Polar Face keeps *Chuck clearance* (2 mm) from jaws and clamps; the simulator shows the chuck
-  turning with the part (jaws and clamps in red).
+  turning with the part (jaws and clamps in red). An operation that cuts below the jaw / clamp tops gets a warning
+  (the collet nut is not checked).
 - **Polar Face**: a part made of several separate solids is now fully protected (only the first one was before),
   and a final pass round off-centre parts of the part removes the cusps the rings leave beside them.
 - **Polar simulation in FreeCAD**: plays the polar program (what Post Process writes) — machine view with the part

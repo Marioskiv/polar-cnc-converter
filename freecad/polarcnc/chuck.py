@@ -243,6 +243,32 @@ def obstacles_above(chuck, z):
     return above if above.Solids else None
 
 
+def lowest_cut(path):
+    """The lowest Z of the feed moves of a Path, or None."""
+    z, low = None, None
+    for cmd in path.Commands:
+        if "Z" in cmd.Parameters:
+            z = cmd.Parameters["Z"]
+        if cmd.Name in ("G1", "G01", "G2", "G02", "G3", "G03") and z is not None:
+            low = z if low is None else min(low, z)
+    return low
+
+
+def head_warning(chuck, path):
+    """A word of warning when an operation cuts lower than the top of the jaws or clamps: the
+    cutter keeps clear of them, but the collet nut / spindle above it is not checked."""
+    if chuck is None or chuck.Shape.isNull() or path is None:
+        return None
+    low = lowest_cut(path)
+    top = chuck.Shape.BoundBox.ZMax
+    if low is None or low >= top - 1e-6:
+        return None
+    what = "clamps" if chuck.ChuckType == FACEPLATE else "jaws"
+    return ("cuts down to Z %.2f, %.2f mm below the top of the %s (Z %.2f). The cutter keeps clear "
+            "of them, the collet nut and spindle are not checked: the cutter must stick out of the "
+            "nut more than %.1f mm." % (low, top - low, what, top, top - low))
+
+
 # ---- clamps for a faceplate (or anywhere): a block you place by radius and angle -------------
 CLAMP_PROPS = (
     ("App::PropertyLink", "Chuck", "The chuck or faceplate it stands on."),
