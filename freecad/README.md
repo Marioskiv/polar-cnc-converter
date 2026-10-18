@@ -66,8 +66,9 @@ hexagon and 58–60 % on a plate off the centre.
 
 ## The chuck, the 4-jaw chuck and the faceplate
 
-Select the Job and click **Chuck** (*Polar CNC* toolbar). A *Chuck* object is added to the Job; in its
-properties choose a **Preset** or type your own sizes:
+Select the Job and click **Chuck** (*Polar CNC* toolbar). A list opens: pick a catalogue chuck, or
+**Custom (my own sizes)** and type the sizes in the chuck's properties. Click **Chuck** again at any time to change
+it; the choice is also the chuck's **Preset** property.
 
 | Preset | What |
 |---|---|

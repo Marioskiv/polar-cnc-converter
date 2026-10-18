@@ -125,8 +125,8 @@ class ChuckCommand:
         return {"Pixmap": os.path.join(os.path.dirname(HERE), "Resources", "PolarChuck.svg"),
                 "MenuText": "Chuck",
                 "ToolTip": "The chuck or faceplate that holds the stock of the polar Job: 3-jaw, "
-                           "4-jaw with independent jaws, or a faceplate with clamps. Choose a "
-                           "catalogue size or enter your own; the jaws close on the real stock. "
+                           "4-jaw (independent or self-centring), or a faceplate with clamps. "
+                           "Choose a catalogue size (SAN OU K72-125, K12-125, …) or your own; the jaws close on the real stock. "
                            "Polar Face keeps clear of it and the simulator shows it."}
 
     def IsActive(self):
@@ -139,11 +139,24 @@ class ChuckCommand:
         from . import chuck
         job = policy.current_job()
         obj = getattr(job, "PolarChuck", None)
-        if obj is None:
+        names = list(chuck.PRESETS)
+        current = obj.Preset if obj is not None else names[1]
+        from PySide import QtGui
+        name, ok = QtGui.QInputDialog.getItem(
+            Gui.getMainWindow(), "Polar CNC — chuck",
+            "Chuck or faceplate (choose \"%s\" to type the sizes in the properties):"
+            % chuck.CUSTOM, names, names.index(current) if current in names else 0, False)
+        if not ok:
+            if obj is None:
+                return
+        else:
             App.ActiveDocument.openTransaction("Polar chuck")
-            obj = chuck.make_chuck(job)
+            if obj is None:
+                obj = chuck.make_chuck(job, name if name != chuck.CUSTOM else names[1])
+                _style(obj)
+            obj.Preset = name                  # Custom keeps the sizes, ready to be changed
+            App.ActiveDocument.recompute()
             App.ActiveDocument.commitTransaction()
-            _style(obj)
         Gui.Selection.clearSelection()
         Gui.Selection.addSelection(obj)
         for note in obj.Notes:

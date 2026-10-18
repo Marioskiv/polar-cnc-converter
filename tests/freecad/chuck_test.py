@@ -18,7 +18,7 @@ import traceback
 
 import FreeCAD as App
 import FreeCADGui as Gui
-from PySide import QtCore
+from PySide import QtCore, QtGui
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from common import OUT, check, fails, finish, log, pump  # noqa: E402
@@ -101,7 +101,7 @@ def shot(name):
 
 def go():
     import Part
-    from polarcnc import chuck as ch, simulator
+    from polarcnc import chuck as ch, policy, simulator
     try:
         Gui.activateWorkbench("CAMWorkbench")
         Gui.getMainWindow().resize(1500, 950)
@@ -180,6 +180,39 @@ def go():
         check(c.ChuckType == ch.FOUR_JAW and abs(c.Diameter.Value - 125) < 1e-9,
               "E: default chuck is the SAN OU K72-125 (independent)")
         check(any("closed on the stock at 25.00, 15.00, 25.00, 15.00" in n for n in c.Notes), "E: %s" % c.Notes)
+        App.closeDocument(doc.Name)
+
+        # F: the Chuck button asks which chuck (catalogue size or Custom)
+        doc = App.newDocument("ChuckF")
+        job = job_for(doc, Part.makeCylinder(8, 15), Part.makeBox(40, 40, 20, App.Vector(-20, -20, 0)))
+
+        def pick(name):
+            def answer():
+                dlg = QtGui.QApplication.activeModalWidget()
+                if dlg is not None:
+                    dlg.setTextValue(name)
+                    dlg.accept()
+            QtCore.QTimer.singleShot(400, answer)
+
+        Gui.Selection.clearSelection()
+        Gui.Selection.addSelection(job)
+        policy._cache[0] = 0.0
+        pick("4-jaw SAN OU K12-125 self-centring (Ø125)")
+        Gui.runCommand("PolarCNC_Chuck")
+        c = getattr(job, "PolarChuck", None)
+        check(c is not None and c.Preset.startswith("4-jaw SAN OU K12") and c.ChuckType == ch.FOUR_JAW_SC,
+              "F: Chuck button made the chosen K12-125")
+        pick("4-jaw SAN OU K72-125 independent (Ø125)")
+        Gui.runCommand("PolarCNC_Chuck")
+        check(c.ChuckType == ch.FOUR_JAW and abs(c.JawHeight.Value - 21.7) < 1e-9 and
+              abs(c.JawLength.Value - 56) < 1e-9 and abs(c.JawWidth.Value - 18) < 1e-9,
+              "F: changed to the K72-125 (21.7 / 56 / 18)")
+        pick(ch.CUSTOM)
+        Gui.runCommand("PolarCNC_Chuck")
+        c.JawHeight = 30
+        doc.recompute()
+        check(c.Preset == ch.CUSTOM and abs(c.JawHeight.Value - 30) < 1e-9 and abs(c.JawWidth.Value - 18) < 1e-9,
+              "F: Custom keeps the sizes and takes your own (%s, %.1f)" % (c.Preset, c.JawHeight.Value))
         App.closeDocument(doc.Name)
 
         # D: a plate on a faceplate with three clamps

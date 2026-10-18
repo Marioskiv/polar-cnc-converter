@@ -31,9 +31,12 @@ FACEPLATE = "Faceplate with clamps"
 TYPES = [THREE_JAW, FOUR_JAW_SC, FOUR_JAW, FACEPLATE]
 SELF_CENTRING = (THREE_JAW, FOUR_JAW_SC)
 
+CUSTOM = "Custom (my own sizes)"
+OLD_NAMES = {"Custom": CUSTOM}         # presets saved under an older name
+
 # catalogue sizes: (type, A diameter, B body, H jaw length, J jaw width, K jaw height)
 PRESETS = {
-    "Custom": None,
+    CUSTOM: None,
     # SAN OU catalogue sizes. Body thickness from the tables; jaw height above the face, jaw
     # length and width are not in them for every model: scaled from the catalogue drawings
     # (3-jaw: body 58 -> jaws about 18). Measure your own chuck.
@@ -103,7 +106,8 @@ class Chuck:
             kind, preset = obj.ChuckType, obj.Preset
             obj.ChuckType, obj.Preset = TYPES, list(PRESETS)
             obj.ChuckType = kind
-            obj.Preset = preset if preset in PRESETS else "Custom"
+            preset = OLD_NAMES.get(preset, preset)
+            obj.Preset = preset if preset in PRESETS else CUSTOM
         finally:
             self._presetting = False
 
@@ -120,14 +124,14 @@ class Chuck:
             finally:
                 self._presetting = False
         elif prop in ("ChuckType", "Diameter", "BodyThickness", "JawLength", "JawWidth",
-                      "JawHeight") and obj.Preset != "Custom":
+                      "JawHeight") and obj.Preset != CUSTOM:
             preset = PRESETS.get(obj.Preset)
             now = (obj.ChuckType, obj.Diameter.Value, obj.BodyThickness.Value, obj.JawLength.Value,
                    obj.JawWidth.Value, obj.JawHeight.Value)
             if preset and any((p != n if isinstance(p, str) else abs(p - n) > 1e-6)
                               for p, n in zip(preset, now)):
                 self._presetting = True
-                obj.Preset = "Custom"
+                obj.Preset = CUSTOM
                 self._presetting = False
 
     def execute(self, obj):
