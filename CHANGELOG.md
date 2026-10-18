@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.17.0 — Polar Face: what to cut
+
+### Added
+- **Polar Face → What to cut**: *Face only* (as before), *All the stock round the part* (everything outside the
+  part down to the final depth: a square bar becomes the round part, a round bar is turned down to it), or *Only
+  round the part* (a band of *Band width* round it, the rest of the stock left and kept clear). For round and
+  square stock alike. The final depth follows the choice: the part bottom, but above the jaws (or the faceplate).
+- README: where X0 Y0 and Z0 are (chuck axis; stock top).
+
 ## 2.16.0 — help inside FreeCAD (Greek/English), settings dialog, review fixes
 
 ### Added

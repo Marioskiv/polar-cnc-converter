@@ -106,6 +106,72 @@ def go():
         Gui.getMainWindow().grab().save(os.path.join(OUT, "polar_face_machine.png"))
         panel.reject()
         pump(200)
+
+        # what to cut: the square stock (50 x 50, Z0..20) round the round part (R15 up to Z10, R6
+        # boss up to Z15). Cutter radius from the tool controller.
+        from polarcnc import polarface as pf
+        rad = op.ToolController.Tool.Diameter.Value / 2
+
+        def at(z):
+            """Radii of every cutting point at depth z (arc ends and line ends)."""
+            out, x, y, zz = [], None, None, None
+            for c in op.Path.Commands:
+                pr = c.Parameters
+                x, y, zz = pr.get("X", x), pr.get("Y", y), pr.get("Z", zz)
+                if c.Name in ("G1", "G2", "G3") and zz is not None and abs(zz - z) < 1e-6 and x is not None:
+                    out.append(math.hypot(x, y))
+            return out
+
+        check(op.Clearing == pf.FACE_ONLY, "Polar Face starts as 'face only'")
+        op.Clearing = pf.WHOLE
+        doc.recompute()
+        def cut_length():
+            total, x, y = 0.0, None, None
+            for c in op.Path.Commands:
+                pr = c.Parameters
+                nx, ny = pr.get("X", x), pr.get("Y", y)
+                if x is not None and c.Name == "G1":
+                    total += math.hypot(nx - x, ny - y)
+                elif x is not None and c.Name in ("G2", "G3"):
+                    r = math.hypot(pr["I"], pr["J"])
+                    a0, a1 = math.atan2(y, x), math.atan2(ny, nx)
+                    sw = (a0 - a1) if c.Name == "G2" else (a1 - a0)
+                    total += r * (sw % (2 * math.pi))
+                x, y = nx, ny
+            return total
+
+        check(abs(op.FinalDepth.Value - 0) < 1e-6, "all the stock: down to the part bottom (%s)" % op.FinalDepth)
+        zs = sorted({c.Parameters["Z"] for c in op.Path.Commands if c.Name in ("G1", "G2", "G3") and "Z" in c.Parameters})
+        z = min(z for z in zs if z < 10 - 1e-6)
+        rs = at(z)
+        check(rs and min(rs) > 15 + rad - 0.05 and max(rs) > 30,
+              "all the stock at Z%.2f: from the part (R%.2f) out to the corners (R%.2f)" % (z, min(rs), max(rs)))
+        whole_len = cut_length()
+        op.Clearing = pf.BAND
+        op.BandWidth = 6
+        doc.recompute()
+        rs = at(z)
+        check(rs and min(rs) > 15 + rad - 0.05 and max(rs) < 15 + 6 + 0.05,
+              "band 6 mm at Z%.2f: only R%.2f .. R%.2f, the corners stay" % (z, min(rs), max(rs)))
+        band_len = cut_length()
+        check(band_len < 0.7 * whole_len, "the band cuts less than clearing everything (%.0f vs %.0f mm)" % (band_len, whole_len))
+        top = at(max(zs))
+        check(top and max(top) < 15 + 6 + 0.05, "band: above the part only the band (and the part top) is cut")
+        panel_ok = True
+        try:
+            from polarcnc import polarface_gui
+            page = polarface_gui.TaskPanelOpPage(op, 0)
+            form = page.getForm()
+            page.form = form
+            page.setFields(op)
+            panel_ok = page.clearing.currentText() == pf.BAND and page.band.isEnabled() and page.band.value() == 6
+        except Exception as e:
+            log.write("panel: %s\n" % e)
+            panel_ok = False
+        check(panel_ok, "the panel shows 'what to cut' and the band width")
+        op.Clearing = pf.FACE_ONLY
+        doc.recompute()
+        check(abs(op.FinalDepth.Value - 15) < 1e-6, "back to face only: down to the part top again")
     except Exception:
         log.write(traceback.format_exc())
         fails.append("exception")

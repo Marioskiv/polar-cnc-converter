@@ -107,6 +107,21 @@ top (or the depths you set), at every depth only where the stock really is:
 - the part (everything of it at or above the depth being cut) is never touched; *Stock to leave* keeps a skin round
   it; the last pass runs straight into the centre (X only), where no circle could keep the feed.
 
+**What to cut** (in the panel, with its **?**):
+
+| Choice | What it does | Final depth by default |
+|---|---|---|
+| *Face only* | the top of the stock, down to the part top | the part top |
+| *All the stock round the part* | everything outside the part goes: a square bar becomes the round part, a round bar is turned down to it | the part bottom, but above the jaws (+ chuck clearance); on a faceplate above the plate |
+| *Only round the part (leave the rest)* | a band of *Band width* round the part (auto = 1.5 cutter diameters); the rest of the stock stays and is kept clear like the jaws | as above |
+
+Round or square stock, any shape: the same choices. The final depth can always be typed in by hand.
+
+**Where the zero is:** X0 Y0 = the chuck axis (draw the part with its centre there). Z0 = the **stock top** (the face
+you touch the cutter off on): in FreeCAD put the top of the stock at Z 0, or the program header says where the top
+is (`( Setup: … )` and a note when Z0 is not on the stock top). The chuck is placed from the stock (bottom + grip),
+so you never set it by hand.
+
 Measured (`tests/freecad/polarface_geometry_test.py`, Ø6 cutter, step 40 %): nothing left uncut, the part never
 touched, no fast move over uncut material, and compared with full circles over the whole swept circle the time is
 16–21 % shorter on round stock, 37–41 % on a square, 44–46 % on a square turned and off the centre, 33–36 % on a

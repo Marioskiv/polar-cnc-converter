@@ -513,7 +513,19 @@ def commands(plan, z, safe, feed, vfeed, air):
 
 
 # ---- the CAM operation -----------------------------------------------------------------------
+FACE_ONLY = "Face only (down to the part top)"
+WHOLE = "All the stock round the part"
+BAND = "Only round the part (leave the rest)"
+CLEARINGS = [FACE_ONLY, WHOLE, BAND]
+BAND_AUTO = 1.5         # BandWidth 0: this many cutter diameters
+
 PROPERTIES = (
+    ("App::PropertyEnumeration", "Clearing", "Face only: the top, down to the part top. All the "
+     "stock: everything outside the part is cut away down to the final depth (a square bar "
+     "becomes the round part). Only round the part: a band of Band Width round the part, the "
+     "rest of the stock stays as it is."),
+    ("App::PropertyLength", "BandWidth", "Only round the part: width of the band cut round it "
+     "(0 = 1.5 cutter diameters)."),
     ("App::PropertyPercent", "StepOver", "Distance between the circles, in % of the cutter "
      "diameter."),
     ("App::PropertyDistance", "StockToLeave", "Material left round the part (sideways)."),
@@ -539,6 +551,7 @@ class ObjectPolarFace(PathOp.ObjectOp):
             if not hasattr(obj, name):
                 obj.addProperty(typ, name, "Polar Face", tip)
         obj.CutMode = ["Climb", "Conventional"]
+        obj.Clearing = CLEARINGS
         obj.setEditorMode("PolarChuck", 1)
 
     def opOnDocumentRestored(self, obj):
@@ -547,7 +560,35 @@ class ObjectPolarFace(PathOp.ObjectOp):
                 obj.addProperty(typ, name, "Polar Face", tip)
                 if name == "ChuckClearance":
                     obj.ChuckClearance = 2.0
+                if name == "Clearing":
+                    obj.Clearing = CLEARINGS
+                    obj.Clearing = FACE_ONLY
         obj.setEditorMode("PolarChuck", 1)
+
+    def opUpdateDepths(self, obj):
+        """Face only: down to the part top (CAM's own default). All the stock / only round the
+        part: down to the part bottom, but not into the grip of the jaws (on a faceplate, down
+        to the plate). FinalDepth can still be set by hand."""
+        if getattr(obj, "Clearing", FACE_ONLY) == FACE_ONLY:
+            return
+        job = PathUtils.findParentJob(obj)
+        if job is None:
+            return
+        z = job.Proxy.modelBoundBox(job).ZMin
+        chuck = getattr(job, "PolarChuck", None)
+        if chuck is not None and not chuck.Shape.isNull():
+            from . import chuck as chuckmod
+            built = chuckmod._build(chuck)
+            if not built["body"]:
+                tops = []
+            elif chuck.ChuckType == chuckmod.FACEPLATE:
+                tops = [built["body"].BoundBox.ZMax]
+            else:
+                tops = [jaw.BoundBox.ZMax for jaw, _r in built["jaws"]]
+            if tops:
+                z = max(z, max(tops) + max(obj.ChuckClearance.Value, 0))
+        if not Path.Geom.isRoughly(obj.OpFinalDepth.Value, z):
+            obj.OpFinalDepth = z
 
     def opSetDefaultValues(self, obj, job):
         obj.StepOver = 40
@@ -555,6 +596,8 @@ class ObjectPolarFace(PathOp.ObjectOp):
         obj.CutMode = "Climb"
         obj.AirFeedFactor = 3.0
         obj.ChuckClearance = 2.0
+        obj.Clearing = FACE_ONLY
+        obj.BandWidth = 0
         if job is not None and getattr(job, "PolarChuck", None) is not None:
             obj.PolarChuck = job.PolarChuck
 
@@ -599,6 +642,14 @@ class ObjectPolarFace(PathOp.ObjectOp):
                                         0.0, obj.FinalDepth.Value)
         feed, vfeed = self.horizFeed, self.vertFeed
         air = feed * max(obj.AirFeedFactor, 1.0)
+        band = None
+        if obj.Clearing == BAND:              # the band round the whole outline of the part
+            outline = part_keep(part, part.BoundBox.ZMin - 1.0)
+            if outline is None:
+                Path.Log.error("Polar Face: 'Only round the part' needs a part.")
+                return
+            width = obj.BandWidth.Value or BAND_AUTO * 2 * radius
+            band = grow(outline, width + max(obj.StockToLeave.Value, 0))
         cmds = self.commandlist
         cmds.append(Path.Command("G0", {"Z": clearance}))
         for z in depths:
@@ -615,12 +666,18 @@ class ObjectPolarFace(PathOp.ObjectOp):
                 held = chuck_keep(keepout, z - max(obj.ChuckClearance.Value, 0))
                 if held is not None:
                     held = grow(held, max(obj.ChuckClearance.Value, 0) + EPS)
+            if band is not None:                 # the stock outside the band stays: kept clear
+                rest = sec.cut(band)
+                if not rest.isNull() and rest.Area > 1e-6:
+                    rest = _flat(rest)
+                    held = rest if held is None else held.fuse(rest).removeSplitter()
             plan = plan_depth(sec, keep, radius, step, obj.StockToLeave.Value, cw, speeds, held)
             cmds.extend(commands(plan, z, safe, feed, vfeed, air))
 
 
 def SetupProperties():
-    return ["StepOver", "StockToLeave", "CutMode", "AirFeedFactor", "ChuckClearance"]
+    return ["StepOver", "StockToLeave", "CutMode", "AirFeedFactor", "ChuckClearance", "Clearing",
+            "BandWidth"]
 
 
 def Create(name, obj=None, parentJob=None):

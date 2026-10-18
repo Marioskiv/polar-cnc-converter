@@ -27,6 +27,19 @@ class TaskPanelOpPage(PathOpGui.TaskPanelPage):
         w = QtGui.QWidget()
         w.setWindowTitle("Polar Face")
         lay = QtGui.QFormLayout(w)
+        self.clearing = QtGui.QComboBox()
+        self.clearing.addItems(polarface.CLEARINGS)
+        self.clearing.setToolTip(polarface_tip("Clearing"))
+        help.add_row(lay, "PolarFace:Clearing", "What to cut", self.clearing)
+        self.band = QtGui.QDoubleSpinBox()
+        self.band.setRange(0, 500)
+        self.band.setDecimals(3)
+        self.band.setSuffix(" mm")
+        self.band.setSpecialValueText("auto")
+        self.band.setToolTip(polarface_tip("BandWidth"))
+        help.add_row(lay, "PolarFace:BandWidth", "Band width", self.band)
+        self.clearing.currentIndexChanged.connect(
+            lambda i: self.band.setEnabled(polarface.CLEARINGS[i] == polarface.BAND))
         self.step = QtGui.QSpinBox()
         self.step.setRange(5, 100)
         self.step.setSuffix(" %")
@@ -54,6 +67,10 @@ class TaskPanelOpPage(PathOpGui.TaskPanelPage):
         return w
 
     def getFields(self, obj):
+        if obj.Clearing != self.clearing.currentText():
+            obj.Clearing = self.clearing.currentText()
+        if abs(obj.BandWidth.Value - self.band.value()) > 1e-9:
+            obj.BandWidth = self.band.value()
         if obj.StepOver != self.step.value():
             obj.StepOver = self.step.value()
         if abs(obj.StockToLeave.Value - self.leave.value()) > 1e-9:
@@ -64,13 +81,17 @@ class TaskPanelOpPage(PathOpGui.TaskPanelPage):
             obj.AirFeedFactor = self.air.value()
 
     def setFields(self, obj):
+        self.clearing.setCurrentIndex(max(self.clearing.findText(obj.Clearing), 0))
+        self.band.setValue(obj.BandWidth.Value)
+        self.band.setEnabled(obj.Clearing == polarface.BAND)
         self.step.setValue(obj.StepOver)
         self.leave.setValue(obj.StockToLeave.Value)
         self.mode.setCurrentIndex(max(self.mode.findText(obj.CutMode), 0))
         self.air.setValue(obj.AirFeedFactor)
 
     def getSignalsForUpdate(self, obj):
-        return [self.step.valueChanged, self.leave.valueChanged, self.mode.currentIndexChanged,
+        return [self.clearing.currentIndexChanged, self.band.valueChanged,
+                self.step.valueChanged, self.leave.valueChanged, self.mode.currentIndexChanged,
                 self.air.valueChanged]
 
 

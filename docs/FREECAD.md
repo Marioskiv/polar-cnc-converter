@@ -104,6 +104,10 @@ Lessons carried over from other FreeCAD addon work (FreeCAD 26.3):
 - Wrap is done (Polar Wrap). Still open: Kiri:Moto-style XYZA input, and 4-axis.
 - Stepped jaws (the real K72 jaws have steps): needs a photo or the sizes of the steps.
 - An axis-layout helper on the web page, so that others can describe their own machine layout.
+- Asked to keep for later (Marios, 2.17.0): C0 tied to the jaws, stepped K72 jaws, the axis-layout helper,
+  the C max velocity from the `.ini`.
+- Polar Face plunges straight down (vertical feed) where a band is closed in by material: a ramp or helix entry
+  would be gentler.
 - Help animations: re-record with `tools/help_gifs` when a command's look changes (the texts are in
   `freecad/help/help.json`, en and el).
 - SAN OU K12-125 and 3-jaw 125 presets: jaw length / width (and the 3-jaw's jaw height) are scaled from catalogue
