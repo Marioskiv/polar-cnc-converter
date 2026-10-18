@@ -71,6 +71,9 @@ DEFAULTS = {
 }
 
 
+LIVE_CHECK_LIMIT = 5000      # Path commands an operation may have for the live chuck check
+
+
 def is_polar(job):
     """A Job made for the FACE (Polar Face, the chuck, greying out). A Wrap Job is drawn flat
     (unrolled), so every operation and pattern suits it and the chuck is not in its frame."""
@@ -185,7 +188,10 @@ def problems(obj):
     if hasattr(obj, "Path") and obj in getattr(getattr(job, "Operations", None), "Group", []):
         from . import chuck, collision
         held = getattr(job, "PolarChuck", None)
-        msg = collision.hit_message(obj, collision.obstacles(held)) if held is not None else None
+        # checked here (on every change) only for paths of a usual size, so a big 3D path never
+        # slows FreeCAD down while editing; Post Process checks every path anyway
+        small = len(obj.Path.Commands) <= LIVE_CHECK_LIMIT
+        msg = collision.hit_message(obj, collision.obstacles(held)) if held is not None and small else None
         if msg:
             out.append(msg)
         msg = chuck.head_warning(held, obj.Path)
@@ -252,12 +258,28 @@ class Observer:
                 self._later(obj)
             if prop == "Shape" and obj.TypeId == "Part::FeaturePython":
                 self._chuck_changed(obj)
-            elif prop == "Stock" and getattr(obj, "PolarChuck", None) is not None and \
-                    obj.PolarChuck.Stock != obj.Stock:
-                obj.PolarChuck.Stock = obj.Stock        # the chuck follows a new Job stock
-            elif prop in ("PolarLayout", "PolarWrapDiameter") and \
+            elif prop in ("Stock", "PolarLayout", "PolarWrapDiameter") and \
                     getattr(obj, "PolarChuck", None) is not None:
-                obj.PolarChuck.touch()                  # the bar it holds has changed
+                # not inside the change notification (it also runs during undo/redo): on the
+                # next turn of the event loop, and only if something is really out of date
+                from PySide import QtCore
+                doc, name = obj.Document.Name, obj.Name
+                QtCore.QTimer.singleShot(0, lambda: self._follow_job(doc, name))
+        except Exception:
+            pass
+
+    def _follow_job(self, doc, name):
+        """The chuck follows a new Job stock, layout or wrap diameter."""
+        try:
+            d = App.getDocument(doc)
+            job = d.getObject(name) if d else None
+            held = getattr(job, "PolarChuck", None) if job is not None else None
+            if held is None:
+                return
+            if getattr(job, "Stock", None) is not None and held.Stock != job.Stock:
+                held.Stock = job.Stock
+            else:
+                held.touch()
         except Exception:
             pass
 

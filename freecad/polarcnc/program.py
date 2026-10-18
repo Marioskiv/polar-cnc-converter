@@ -29,12 +29,27 @@ def cartesian(objectslist, argstring=""):
 
 def job_objects(job):
     """Everything Post Process would send for the whole Job, in order."""
-    from Path.Post.Processor import PostProcessorFactory
-    proc = PostProcessorFactory.get_post_processor(job, "polar_linuxcnc")
-    objs = []
-    for _name, sublist in proc._buildPostList():
-        objs.extend(sublist)
-    return objs
+    try:
+        from Path.Post.Processor import PostProcessorFactory
+        proc = PostProcessorFactory.get_post_processor(job, "polar_linuxcnc")
+        objs = []
+        for _name, sublist in proc._buildPostList():      # FreeCAD's own order (26.3)
+            objs.extend(sublist)
+        return objs
+    except AttributeError:
+        # another FreeCAD version without that (private) call: fixture, then each active
+        # operation after its tool controller
+        objs = []
+        last_tc = None
+        for op in job.Operations.Group:
+            if not getattr(op, "Active", True):
+                continue
+            tc = getattr(op, "ToolController", None)
+            if tc is not None and tc is not last_tc:
+                objs.append(tc)
+                last_tc = tc
+            objs.append(op)
+        return objs
 
 
 def wrap_operations_only(objs):
@@ -42,10 +57,25 @@ def wrap_operations_only(objs):
     operations work on a flat face). Raises ValueError naming the others."""
     others = [o.Label for o in (getattr(i, "source", i) for i in objs)
               if hasattr(o, "Path") and hasattr(o, "ToolController")
+              and getattr(o, "Active", True)
               and type(getattr(o, "Proxy", None)).__name__ != "ObjectPolarWrap"]
     if others:
         raise ValueError("In a Wrap Job only Polar Wrap operations can be used (the router is "
                          "radial); remove or disable: %s." % ", ".join(others))
+
+
+def wrap_tool_length_check(job, text):
+    """With the router lying sideways the tool length runs along X, not Z. A G43 with lengths
+    in the Z column (as on every mill) would shift the whole program along the part. Refused
+    until the Job says the lengths are in the X column."""
+    import re
+    uses = any(re.search(r"\bG\s*0*43(?![.\d])", l.split("(")[0].upper()) for l in text.splitlines())
+    if uses and not getattr(job, "PolarWrapToolLengthInX", False):
+        raise ValueError(
+            "the program uses tool length offsets (G43), and in Wrap the router lies sideways: its "
+            "tool length runs along X. Put each tool's length in the X column of the LinuxCNC "
+            "tool table (not Z), then tick Job -> Polar CNC -> Polar Wrap Tool Length In X. "
+            "(Or switch tool length offsets off in the post-processor.)")
 
 
 def unroll(text, r0):
@@ -82,8 +112,9 @@ def unroll(text, r0):
             raise ValueError("a Wrap move before X, Y and Z are all known: %s" % line.strip())
         x, y, z = pos
         r = math.hypot(x, y)
-        raw = math.atan2(y, x)
-        theta = raw if theta is None else theta + ((raw - theta + math.pi) % (2 * math.pi) - math.pi)
+        if r > 0.01 or theta is None:       # on the axis the angle means nothing: keep it
+            raw = math.atan2(y, x)
+            theta = raw if theta is None else theta + ((raw - theta + math.pi) % (2 * math.pi) - math.pi)
         rest = gword.sub("", word.sub("", code)).strip()
         out.append("%s X%.4f Y%.4f Z%.4f%s" % (motion, z, theta * r0, r - r0,
                                                (" " + rest) if rest else ""))
@@ -98,5 +129,6 @@ def polar(job):
     text = cartesian(objs, job.PostProcessorArgs)
     if machine.is_wrap(job):
         wrap_operations_only(objs)
+        wrap_tool_length_check(job, text)
         text = unroll(text, opts["wrapRadius"])
     return bridge.convert(text, opts), opts

@@ -31,6 +31,7 @@ bridge turns that logging category off, or it fills FreeCAD's report view on eve
 | Polar Wrap | `freecad/polarcnc/wrapcut.py`, `polarwrap.py`, `polarwrap_gui.py` | Wrap Jobs (router radial). `radius_map`: the model's outermost radius on a (z, angle) grid from slices (`Shape.slice`, `Mesh.crossSections`), two slices per row half a step apart (a slice exactly on a flat face is ambiguous: solid and mesh pick opposite sides), max per angle cell; `tip_map`: radial drop-cutter (flat or ball) measured from each cell's near edge, so the cutter is never in the part between grid points; `helix_passes`: roughing layers and a finishing helix. The path is written round the real part; `program.unroll` turns it into the converter's wrap input (X = z, Y = unwound angle x r0, Z = r - r0) |
 | program | `freecad/polarcnc/program.py` | the Job's milling program (a fresh copy of FreeCAD's LinuxCNC post) and its polar conversion; used by the post and the simulator, so both see the same program |
 | simulator | `freecad/polarcnc/simulator.py` | converts the Job like Post Process, reads the polar program back with the web simulator's parser (`src/core/polar-parser.js`, joint-space interpolation as LinuxCNC does) and plays it in the 3D view with Coin nodes: a turning group (chuck, model and stock tessellated, path) and a cutter that only moves in X and Z. All document objects are hidden while it runs and every visibility is put back on close (hiding a group also hides its children, so states are read first). `View3D.saveImage` renders without these nodes; tests capture the window |
+| help | `freecad/polarcnc/help.py`, `freecad/help/help.json`, `freecad/help/img/{el,en}/*.gif` | own MIT code, no packages. One event filter, put only on the *Polar CNC* toolbar buttons (re-put on every CAM activation, the toolbar is rebuilt): hover 500 ms → a `Qt.ToolTip` frame (title, `QMovie` animation, numbered steps, warning); the plain tooltip is suppressed while popups are on. Task-panel fields get a **?** `QToolButton` (`add_row`), no event filters on dialogs. `error_card()` matches the message against `errors[].re` in help.json (first match, else a generic card) and shows why/what to do with the message; it falls back to `QMessageBox` if the card cannot be built. Language: parameter `Mod/PolarCNC/HelpLanguage` (`auto` = Greek if FreeCAD's language is Greek). Animations: `tools/help_gifs/record.py` in a real FreeCAD (one scene per start, the addon's own objects and simulator), `compose.py` (Pillow, only for the tool) adds the button card and captions |
 | start-up | `freecad/InitGui.py`, `package.xml` | `package.xml` at the repository root declares a workbench item in the subdirectory `freecad` (FreeCAD runs its `InitGui.py`) |
 
 **FreeCAD 26.3 facts found while building it**
@@ -73,7 +74,9 @@ FREECAD=/path/to/bin/freecad sh tests/freecad/run.sh   # the addon, in a real Fr
 
 `tests/freecad/run.sh` runs one FreeCAD start per test (one task dialog per start): `polar_post_test.py`,
 `simulator_test.py` (cutter position in both views, playback, everything hidden and restored, screenshots),
-`polarface_geometry_test.py` (FreeCADCmd), `polarface_test.py` and `chuck_test.py`.
+`polarface_geometry_test.py` (FreeCADCmd), `polarface_test.py`, `chuck_test.py`, `wrapcut_geometry_test.py`,
+`wrap_test.py` and `help_test.py` (popups on the toolbar, field help, error cards, both languages). Tests that
+expect a refusal catch the error card (`common.catch_messages`) instead of letting it block.
 It makes a throw-away FreeCAD user folder with this repository linked as the PolarCNC
 addon, runs `polar_post_test.py` under `xvfb-run`, and then converts FreeCAD's own LinuxCNC output with the
 Node converter (`compare.js`): the post's output must be the same. The test checks that the post is offered
@@ -98,7 +101,11 @@ Lessons carried over from other FreeCAD addon work (FreeCAD 26.3):
   jaws in the CAM match the jaws on the machine.
 - Spindle head / collet nut against the turning jaws (needs the nut diameter and the cutter stick-out).
 - The C axis max velocity from the machine's `.ini`, for the near-centre time estimate.
-- Wrap (4th axis), then 4-axis.
+- Wrap is done (Polar Wrap). Still open: Kiri:Moto-style XYZA input, and 4-axis.
+- Stepped jaws (the real K72 jaws have steps): needs a photo or the sizes of the steps.
+- An axis-layout helper on the web page, so that others can describe their own machine layout.
+- Help animations: re-record with `tools/help_gifs` when a command's look changes (the texts are in
+  `freecad/help/help.json`, en and el).
 - SAN OU K12-125 and 3-jaw 125 presets: jaw length / width (and the 3-jaw's jaw height) are scaled from catalogue
   drawings, not measured. K72-125 is measured.
 

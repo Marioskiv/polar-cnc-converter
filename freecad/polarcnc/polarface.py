@@ -66,6 +66,23 @@ def part_keep(part_shape, z):
     return out.removeSplitter()
 
 
+def chuck_keep(parts, z):
+    """The chuck parts (body, jaws or jaw rings, clamps: all straight up along Z) at or above z,
+    seen from above, holes kept (a jaw ring is a ring, not a disc), or None."""
+    out = None
+    for p in parts:
+        bb = p.BoundBox
+        if bb.ZMax <= z + 1e-6:
+            continue
+        zs = (max(bb.ZMin, z) + bb.ZMax) / 2
+        wires = p.slice(App.Vector(0, 0, 1), zs)
+        if not wires:
+            continue
+        face = _flat(Part.makeFace(wires, "Part::FaceMakerBullseye"))
+        out = face if out is None else out.fuse(face)
+    return out.removeSplitter() if out is not None else None
+
+
 def grow(shape, d):
     """Offset every face of a (possibly multi-face) flat shape by d and join them: makeOffset2D
     on a compound of separate faces (the part and the jaws, say) offsets only the first."""
@@ -74,9 +91,40 @@ def grow(shape, d):
         return shape
     out = None
     for f in faces:
-        g = f.makeOffset2D(d, join=0) if abs(d) > 1e-12 else f
+        # a face that came out of a boolean upside down (normal -Z) is offset the wrong way by
+        # makeOffset2D (grown -> shrunk): the direction is checked by the area
+        if abs(d) <= 1e-12:
+            g = f
+        elif len(f.Wires) > 1:
+            g = _offset_by_wires(f, d)       # outline out, holes in, each checked
+        else:
+            g = _offset_signed(f, d)
         out = g if out is None else out.fuse(g)
     return out.removeSplitter() if out is not None else shape
+
+
+def _offset_signed(face, d):
+    """A face without holes offset by d (d > 0 grows it), whichever way its normal points:
+    makeOffset2D follows the orientation, so the direction is checked by the area."""
+    g = face.makeOffset2D(d, join=0)
+    if (d > 0 and g.Area < face.Area) or (d < 0 and g.Area > face.Area):
+        g = face.makeOffset2D(-d, join=0)
+    return g
+
+
+def _offset_by_wires(face, d):
+    """face offset by d (d > 0 grows it): the outline grown, every hole shrunk (and a hole that
+    closes up dropped). Each wire as its own face, the direction checked by the area."""
+    loops = sorted((Part.Face(w) for w in face.Wires), key=lambda f: -f.Area)
+    out = _offset_signed(loops[0], d)
+    for hole in loops[1:]:
+        if d > 0 and min(hole.BoundBox.XLength, hole.BoundBox.YLength) <= 2 * d:
+            continue
+        try:
+            out = out.cut(_offset_signed(hole, -d))
+        except Exception:
+            pass
+    return out
 
 
 def _flat(shape):
@@ -523,11 +571,30 @@ class ObjectPolarFace(PathOp.ObjectOp):
         chuck = getattr(obj, "PolarChuck", None) or chuck
         if chuck is not None and chuck.Shape.isNull():
             chuck = None
+        keepout = []
+        if chuck is not None:
+            from . import chuck as chuckmod
+            keepout = chuckmod.keepout_parts(chuck)
         cw = obj.CutMode == "Climb"
         spindle = getattr(obj.ToolController, "SpindleDir", "Forward")
         if spindle == "Reverse":
             cw = not cw
         safe, clearance = obj.SafeHeight.Value, obj.ClearanceHeight.Value
+        if not self.horizFeed or not self.vertFeed:
+            Path.Log.error("Polar Face: the tool controller '%s' has no feed. Set its Horiz Feed "
+                           "and Vert Feed." % getattr(obj.ToolController, "Label", "?"))
+            return
+        if not stock.BoundBox.isInside(App.Vector(0, 0, stock.BoundBox.Center.z)):
+            Path.Log.warning("Polar Face: the chuck axis (X0 Y0) is outside the stock. Is the part "
+                             "drawn with its centre at X0 Y0?")
+        if keepout:              # moves over the jaws at the safe height must clear them
+            top = max(p.BoundBox.ZMax for p in keepout[1:]) if len(keepout) > 1 else None
+            need = (top + max(obj.ChuckClearance.Value, 0)) if top is not None else None
+            if need is not None and safe < need:
+                Path.Log.warning("Polar Face: the Safe Height %.2f is below the jaw / clamp tops "
+                                 "%.2f + clearance: %.2f is used instead." % (safe, top, need))
+                safe = need
+                clearance = max(clearance, need)
         depths = PathUtils.depth_params(clearance, safe, obj.StartDepth.Value, obj.StepDown.Value,
                                         0.0, obj.FinalDepth.Value)
         feed, vfeed = self.horizFeed, self.vertFeed
@@ -543,7 +610,9 @@ class ObjectPolarFace(PathOp.ObjectOp):
             keep = part_keep(part, z)
             held = None
             if chuck is not None:                  # jaws and clamps: kept clear like the part
-                held = part_keep(chuck.Shape, z)
+                # the clearance holds in height too: a cut at (or just above) the jaw tops would
+                # rub them, so jaws reaching within ChuckClearance below the cut are kept clear
+                held = chuck_keep(keepout, z - max(obj.ChuckClearance.Value, 0))
                 if held is not None:
                     held = grow(held, max(obj.ChuckClearance.Value, 0) + EPS)
             plan = plan_depth(sec, keep, radius, step, obj.StockToLeave.Value, cw, speeds, held)

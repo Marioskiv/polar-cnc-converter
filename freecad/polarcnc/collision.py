@@ -41,25 +41,33 @@ def obstacles(chuck):
 
 
 def _obstacles(chuck):
+    """Each part as (name, top Z, edges): the edges of its section half way up (all the chuck's
+    parts stand straight up along Z), as two (n, 2) arrays of segment ends, holes included (a
+    jaw ring is a ring, the body has its bore)."""
     import FreeCAD as App
-    import TechDraw
     from . import chuck as chuckmod
-    parts, _notes = chuckmod.build_parts(chuck)
+    parts = chuckmod.keepout_parts(chuck)
     out = []
     for i, solid in enumerate(parts):
-        for k, s in enumerate(solid.Solids or [solid]):
-            outline = TechDraw.findShapeOutline(s, 1, App.Vector(0, 0, 1))
-            pts = outline.discretize(Deflection=0.02)
-            poly = numpy.array([(p.x, p.y) for p in pts])
+        for s in (solid.Solids or [solid]):
+            bb = s.BoundBox
+            a, b = [], []
+            for w in s.slice(App.Vector(0, 0, 1), (bb.ZMin + bb.ZMax) / 2):
+                pts = [(p.x, p.y) for p in w.discretize(Deflection=0.02)]
+                a.extend(pts)
+                b.extend(pts[1:] + pts[:1])
+            if not a:
+                continue
             name = "chuck body" if i == 0 else ("jaw / clamp %d" % i)
-            out.append((name, s.BoundBox.ZMax, poly))
+            out.append((name, bb.ZMax, (numpy.array(a), numpy.array(b))))
     return out
 
 
-def _inside(poly, P):
-    """Even-odd test of points P (n, 2) against a closed polygon."""
-    x0, y0 = poly[:, 0], poly[:, 1]
-    x1, y1 = numpy.roll(x0, -1), numpy.roll(y0, -1)
+def _inside(edges, P):
+    """Even-odd test of points P (n, 2) against closed loops given as their edges (a, b)."""
+    a, b = edges
+    x0, y0 = a[:, 0], a[:, 1]
+    x1, y1 = b[:, 0], b[:, 1]
     px, py = P[:, 0][:, None], P[:, 1][:, None]
     cross = ((y0 <= py) & (py < y1)) | ((y1 <= py) & (py < y0))
     with numpy.errstate(divide="ignore", invalid="ignore"):
@@ -67,10 +75,9 @@ def _inside(poly, P):
     return ((cross & (px < xc)).sum(axis=1) % 2) == 1
 
 
-def _edge_dist(poly, P):
-    """Distance of points P (n, 2) from the outline of a polygon."""
-    a = poly
-    b = numpy.roll(poly, -1, axis=0)
+def _edge_dist(edges, P):
+    """Distance of points P (n, 2) from the edges (a, b)."""
+    a, b = edges
     d = b - a
     L2 = numpy.maximum((d * d).sum(axis=1), 1e-12)
     rel = P[:, None, :] - a[None, :, :]
@@ -125,22 +132,62 @@ def check(obs, path, radius):
     Returns None (nothing reaches down to the cut) or a dict: clearance (negative = it cuts into
     an obstacle), obstacle name, tip position, command index, rapid."""
     P, I, R = samples(path)
+    return check_points(obs, P, I, R, radius)
+
+
+def check_points(obs, P, I, R, radius):
+    """check() for tip positions P (n, 3) with their command/line I and rapid flags R. Only the
+    points near an obstacle (its box grown by the cutter radius and 5 mm) are measured, in chunks
+    small enough for the memory."""
     best = None
-    for name, top, poly in obs:
-        below = P[:, 2] < top - 1e-6           # only where the tip is lower than the obstacle top
-        if not below.any():
+    for name, top, edges in obs:
+        lo = numpy.minimum(edges[0].min(axis=0), edges[1].min(axis=0)) - radius - 5
+        hi = numpy.maximum(edges[0].max(axis=0), edges[1].max(axis=0)) + radius + 5
+        near = (P[:, 2] < top + TOUCH) & (P[:, 0] >= lo[0]) & (P[:, 0] <= hi[0]) & \
+            (P[:, 1] >= lo[1]) & (P[:, 1] <= hi[1])
+        if not near.any():
             continue
-        Q = P[below]
-        for start in range(0, len(Q), 4000):
-            chunk = Q[start:start + 4000]
-            d = _edge_dist(poly, chunk[:, :2])
-            d = numpy.where(_inside(poly, chunk[:, :2]), -d, d) - radius
+        idx = numpy.nonzero(near)[0]
+        Q = P[idx]
+        step = max(int(2e6 // max(len(edges[0]), 1)), 1)
+        for start in range(0, len(Q), step):
+            chunk = Q[start:start + step]
+            d = _edge_dist(edges, chunk[:, :2])
+            d = numpy.where(_inside(edges, chunk[:, :2]), -d, d) - radius
             k = int(numpy.argmin(d))
             if best is None or d[k] < best["clearance"]:
-                j = numpy.nonzero(below)[0][start + k]
+                j = idx[start + k]
                 best = {"clearance": float(d[k]), "obstacle": name, "at": tuple(P[j]),
                         "command": int(I[j]), "rapid": bool(R[j])}
     return best
+
+
+def polar_hits(obs, data, radius, step=0.5):
+    """Face mode, on the polar program as the machine runs it (data: bridge.parse): every block
+    followed in joint space (X, C, Z linear, as LinuxCNC moves them), so a rapid that curves
+    between two points is checked where it really goes. A sentence for a hit, else None."""
+    r, c, z = data["r"], data["c"], data["z"]
+    pts, lines, rapid = [], [], []
+    for i in range(1, len(r)):
+        a0, a1 = math.radians(c[i - 1]), math.radians(c[i])
+        L = math.hypot(r[i] - r[i - 1], z[i] - z[i - 1]) + abs(a1 - a0) * max(abs(r[i - 1]), abs(r[i]))
+        n = max(int(L / step), 1)
+        t = numpy.linspace(0.0, 1.0, n + 1)[1:]
+        rr = r[i - 1] + (r[i] - r[i - 1]) * t
+        aa = a0 + (a1 - a0) * t
+        pts.append(numpy.c_[rr * numpy.cos(aa), rr * numpy.sin(aa), z[i - 1] + (z[i] - z[i - 1]) * t])
+        lines.append(numpy.full(len(t), data["line"][i] or 0))
+        rapid.append(numpy.full(len(t), bool(data["rapid"][i])))
+    if not pts:
+        return None
+    res = check_points(obs, numpy.vstack(pts), numpy.concatenate(lines), numpy.concatenate(rapid), radius)
+    if res is None or res["clearance"] >= -TOUCH:
+        return None
+    x, y, zz = res["at"]
+    return ("%s runs into the %s at X %.2f C %.1f Z %.2f (line %d of the polar program, %.2f mm "
+            "deep). Change the operation, the grip length or the jaw / clamp position."
+            % ("A rapid move" if res["rapid"] else "The cut", res["obstacle"], math.hypot(x, y),
+               math.degrees(math.atan2(y, x)) % 360, zz, res["command"], -res["clearance"]))
 
 
 def wrap_hits(chuck, data, radius, step=0.5):
@@ -151,7 +198,7 @@ def wrap_hits(chuck, data, radius, step=0.5):
     import FreeCAD as App
     import Part
     from . import chuck as chuckmod
-    parts, _notes = chuckmod.build_parts(chuck)
+    parts = chuckmod.keepout_parts(chuck)
     if not parts:
         return None
     obs = Part.makeCompound(parts)

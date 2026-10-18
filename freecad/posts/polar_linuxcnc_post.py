@@ -49,9 +49,95 @@ def _job(objectslist):
 def _refuse(msg):
     FreeCAD.Console.PrintError("Polar CNC: %s\n" % msg)
     if FreeCAD.GuiUp:
-        from PySide import QtGui
-        QtGui.QMessageBox.warning(None, "Polar CNC", msg)
+        try:
+            from polarcnc import help
+            help.error_card(msg, "Polar CNC — Post Process")
+        except Exception:
+            from PySide import QtGui
+            QtGui.QMessageBox.warning(None, "Polar CNC", msg)
     return None  # Post Process writes no file
+
+
+class _Refused(Exception):
+    pass
+
+
+def _polar_program(job, objectslist, argstring):
+    """The polar program for these objects, after every check; raises _Refused (in plain words)."""
+    try:
+        opts = machine.options(job)
+    except (ValueError, OSError) as e:
+        raise _Refused(str(e))
+    wrap = machine.is_wrap(job)
+    ops = [getattr(item, "source", item) for item in objectslist]
+    held = getattr(job, "PolarChuck", None)
+    from polarcnc import chuck, collision
+    if held is None:
+        FreeCAD.Console.PrintWarning("Polar CNC: no chuck set up for this Job: the jaws are not "
+                                     "checked (Polar CNC -> Chuck).\n")
+    elif not wrap:
+        # the CAM paths first: names the operation and the move
+        obs = collision.obstacles(held)
+        hits = ["%s: %s" % (o.Label, m) for o in ops for m in [collision.hit_message(o, obs)] if m]
+        if hits:
+            raise _Refused("the program runs into the chuck.\n" + "\n".join(hits))
+        for o in ops:       # cuts below the jaw / clamp tops: a reminder, never a refusal
+            msg = chuck.head_warning(held, getattr(o, "Path", None))
+            if msg:
+                FreeCAD.Console.PrintWarning("Polar CNC (%s): %s\n" % (o.Label, msg))
+
+    # the milling program, without its editor (it is not what goes to the machine)
+    cartesian = program.cartesian(objectslist, argstring)
+    if wrap:                # the real part's paths, unrolled for the wrap layout
+        try:
+            program.wrap_operations_only(objectslist)
+            program.wrap_tool_length_check(job, cartesian)
+            cartesian = program.unroll(cartesian, opts["wrapRadius"])
+        except ValueError as e:
+            raise _Refused(str(e))
+    try:
+        polar = bridge.convert(cartesian, opts)
+    except bridge.ConverterError as e:
+        # the converter's own words; its line numbers are those of the milling program
+        raise _Refused("the program was not converted.\n%s" % e)
+
+    polar = _with_setup_notes(polar, job, wrap, held)
+
+    if held is not None:    # then the program as the machine really moves (joint space)
+        radius = max([collision.tool_radius(o) for o in ops] + [0.0])
+        data = bridge.parse(polar, opts)
+        if wrap:
+            msg = collision.wrap_hits(held, data, radius)
+        else:
+            msg = collision.polar_hits(collision.obstacles(held), data, radius)
+        if msg:
+            raise _Refused("the program runs into the chuck.\n" + msg)
+    return polar
+
+
+def _with_setup_notes(polar, job, wrap, held):
+    """A few lines for the operator at the top (after the converter's header): where Z0 is and
+    how the part sits in the chuck, taken from the Job."""
+    notes = []
+    try:
+        sb = job.Stock.Shape.BoundBox
+        if wrap:
+            notes.append("( Setup: X0 = the chuck axis, X = radius of the tool tip. Z: the part's free "
+                         "end is at Z %.3f, its chuck end at Z %.3f )" % (sb.ZMax, sb.ZMin))
+        else:
+            notes.append("( Setup: X0 Y0 = the chuck axis. Stock top at Z %.3f, stock bottom at "
+                         "Z %.3f - touch off Z there )" % (sb.ZMax, sb.ZMin))
+            if abs(sb.ZMax) > 1e-6:
+                notes.append("( Note: Z0 is not on the stock top in this Job )")
+        if held is not None:
+            notes.append("( Chuck: %s, grip %.1f mm )" % (held.Preset, held.GripLength.Value))
+    except Exception:
+        return polar
+    lines = polar.split("\n")
+    at = lines.index("G21") if "G21" in lines else 0
+    if at > 0 and lines[at - 1] == "":
+        at -= 1
+    return "\n".join(lines[:at] + notes + lines[at:])
 
 
 def export(objectslist, filename, argstring):
@@ -60,45 +146,16 @@ def export(objectslist, filename, argstring):
     if job is None:
         return _refuse("no CAM Job found for the operations to post.")
     try:
-        opts = machine.options(job)
-    except (ValueError, OSError) as e:
+        polar = _polar_program(job, objectslist, argstring)
+    except _Refused as e:
         return _refuse(str(e))
-
-    held = getattr(job, "PolarChuck", None)
-    if held is not None and not machine.is_wrap(job):     # wrap: the Job is drawn unrolled
-        from polarcnc import chuck, collision
-        obs = collision.obstacles(held)
-        ops = [getattr(item, "source", item) for item in objectslist]
-        hits = ["%s: %s" % (o.Label, m) for o in ops
-                for m in [collision.hit_message(o, obs)] if m]
-        if hits:            # the cutter would run into the chuck: no file
-            return _refuse("the program runs into the chuck.\n" + "\n".join(hits))
-        for o in ops:       # cuts below the jaw / clamp tops: a reminder, never a refusal
-            msg = chuck.head_warning(held, getattr(o, "Path", None))
-            if msg:
-                FreeCAD.Console.PrintWarning("Polar CNC (%s): %s\n" % (o.Label, msg))
-
-    # the milling program, without its editor (it is not what goes to the machine)
-    cartesian = program.cartesian(objectslist, argstring)
-    if machine.is_wrap(job):          # the real part's paths, unrolled for the wrap layout
-        try:
-            program.wrap_operations_only(objectslist)
-            cartesian = program.unroll(cartesian, opts["wrapRadius"])
-        except ValueError as e:
-            return _refuse(str(e))
-    try:
-        polar = bridge.convert(cartesian, opts)
-    except bridge.ConverterError as e:
-        # the converter's own words; its line numbers are those of the milling program
-        return _refuse("the program was not converted.\n%s" % e)
-
-    if held is not None and machine.is_wrap(job):      # wrap: the router is radial
-        from polarcnc import collision
-        ops = [getattr(item, "source", item) for item in objectslist]
-        radius = max([collision.tool_radius(o) for o in ops] + [0.0])
-        msg = collision.wrap_hits(held, bridge.parse(polar, opts), radius)
-        if msg:
-            return _refuse("the program runs into the chuck.\n" + msg)
+    except Exception as e:          # never a raw traceback: say what happened, plainly
+        import traceback
+        FreeCAD.Console.PrintError(traceback.format_exc())
+        return _refuse("something went wrong while writing the program (%s: %s). Nothing was "
+                       "written. The details are in the Report view." % (type(e).__name__, e))
+    if polar is None:
+        return None
 
     if FreeCAD.GuiUp and "--no-show-editor" not in argstring:
         if len(polar) > 100000:

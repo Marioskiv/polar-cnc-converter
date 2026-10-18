@@ -72,6 +72,14 @@ wr=$(cat "$OUT/wrap/result.txt" 2>/dev/null || echo "RESULT: no result (see $OUT
 echo "wrap: $wr"
 [ "$wr" = "RESULT: PASS" ] || result="$result; wrap $wr"
 
+# the help: popups on the toolbar, field help, error cards, Greek and English
+HOME="$OUT/home" PC_OUT="$OUT/help" PC_REPO="$REPO" xvfb-run -a -s "-screen 0 1600x1000x24" \
+    "$FREECAD" "$REPO/tests/freecad/help_test.py" > "$OUT/freecad-help.log" 2>&1
+cat "$OUT/help/log.txt" 2>/dev/null | grep -v "^ok"
+hr=$(cat "$OUT/help/result.txt" 2>/dev/null || echo "RESULT: no result (see $OUT/freecad-help.log)")
+echo "help: $hr"
+[ "$hr" = "RESULT: PASS" ] || result="$result; help $hr"
+
 same="no"
 if [ -f "$OUT/run/cartesian.ngc" ] && [ -f "$OUT/run/polar.ngc" ]; then
     node "$REPO/tests/freecad/compare.js" "$OUT/run" && same="yes"

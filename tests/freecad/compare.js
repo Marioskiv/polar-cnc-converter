@@ -13,6 +13,7 @@ const { convert } = require('../../src/core/converter.js');
 const dir = process.argv[2];
 const read = f => fs.readFileSync(path.join(dir, f), 'utf8');
 const out = convert(read('cartesian.ngc'), JSON.parse(read('options.json')));
-// the two FreeCAD runs differ only in the post's "(Output Time:...)" comment
-const strip = t => t.split('\n').filter(l => !l.includes('Output Time')).join('\n');
+// the two FreeCAD runs differ only in the post's "(Output Time:...)" comment; the FreeCAD post
+// also adds the operator's setup lines from the Job (not the converter's)
+const strip = t => t.split('\n').filter(l => !l.includes('Output Time') && !/^\( (Setup|Note|Chuck): /.test(l)).join('\n');
 process.exit(strip(out) === strip(read('polar.ngc')) ? 0 : 1);

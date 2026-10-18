@@ -14,6 +14,8 @@ from PySide import QtGui
 OUT = os.environ["PC_OUT"]
 REPO = os.environ["PC_REPO"]
 os.makedirs(OUT, exist_ok=True)
+# the machine settings dialog would wait for a person: the tests set the properties themselves
+App.ParamGet("User parameter:BaseApp/Preferences/Mod/PolarCNC").SetBool("SettingsDialog", False)
 log = open(os.path.join(OUT, "log.txt"), "w")
 fails = []
 
@@ -69,3 +71,21 @@ def build_job(pocket_off_centre=False):
     pocket.ClearingPattern = "Offset"
     doc.recompute()
     return doc, job, [prof, pocket]
+
+
+def catch_messages(store):
+    """Error cards and message boxes must not block the test: their messages go into `store`
+    (the card's own heading is kept in catch_messages.cards)."""
+    from polarcnc import help
+
+    def card(dlg):
+        store.append(dlg.findChild(QtGui.QPlainTextEdit, "message").toPlainText())
+        head = dlg.findChild(QtGui.QLabel, "head")
+        catch_messages.cards.append(head.text() if head is not None else "")
+        dlg.deleteLater()
+        return 0
+    help._exec = card
+    QtGui.QMessageBox.warning = staticmethod(lambda *a, **k: store.append(a[2]))
+
+
+catch_messages.cards = []

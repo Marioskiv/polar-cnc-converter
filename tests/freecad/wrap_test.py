@@ -23,7 +23,7 @@ import FreeCADGui as Gui
 from PySide import QtCore, QtGui
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from common import OUT, check, fails, finish, log, pump  # noqa: E402
+from common import OUT, check, fails, finish, log, pump, catch_messages  # noqa: E402
 
 
 def shot(name):
@@ -69,7 +69,7 @@ def go():
               "Wrap Job: Polar Wrap and Chuck offered, Polar Face not")
 
         boxes = []
-        QtGui.QMessageBox.warning = staticmethod(lambda *a, **k: boxes.append(a[2]))
+        catch_messages(boxes)
         job.PolarWrapDiameter = 44
         held = ch.make_chuck(job)
         held.GripLength = 10
@@ -111,6 +111,12 @@ def go():
         doc.removeObject(other.Name)
         doc.recompute()
 
+        # the post writes G43: refused until the tool lengths are said to be in the X column
+        boxes[:] = []
+        res = PostProcessorFactory.get_post_processor(job, "polar_linuxcnc").export()
+        check(res and res[0][1] is None and boxes and "X column" in boxes[-1],
+              "G43 with the router sideways -> refused: %r" % (boxes[-1:] or "")[:120])
+        job.PolarWrapToolLengthInX = True
         res = PostProcessorFactory.get_post_processor(job, "polar_linuxcnc").export()
         text = res[0][1] if res else None
         check(text is not None and text.startswith("( Wrap G-code"),

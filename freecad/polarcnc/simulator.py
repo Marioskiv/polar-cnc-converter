@@ -68,16 +68,20 @@ class Motion:
         return (self.r[i] * math.cos(a), self.r[i] * math.sin(a), self.z[i])
 
 
-def _mesh_node(shape, rgb, transparency=0.0, tol=0.2):
+def _mesh_node(shape, rgb, transparency=0.0, tol=0.2, metal=False):
     from pivy import coin
     sep = coin.SoSeparator()
     mat = coin.SoMaterial()
     mat.diffuseColor.setValue(*rgb)
     mat.transparency.setValue(transparency)
+    if metal:                                  # machined steel: a soft highlight
+        mat.specularColor.setValue(0.55, 0.57, 0.6)
+        mat.shininess.setValue(0.35)
     sep.addChild(mat)
     hints = coin.SoShapeHints()
     hints.vertexOrdering.setValue(coin.SoShapeHints.COUNTERCLOCKWISE)
     hints.shapeType.setValue(coin.SoShapeHints.UNKNOWN_SHAPE_TYPE)
+    hints.creaseAngle.setValue(0.6)            # round faces shaded round, edges kept sharp
     sep.addChild(hints)
     pts, tris = shape.tessellate(tol)
     coords = coin.SoCoordinate3()
@@ -148,9 +152,12 @@ class Scene:
             from . import chuck as chuckmod
             pieces, _notes = chuckmod.build_parts(chuck)
             if pieces:
-                holder.addChild(_mesh_node(pieces[0], (0.62, 0.65, 0.7), transparency=0.55, tol=0.5))
+                # steel, as the real chuck: a light body (a little see-through, so the path
+                # under the part stays visible) and darker jaws / clamps
+                holder.addChild(_mesh_node(pieces[0], (0.74, 0.76, 0.79), transparency=0.25,
+                                           tol=0.3, metal=True))
                 for piece in pieces[1:]:                          # jaws and clamps
-                    holder.addChild(_mesh_node(piece, (0.8, 0.18, 0.18), tol=0.3))
+                    holder.addChild(_mesh_node(piece, (0.46, 0.48, 0.52), tol=0.2, metal=True))
         else:
             holder.addChild(self._chuck(radius, zbot))
         self.part.addChild(self.chuck_sw)
@@ -295,33 +302,46 @@ class Scene:
 class TaskPanel:
     def __init__(self, job, polar_text, opts):
         self.job = job
+        self._visibility = []
         self.motion = Motion(bridge.parse(polar_text, opts))
+        if len(self.motion) < 2:
+            raise ValueError("the program has no moves to show (are all operations switched "
+                             "off, or without a path?).")
         self.scene = Scene(job, self.motion, opts)
         self.view = Gui.ActiveDocument.ActiveView
         self.view.getSceneGraph().addChild(self.scene.root)
-        try:     # framed on the part (not on the whole chuck), while the part is still shown
-            self.scene.chuck_sw.whichChild.setValue(-1)
+        try:     # framed on the simulation itself: the part, the path and the whole chuck
+            # (fitAll frames the whole scene graph, whose bounding box FreeCAD's own nodes can
+            # leave wrong; the camera is aimed at our nodes only)
             self.view.viewIsometric()
-            self.view.fitAll()
+            vp = self.view.getViewer().getSoRenderManager().getViewportRegion()
+            self.view.getCameraNode().viewAll(self.scene.root, vp)
         except Exception:
-            pass
+            try:
+                self.view.fitAll()
+            except Exception:
+                pass
         self.scene.chuck_sw.whichChild.setValue(0)
         # everything of the document is hidden while the simulation shows its own turning copy
         # (the part, the stock and the paths would otherwise stand still on top of it)
         # (all states are read first: hiding a group such as the Job also hides its children)
         self._visibility = [(o, o.ViewObject.Visibility) for o in job.Document.Objects
                             if getattr(o, "ViewObject", None) is not None]
-        for obj, shown in self._visibility:
-            if shown:
-                obj.ViewObject.Visibility = False
-        self.t = 0.0
-        self.playing = False
-        self._last = None
         self.timer = QtCore.QTimer()
-        self.timer.setInterval(33)
-        self.timer.timeout.connect(self._tick)
-        self.form = self._build_form()
-        self._show()
+        try:
+            for obj, shown in self._visibility:
+                if shown:
+                    obj.ViewObject.Visibility = False
+            self.t = 0.0
+            self.playing = False
+            self._last = None
+            self.timer.setInterval(33)
+            self.timer.timeout.connect(self._tick)
+            self.form = self._build_form()
+            self._show()
+        except Exception:
+            self._cleanup()          # the document back as it was, then the error goes up
+            raise
 
     # ---- form ----
     def _build_form(self):
@@ -410,7 +430,8 @@ class TaskPanel:
     def _stop(self):
         self.playing = False
         self.timer.stop()
-        self.b_play.setText("▶")
+        if getattr(self, "b_play", None) is not None:
+            self.b_play.setText("▶")
 
     def _jump(self, t):
         self.t = t
@@ -456,12 +477,20 @@ def _hms(s):
 
 
 def open_for(job):
-    """Convert the Job like Post Process and open the simulator. Problems -> a message."""
+    """Convert the Job like Post Process and open the simulator. Problems -> a message; whatever
+    happens, the document is never left with its objects hidden."""
+    panel = None
     try:
         text, opts = program.polar(job)
-    except (ValueError, OSError, bridge.ConverterError) as e:
-        QtGui.QMessageBox.warning(None, "Polar CNC", "Cannot simulate: %s" % e)
+        panel = TaskPanel(job, text, opts)
+        Gui.Control.showDialog(panel)
+        return panel
+    except Exception as e:
+        if panel is not None:
+            panel._cleanup()
+        if not isinstance(e, (ValueError, OSError, bridge.ConverterError)):
+            import traceback
+            App.Console.PrintError(traceback.format_exc())
+        from . import help
+        help.error_card("Cannot simulate: %s" % e, "Polar CNC — simulation")
         return None
-    panel = TaskPanel(job, text, opts)
-    Gui.Control.showDialog(panel)
-    return panel

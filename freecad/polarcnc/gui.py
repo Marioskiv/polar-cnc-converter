@@ -9,7 +9,7 @@ import os
 import FreeCAD as App
 import FreeCADGui as Gui
 
-from . import machine, policy
+from . import help, machine, policy
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ICON = os.path.join(os.path.dirname(HERE), "Resources", "PolarCNC.svg")
@@ -47,7 +47,18 @@ class MachineSettingsCommand:
         if job is None:
             return
         App.ActiveDocument.openTransaction("Polar machine settings")
-        machine.add_settings(job)
+        try:
+            machine.add_settings(job)
+        except Exception:
+            App.ActiveDocument.abortTransaction()
+            raise
+        try:      # X Max, cutting side, Face or Wrap in one small dialog (Cancel keeps them as they are)
+            from . import dialogs
+            if dialogs.ask_settings_on():
+                dialogs.run(dialogs.SettingsDialog(job, Gui.getMainWindow()))
+        except Exception as e:
+            App.Console.PrintWarning("Polar CNC: the settings dialog failed (%s); set them in the "
+                                     "Job's properties, group 'Polar CNC'.\n" % e)
         if POST in job.getEnumerationsOfProperty("PostProcessor"):
             job.PostProcessor = POST
         else:
@@ -66,9 +77,9 @@ class MachineSettingsCommand:
         Gui.Selection.clearSelection()
         Gui.Selection.addSelection(job)   # the property editor shows the new "Polar CNC" group
         App.Console.PrintMessage(
-            "Polar CNC: Job '%s' is now polar. Set Polar X Max (and the cutting side) in its "
-            "properties, group 'Polar CNC'. The CAM work origin X0 Y0 must be the chuck centre.\n"
-            % job.Label)
+            "Polar CNC: Job '%s' is now polar. The settings are in its properties, group 'Polar "
+            "CNC'%s. The CAM work origin X0 Y0 must be the chuck centre.\n"
+            % (job.Label, "" if job.PolarXMax.Value > 0 else " (Polar X Max is still to be set)"))
 
 
 class SimulateCommand:
@@ -166,11 +177,11 @@ class ChuckCommand:
         obj = getattr(job, "PolarChuck", None)
         names = list(chuck.PRESETS)
         current = obj.Preset if obj is not None else names[1]
-        from PySide import QtGui
-        name, ok = QtGui.QInputDialog.getItem(
-            Gui.getMainWindow(), "Polar CNC — chuck",
-            "Chuck or faceplate (choose \"%s\" to type the sizes in the properties):"
-            % chuck.CUSTOM, names, names.index(current) if current in names else 0, False)
+        from . import dialogs
+        dlg = dialogs.ChuckDialog(chuck.PRESETS, chuck.CUSTOM, current if current in names else names[1],
+                                  Gui.getMainWindow())
+        ok = dialogs.run(dlg)
+        name = dlg.textValue()
         if not ok:
             if obj is None:
                 return
@@ -219,15 +230,15 @@ class ClampCommand:
             doc.abortTransaction()
             raise
         doc.commitTransaction()
-        _style(obj, (0.75, 0.2, 0.2))
+        _style(obj, (0.46, 0.48, 0.52))
         Gui.Selection.clearSelection()
         Gui.Selection.addSelection(obj)
 
 
-def _style(obj, rgb=(0.5, 0.53, 0.58)):
+def _style(obj, rgb=(0.66, 0.68, 0.72)):
     try:
-        obj.ViewObject.ShapeColor = rgb
-        obj.ViewObject.Transparency = 40
+        obj.ViewObject.ShapeColor = rgb          # steel
+        obj.ViewObject.Transparency = 30
     except Exception:
         pass
 
@@ -239,7 +250,7 @@ def _ensure_toolbar():
         grp.SetString("Name", "Polar CNC")
         grp.SetBool("Active", True)
     for cmd in ("PolarCNC_MachineSettings", "PolarCNC_Chuck", "PolarCNC_Clamp",
-                "PolarCNC_PolarFace", "PolarCNC_PolarWrap", "PolarCNC_Simulate"):
+                "PolarCNC_PolarFace", "PolarCNC_PolarWrap", "PolarCNC_Simulate", "PolarCNC_Help"):
         if not grp.GetString(cmd, ""):
             grp.SetString(cmd, "PolarCNC")
 
@@ -263,6 +274,11 @@ def _on_workbench(name):
             polarwrap_gui.register()
         except Exception as e:
             App.Console.PrintError("Polar CNC: %s\n" % e)
+        try:     # the toolbar buttons exist once the workbench has built them
+            from PySide import QtCore
+            QtCore.QTimer.singleShot(300, help.install_toolbar)
+        except Exception as e:
+            App.Console.PrintLog("Polar CNC help: %s\n" % e)
 
 
 def install():
@@ -273,6 +289,7 @@ def install():
     Gui.addCommand("PolarCNC_PolarWrap", PolarWrapCommand())
     Gui.addCommand("PolarCNC_Chuck", ChuckCommand())
     Gui.addCommand("PolarCNC_Clamp", ClampCommand())
+    Gui.addCommand("PolarCNC_Help", help.LanguageCommand())
     _ensure_toolbar()
     policy.install_observer()
     Gui.getMainWindow().workbenchActivated.connect(_on_workbench)

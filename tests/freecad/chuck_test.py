@@ -21,7 +21,7 @@ import FreeCADGui as Gui
 from PySide import QtCore, QtGui
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from common import OUT, check, fails, finish, log, pump  # noqa: E402
+from common import OUT, check, fails, finish, log, pump, catch_messages  # noqa: E402
 
 
 def job_for(doc, part_shape, stock_shape):
@@ -74,8 +74,9 @@ def polar_face(job, final):
 
 
 def min_clearance(op, chuck, z_top):
-    """Smallest distance (XY) from the cutter edge to the jaws/clamps, over all cutting points
-    below the top of the jaws."""
+    """Smallest distance from the cutter (radius R, its tip and everything above it) to the
+    jaws/clamps, over all cutting points below z_top (the jaw tops + the clearance: a cut just
+    above the jaws must keep clear of them too)."""
     import Part
     R = op.ToolController.Tool.Diameter.Value / 2
     obst = chuck.Shape
@@ -122,20 +123,32 @@ def go():
         jaw_top = c.Shape.BoundBox.ZMax
         check(abs(jaw_top - 10) < 1e-6, "A: jaw tops at stock bottom + grip = 10 (%.2f)" % jaw_top)
         op = polar_face(job, 6)
-        gap = min_clearance(op, c, jaw_top)
+        gap = min_clearance(op, c, jaw_top + op.ChuckClearance.Value)  # also just above the jaw tops
         check(gap >= op.ChuckClearance.Value - 0.05, "A: Polar Face keeps %.2f mm from the jaws (needs %.1f)"
               % (gap, op.ChuckClearance.Value))
-        # the path follows the chuck: jaws turned 45 deg -> the path is made again round them
+        # round stock: the jaws may sit anywhere round it, so they are kept clear as a ring -
+        # nothing is cut beside them at all below their tops
         def arcs(o):
             return [(round(x.Parameters.get("X", 0), 2), round(x.Parameters.get("Y", 0), 2))
                     for x in o.Path.Commands if x.Name in ("G2", "G3")]
-        before = arcs(op)
+        low = [math.hypot(x.Parameters["X"], x.Parameters["Y"]) for x in op.Path.Commands
+               if x.Name in ("G1", "G2", "G3") and "X" in x.Parameters and x.Parameters.get("Z", 99) < 10 + 2]
+        check(low and max(low) <= 30 - 2 - 2.5 + 0.05,
+              "A: round stock, jaws as a ring: below the jaw tops nothing is cut past r %.2f" % max(low or [0]))
+        ringed = arcs(op)
         c.FirstJawAngle = 45
         doc.recompute()
-        gap = min_clearance(op, c, c.Shape.BoundBox.ZMax)
-        check(op.PolarChuck == c and arcs(op) != before and gap >= op.ChuckClearance.Value - 0.05,
-              "A: jaws turned -> Polar Face made again by itself, keeps %.2f mm" % gap)
+        check(arcs(op) == ringed, "A: round stock: turning the jaws changes nothing (they are a ring)")
+        # with C0 set to the jaws, they are where the CAM shows them: the path follows them
+        c.JawsAtKnownAngle = True
+        doc.recompute()
+        before = arcs(op)
         c.FirstJawAngle = 0
+        doc.recompute()
+        gap = min_clearance(op, c, c.Shape.BoundBox.ZMax + op.ChuckClearance.Value)
+        check(op.PolarChuck == c and arcs(op) != before and gap >= op.ChuckClearance.Value - 0.05,
+              "A: jaws at a known angle, turned -> Polar Face made again by itself, keeps %.2f mm" % gap)
+        c.JawsAtKnownAngle = False
         doc.recompute()
         warn = [m for m in policy.problems(op) if "below the top of the jaws" in m]
         check(len(warn) == 1 and "4.00 mm below" in warn[0], "A: warns about the collet nut: %s" % warn)
@@ -152,7 +165,7 @@ def go():
         doc.recompute()
         check(any("closed on the stock at 25.00, 25.00, 25.00, 25.00" in n for n in c.Notes), "B: %s" % c.Notes)
         op = polar_face(job, 6)
-        gap = min_clearance(op, c, c.Shape.BoundBox.ZMax)
+        gap = min_clearance(op, c, c.Shape.BoundBox.ZMax + op.ChuckClearance.Value)
         check(gap >= op.ChuckClearance.Value - 0.05, "B: keeps %.2f mm from the jaws" % gap)
         # the collision check of every operation: Polar Face is clear, a cut onto a jaw and a
         # rapid into a jaw are found, and Post Process writes no file
@@ -175,10 +188,8 @@ def go():
         from Path.Post.Processor import PostProcessorFactory
         job.PostProcessorArgs = "--no-show-editor"
         boxes = []
-        warn_box = QtGui.QMessageBox.warning
-        QtGui.QMessageBox.warning = staticmethod(lambda *a, **k: boxes.append(a[2]))
+        catch_messages(boxes)
         res = PostProcessorFactory.get_post_processor(job, "polar_linuxcnc").export()
-        QtGui.QMessageBox.warning = warn_box
         check(res and all(r[1] is None for r in res) and boxes and "runs into the chuck" in boxes[-1],
               "B: Post Process refuses a program that hits the chuck: %r" % (boxes[-1:] or "")[:160])
         doc.removeObject(bad.Name)
@@ -212,7 +223,7 @@ def go():
               "E: SAN OU K12-125 preset, jaws 26 mm above the face")
         check(any("closed on the stock at 20.00, 20.00, 20.00, 20.00" in n for n in c.Notes), "E: %s" % c.Notes)
         op = polar_face(job, 6)
-        gap = min_clearance(op, c, 10)
+        gap = min_clearance(op, c, 10 + op.ChuckClearance.Value)
         check(gap >= op.ChuckClearance.Value - 0.05, "E: keeps %.2f mm from the jaws" % gap)
         App.closeDocument(doc.Name)
         doc = App.newDocument("ChuckE2")
@@ -276,8 +287,19 @@ def go():
         check(len(c.Clamps) == 3 and all(abs(k.Height.Value - 28) < 1e-6 for k in clamps),
               "D: three strap clamps, 8 mm above the stock")
         check(abs(c.Shape.BoundBox.ZMax - 28) < 1e-6, "D: clamps stand on the faceplate (top %.1f)" % c.Shape.BoundBox.ZMax)
+        # each clamp object is drawn at its own angle (it was drawn at 0 degrees) ...
+        mid = clamps[1].Shape.BoundBox.Center
+        check(abs(math.degrees(math.atan2(mid.y, mid.x)) - 120) < 1, "D: the 120 degree clamp is drawn at 120 (%s)" % mid)
+        # ... and turned, it moves in to the stock edge again (the plate is 70 x 40: far corner)
+        r0 = clamps[2].Radius.Value
+        clamps[2].Angle = 270
+        doc.recompute()
+        check(abs(clamps[2].Radius.Value - (16 - clamps[2].Overlap.Value)) < 1e-6 and clamps[2].Radius.Value != r0,
+              "D: turned to 270, the clamp reaches the stock edge (radius %.2f)" % clamps[2].Radius.Value)
+        clamps[2].Angle = 240
+        doc.recompute()
         op = polar_face(job, 15)
-        gap = min_clearance(op, c, c.Shape.BoundBox.ZMax)
+        gap = min_clearance(op, c, c.Shape.BoundBox.ZMax + op.ChuckClearance.Value)
         check(gap >= op.ChuckClearance.Value - 0.05, "D: keeps %.2f mm from the clamps" % gap)
         check(len([x for x in op.Path.Commands if x.Name in ("G2", "G3")]) > 10, "D: still faces the plate")
         try:

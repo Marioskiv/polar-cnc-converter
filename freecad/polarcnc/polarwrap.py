@@ -132,6 +132,25 @@ class ObjectPolarWrap(PathOp.ObjectOp):
         else:
             H = wrapcut.radius_map(shapes, meshes, zs, na, r_stock)
             self._map_cache = (key, H)
+        empty = [float(zs[i]) for i in range(1, len(zs) - 1) if float(H[i].max()) <= 0]
+        if empty:
+            Path.Log.error("Polar Wrap: the part has a gap along Z from %.2f to %.2f (no part there "
+                           "at all: two separate parts, or a mesh that does not close). The cutter "
+                           "would go down to the axis there: fix the model." % (min(empty), max(empty)))
+            return
+        # the bar in the Job (a cylinder stock) against the diameter typed in
+        stock = getattr(job, "Stock", None)
+        sr = getattr(stock, "Radius", None)
+        if sr is not None and abs(sr.Value - r_stock) > 0.05:
+            Path.Log.warning("Polar Wrap: the Job's stock is a cylinder of diameter %.2f, the Polar "
+                             "Wrap Diameter says %.2f: the roughing starts from the diameter typed "
+                             "in. Make them the same." % (2 * sr.Value, 2 * r_stock))
+        if stock is not None and not stock.Shape.isNull():
+            sb = stock.Shape.BoundBox
+            if sb.ZMax > zhi + self.radius + 0.5:
+                Path.Log.warning("Polar Wrap: the stock is %.1f mm longer than the part at the free "
+                                 "end: that end is not cut (cut it off, or face it first)."
+                                 % (sb.ZMax - zhi))
         if float(H.max()) > r_stock + 0.01:
             Path.Log.error("Polar Wrap: the part (radius %.2f) is bigger than the stock (Polar Wrap "
                            "Diameter %.2f): check the diameter." % (float(H.max()), 2 * r_stock))
@@ -171,17 +190,45 @@ class ObjectPolarWrap(PathOp.ObjectOp):
         safe = r_stock + obj.SafeDistance.Value
         feed, vfeed = self.horizFeed, self.vertFeed
         air = feed * max(getattr(obj, "AirFeedFactor", 3.0) or 1.0, 1.0)
+        if not feed or not vfeed:
+            Path.Log.error("Polar Wrap: the tool controller '%s' has no feed. Set its Horiz Feed "
+                           "and Vert Feed." % getattr(obj.ToolController, "Label", "?"))
+            return
         cmds = self.commandlist
         for p in passes:
             z0, th0, r0, _c = p[0]
             cmds.append(Path.Command("G0", {"X": safe * math.cos(th0), "Y": safe * math.sin(th0), "Z": z0}))
             cmds.append(Path.Command("G1", {"X": r0 * math.cos(th0), "Y": r0 * math.sin(th0), "Z": z0,
                                             "F": vfeed}))
-            for z, th, r, cutting in p[1:]:
+            for z, th, r, cutting in _thin(p):
                 cmds.append(Path.Command("G1", {"X": r * math.cos(th), "Y": r * math.sin(th), "Z": z,
                                                 "F": feed if cutting else air}))
             z1, th1, _r1, _c1 = p[-1]
             cmds.append(Path.Command("G0", {"X": safe * math.cos(th1), "Y": safe * math.sin(th1), "Z": z1}))
+
+
+MAX_TURN = math.radians(10)      # a written point at least every 10 degrees round the part
+
+
+def _thin(p):
+    """The points of a pass after the first, without those that lie on the straight joint move
+    between their neighbours: where the radius stays the same the helix (or line along the part)
+    is linear in Z and angle, which is exactly how the machine moves between two blocks. Kept at
+    least every MAX_TURN, so the path drawn in FreeCAD (straight Cartesian lines) stays close."""
+    out = []
+    last_th = p[0][1]
+    n = len(p)
+    for k in range(1, n):
+        z, th, r, cut = p[k]
+        if k < n - 1:
+            r0, r1 = p[k - 1][2], p[k + 1][2]
+            same = abs(r - r0) < 1e-6 and abs(r - r1) < 1e-6 and \
+                p[k - 1][3] == cut and p[k + 1][3] == cut
+            if same and abs(th - last_th) < MAX_TURN:
+                continue
+        out.append((z, th, r, cut))
+        last_th = th
+    return out
 
 
 def SetupProperties():

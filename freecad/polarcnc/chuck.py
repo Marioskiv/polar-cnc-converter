@@ -85,6 +85,9 @@ PROPS = (
      "bottom up. 0 = the stock stands on the chuck face / faceplate."),
     ("App::PropertyAngle", "FirstJawAngle", "Direction of the first jaw (the others follow at "
      "120° or 90°). Turn it so the jaws meet the flats of a hexagon or a square."),
+    ("App::PropertyBool", "JawsAtKnownAngle", "Round stock can be clamped with the jaws anywhere "
+     "round it, so the checks treat each jaw as a full ring round the part. Tick this only if C0 on "
+     "the machine is set so that the jaws really are where the CAM shows them."),
     ("App::PropertyLinkList", "Clamps", "Clamps and supports (Polar CNC clamps or any solids): they "
      "turn with the chuck and are kept clear like the jaws."),
     ("App::PropertyStringList", "Notes", "What the chuck found when it closed on the stock."),
@@ -105,6 +108,9 @@ class Chuck:
     def onDocumentRestored(self, obj):
         self._presetting = True             # files saved before a type or preset was added
         try:
+            for typ, name, tip in PROPS:        # properties added in later versions
+                if name not in obj.PropertiesList and name != "Stock":
+                    obj.addProperty(typ, name, GROUP, tip)
             if "Job" in obj.PropertiesList:     # an early version linked the Job (a cycle)
                 job = obj.Job
                 obj.removeProperty("Job")
@@ -217,10 +223,49 @@ def contact_radius(section, angle):
     return max(v.Point.sub(App.Vector(0, 0, z)).Length for v in hits.Vertexes)
 
 
-def _jaw(r_in, length, width, z0, height, angle):
+def _jaw(r_in, length, width, z0, height, angle, chamfer=0.0):
     box = Part.makeBox(length, width, height, App.Vector(r_in, -width / 2, z0))
-    box.rotate(App.Vector(0, 0, 0), App.Vector(0, 0, 1), math.degrees(angle))
+    if chamfer > 0:                      # the look of a real jaw: its top edges broken
+        try:
+            top = [e for e in box.Edges if abs(e.BoundBox.ZMin - (z0 + height)) < 1e-6
+                   and abs(e.BoundBox.ZMax - (z0 + height)) < 1e-6]
+            box = box.makeChamfer(min(chamfer, width / 4, height / 4), top)
+        except Exception:
+            pass
+    # turned in its geometry, not in its placement: a feature replaces the placement of the
+    # shape it is given with its own (the clamp object showed every clamp at 0 degrees)
+    turn = App.Matrix()
+    turn.rotateZ(angle)
+    box.transformShape(turn, True)
     return box
+
+
+def _body(obj, z_face, n_jaws, first_angle):
+    """The chuck body or faceplate as it looks: chamfered edges, the bore through it and, on a jaw
+    chuck, the slots the jaws run in. A few simple booleans, made once per recompute."""
+    r = obj.Diameter.Value / 2
+    t = obj.BodyThickness.Value
+    body = Part.makeCylinder(r, t, App.Vector(0, 0, z_face - t))
+    try:
+        ring = [e for e in body.Edges if e.Curve.__class__.__name__ == "Circle"]
+        body = body.makeChamfer(min(1.5, r * 0.02 + 0.5, t / 6), ring)
+    except Exception:
+        pass
+    bore = min(r * 0.24, max(r - 10.0, 1.0))
+    cuts = [Part.makeCylinder(bore, t + 2, App.Vector(0, 0, z_face - t - 1))]
+    if n_jaws:
+        w = obj.JawWidth.Value + 2.0
+        depth = min(3.0, t / 8)
+        for k in range(n_jaws):
+            slot = Part.makeBox(r + 2, w, depth + 1, App.Vector(0, -w / 2, z_face - depth))
+            slot.rotate(App.Vector(0, 0, 0), App.Vector(0, 0, 1),
+                        math.degrees(first_angle) + 360.0 * k / n_jaws)
+            cuts.append(slot)
+    try:
+        body = body.cut(Part.makeCompound(cuts))
+    except Exception:
+        pass
+    return body
 
 
 def build(obj):
@@ -237,10 +282,46 @@ def build(obj):
 def build_parts(obj):
     """[body, jaw or clamp, ...] and notes. The chuck face is where the stock bottom is, lowered
     by (jaw height - grip length) for jaw chucks."""
+    b = _build(obj)
+    return [b["body"]] + [j for j, _r in b["jaws"]] + b["clamps"] if b["body"] else [], b["notes"]
+
+
+def keepout_parts(obj):
+    """What the checks keep the cutter away from: the body, the jaws and the clamps; but on round
+    stock (unless JawsAtKnownAngle) every jaw swept all the way round, because a round bar can be
+    clamped with the jaws at any angle and C0 on the machine is not tied to them."""
+    b = _build(obj)
+    if not b["body"]:
+        return []
+    jaws = [j for j, _r in b["jaws"]]
+    if b["jaws"] and b["round"] and not getattr(obj, "JawsAtKnownAngle", False):
+        rings = []
+        for j, r_in in b["jaws"]:
+            bb = j.BoundBox
+            r_out = max(math.hypot(x, y) for x in (bb.XMin, bb.XMax) for y in (bb.YMin, bb.YMax))
+            ring = Part.makeCylinder(r_out, bb.ZLength, App.Vector(0, 0, bb.ZMin))
+            if r_in > 1e-6:
+                ring = ring.cut(Part.makeCylinder(r_in, bb.ZLength + 2, App.Vector(0, 0, bb.ZMin - 1)))
+            rings.append(ring)
+        jaws = rings[:1] if rings else []     # the rings of the jaws are the same ring
+    return [b["body"]] + jaws + b["clamps"]
+
+
+def stock_is_round(section, n=36, tol=0.05):
+    """True if the stock section is round about the chuck axis (contact radius the same all round)."""
+    if section is None:
+        return False
+    rs = [contact_radius(section, 2 * math.pi * k / n) for k in range(n)]
+    rs = [r for r in rs if r is not None]
+    return len(rs) == n and max(rs) - min(rs) <= tol
+
+
+def _build(obj):
     notes = []
     stock = stock_of(obj)
     if stock is None:
-        return [], ["No Job stock: the chuck cannot be placed."]
+        return {"body": None, "jaws": [], "clamps": [], "round": False,
+                "notes": ["No Job stock: the chuck cannot be placed."]}
     sb = stock.BoundBox
     kind = obj.ChuckType
     grip = min(obj.GripLength.Value, sb.ZLength)
@@ -249,10 +330,10 @@ def build_parts(obj):
     if kind != FACEPLATE and grip > jaw_h + 1e-9:
         notes.append("Grip length %.1f is more than the jaw height %.1f: the jaws hold only %.1f."
                      % (grip, jaw_h, jaw_h))
-    parts = [Part.makeCylinder(obj.Diameter.Value / 2, obj.BodyThickness.Value,
-                               App.Vector(0, 0, fz - obj.BodyThickness.Value))]
+    n = 0 if kind == FACEPLATE else (3 if kind == THREE_JAW else 4)
+    body = _body(obj, fz, n, math.radians(obj.FirstJawAngle.Value))
+    jaws, clamps, round_ = [], [], False
     if kind != FACEPLATE:
-        n = 3 if kind == THREE_JAW else 4
         z_grip = sb.ZMin + max(grip, 0.5) * 0.5
         wires = stock.slice(App.Vector(0, 0, 1), min(z_grip, sb.ZMax - 1e-3))
         section = Part.makeFace(wires, "Part::FaceMakerBullseye") if wires else None
@@ -267,7 +348,7 @@ def build_parts(obj):
             if r + obj.JawLength.Value > obj.Diameter.Value / 2 + obj.JawLength.Value * 0.5:
                 notes.append("Jaw %d would stand %.0f mm out of the chuck: the stock is too big for "
                              "this chuck." % (k + 1, r + obj.JawLength.Value - obj.Diameter.Value / 2))
-            parts.append(_jaw(r, obj.JawLength.Value, obj.JawWidth.Value, fz, jaw_h, a))
+            jaws.append((_jaw(r, obj.JawLength.Value, obj.JawWidth.Value, fz, jaw_h, a, chamfer=1.0), r))
         if kind in SELF_CENTRING and radii and max(radii) - min(radii) > 0.05:
             notes.append("A self-centring chuck cannot hold this stock as it is placed: the jaws "
                          "would meet it at %s mm. Centre the stock on X0 Y0, turn the jaws "
@@ -275,12 +356,16 @@ def build_parts(obj):
                          % ", ".join("%.2f" % r for r in radii))
         if radii and not notes:
             notes.append("Jaws closed on the stock at %s mm." % ", ".join("%.2f" % r for r in radii))
+        round_ = stock_is_round(section)
+        if round_ and not getattr(obj, "JawsAtKnownAngle", False):
+            notes.append("Round stock: the jaws may sit at any angle on the machine, so they are "
+                         "checked as a ring all the way round.")
     for c in obj.Clamps:
         if isinstance(getattr(c, "Proxy", None), Clamp):      # built here, on this chuck's face
-            parts.append(clamp_shape(c, fz))
+            clamps.append(clamp_shape(c, fz))
         elif hasattr(c, "Shape") and not c.Shape.isNull():
-            parts.append(c.Shape)
-    return parts, notes
+            clamps.append(c.Shape)
+    return {"body": body, "jaws": jaws, "clamps": clamps, "round": round_, "notes": notes}
 
 
 def obstacles_above(chuck, z):
@@ -345,6 +430,16 @@ class Clamp:
         if "Chuck" in obj.PropertiesList:      # an early version linked the chuck (a cycle)
             obj.removeProperty("Chuck")
 
+    def onChanged(self, obj, prop):
+        # turned to another angle (or another overlap): it moves in to the stock edge again
+        if prop in ("Angle", "Overlap") and "Restore" not in obj.State:
+            try:
+                chuck = next((o for o in obj.InList if obj in getattr(o, "Clamps", [])), None)
+                if chuck is not None:
+                    fit_radius(obj, chuck)
+            except Exception:
+                pass
+
     def execute(self, obj):
         # the chuck lists its clamps (and builds them itself); the clamp only finds its chuck
         # for its own shape, so that there is no link back
@@ -382,6 +477,21 @@ def make_chuck(job, preset="4-jaw SAN OU K72-125 independent (Ø125)"):
     return obj
 
 
+def fit_radius(clamp, chuck):
+    """Put the clamp's inner end at the stock edge in its direction, Overlap over it."""
+    stock = stock_of(chuck)
+    r = 0
+    if stock is not None:
+        sb = stock.BoundBox
+        wires = stock.slice(App.Vector(0, 0, 1), sb.ZMin + min(1.0, sb.ZLength / 2))
+        if wires:
+            r = contact_radius(Part.makeFace(wires, "Part::FaceMakerBullseye"),
+                               math.radians(clamp.Angle.Value)) or 0
+    radius = max(r - clamp.Overlap.Value, 0)
+    if abs(clamp.Radius.Value - radius) > 1e-9:
+        clamp.Radius = radius
+
+
 def add_clamp(chuck, angle=None, length=30, width=20, height=20):
     """A clamp next to the stock in the given direction (or the next free quarter)."""
     doc = chuck.Document
@@ -394,14 +504,9 @@ def add_clamp(chuck, angle=None, length=30, width=20, height=20):
     obj.Angle, obj.Length, obj.Width, obj.Height = angle, length, width, height
     stock = stock_of(chuck)
     obj.Overlap = 5
-    r = 0
     if stock is not None:
         obj.Height = stock.BoundBox.ZLength + 8 if chuck.ChuckType == FACEPLATE else height
-        sb = stock.BoundBox
-        wires = stock.slice(App.Vector(0, 0, 1), sb.ZMin + min(1.0, sb.ZLength / 2))
-        if wires:
-            r = contact_radius(Part.makeFace(wires, "Part::FaceMakerBullseye"), math.radians(angle)) or 0
-    obj.Radius = max(r - obj.Overlap.Value, 0)
+    fit_radius(obj, chuck)
     obj.recompute()
     chuck.Clamps = list(chuck.Clamps) + [obj]
     chuck.recompute()
