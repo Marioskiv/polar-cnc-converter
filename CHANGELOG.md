@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased — FreeCAD addon (in testing)
+
+### Added
+- **FreeCAD addon** (`freecad/`, `package.xml`): polar face machining from the FreeCAD CAM workbench. A
+  post-processor `polar_linuxcnc` turns a normal CAM Job into polar G-code; the command *Polar machine settings*
+  adds the Job's machine settings (X Axis Max, cutting side, optional profile). It runs the converter in `src/core`
+  itself, through Qt's JavaScript engine: no second copy, the web page and FreeCAD always convert the same way.
+  The converter itself is unchanged (golden 144/144). See [freecad/README.md](freecad/README.md) and
+  [docs/FREECAD.md](docs/FREECAD.md).
+- `tests/freecad/run.sh`: tests the addon in a real FreeCAD (golden set inside FreeCAD, refusals, output equal to
+  the Node converter on FreeCAD's own LinuxCNC output).
+
 ## 2.14.1 — simulator: cutter on the side where it is on the machine
 
 ### Added

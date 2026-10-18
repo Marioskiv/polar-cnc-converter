@@ -52,6 +52,8 @@ Post for a 3-axis mill with a LinuxCNC (or grbl) post, in mm or inch:
 
 ## More
 
+- [FreeCAD addon](freecad/README.md) (new, in testing): the same conversion as a post-processor in the
+  FreeCAD CAM workbench — make a normal Job, Post Process writes polar G-code.
 - [Technical notes](docs/TECHNICAL.md): how it works, centre handling, accepted G-codes, tests.
 - [CHANGELOG](CHANGELOG.md): what changed in each version.
 - [`examples/linuxcnc-vismach-xzc-lathe`](examples/linuxcnc-vismach-xzc-lathe/): a LinuxCNC simulation of a lathe
