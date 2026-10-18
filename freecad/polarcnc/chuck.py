@@ -232,7 +232,11 @@ def _jaw(r_in, length, width, z0, height, angle, chamfer=0.0):
             box = box.makeChamfer(min(chamfer, width / 4, height / 4), top)
         except Exception:
             pass
-    box.rotate(App.Vector(0, 0, 0), App.Vector(0, 0, 1), math.degrees(angle))
+    # turned in its geometry, not in its placement: a feature replaces the placement of the
+    # shape it is given with its own (the clamp object showed every clamp at 0 degrees)
+    turn = App.Matrix()
+    turn.rotateZ(angle)
+    box.transformShape(turn, True)
     return box
 
 
@@ -426,6 +430,16 @@ class Clamp:
         if "Chuck" in obj.PropertiesList:      # an early version linked the chuck (a cycle)
             obj.removeProperty("Chuck")
 
+    def onChanged(self, obj, prop):
+        # turned to another angle (or another overlap): it moves in to the stock edge again
+        if prop in ("Angle", "Overlap") and "Restore" not in obj.State:
+            try:
+                chuck = next((o for o in obj.InList if obj in getattr(o, "Clamps", [])), None)
+                if chuck is not None:
+                    fit_radius(obj, chuck)
+            except Exception:
+                pass
+
     def execute(self, obj):
         # the chuck lists its clamps (and builds them itself); the clamp only finds its chuck
         # for its own shape, so that there is no link back
@@ -463,6 +477,21 @@ def make_chuck(job, preset="4-jaw SAN OU K72-125 independent (Ø125)"):
     return obj
 
 
+def fit_radius(clamp, chuck):
+    """Put the clamp's inner end at the stock edge in its direction, Overlap over it."""
+    stock = stock_of(chuck)
+    r = 0
+    if stock is not None:
+        sb = stock.BoundBox
+        wires = stock.slice(App.Vector(0, 0, 1), sb.ZMin + min(1.0, sb.ZLength / 2))
+        if wires:
+            r = contact_radius(Part.makeFace(wires, "Part::FaceMakerBullseye"),
+                               math.radians(clamp.Angle.Value)) or 0
+    radius = max(r - clamp.Overlap.Value, 0)
+    if abs(clamp.Radius.Value - radius) > 1e-9:
+        clamp.Radius = radius
+
+
 def add_clamp(chuck, angle=None, length=30, width=20, height=20):
     """A clamp next to the stock in the given direction (or the next free quarter)."""
     doc = chuck.Document
@@ -475,14 +504,9 @@ def add_clamp(chuck, angle=None, length=30, width=20, height=20):
     obj.Angle, obj.Length, obj.Width, obj.Height = angle, length, width, height
     stock = stock_of(chuck)
     obj.Overlap = 5
-    r = 0
     if stock is not None:
         obj.Height = stock.BoundBox.ZLength + 8 if chuck.ChuckType == FACEPLATE else height
-        sb = stock.BoundBox
-        wires = stock.slice(App.Vector(0, 0, 1), sb.ZMin + min(1.0, sb.ZLength / 2))
-        if wires:
-            r = contact_radius(Part.makeFace(wires, "Part::FaceMakerBullseye"), math.radians(angle)) or 0
-    obj.Radius = max(r - obj.Overlap.Value, 0)
+    fit_radius(obj, chuck)
     obj.recompute()
     chuck.Clamps = list(chuck.Clamps) + [obj]
     chuck.recompute()

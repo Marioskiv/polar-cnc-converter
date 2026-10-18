@@ -23,7 +23,7 @@ import FreeCADGui as Gui
 from PySide import QtCore, QtGui
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from common import OUT, check, fails, finish, log, pump  # noqa: E402
+from common import OUT, check, fails, finish, log, pump, catch_messages  # noqa: E402
 
 
 def shot(name):
@@ -69,7 +69,7 @@ def go():
               "Wrap Job: Polar Wrap and Chuck offered, Polar Face not")
 
         boxes = []
-        QtGui.QMessageBox.warning = staticmethod(lambda *a, **k: boxes.append(a[2]))
+        catch_messages(boxes)
         job.PolarWrapDiameter = 44
         held = ch.make_chuck(job)
         held.GripLength = 10

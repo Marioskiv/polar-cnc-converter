@@ -20,7 +20,7 @@ import FreeCADGui as Gui
 from PySide import QtCore, QtGui
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from common import REPO, OUT, build_job, check, fails, finish, log, pump  # noqa: E402
+from common import REPO, OUT, build_job, check, fails, finish, log, pump, catch_messages  # noqa: E402
 
 
 def op_policy(doc, job):
@@ -91,7 +91,7 @@ def go():
 
         # warnings must not open dialogs during the test
         msgs = []
-        QtGui.QMessageBox.warning = staticmethod(lambda *a, **k: msgs.append(a[2]))
+        catch_messages(msgs)
 
         Gui.Selection.addSelection(job)
         Gui.runCommand("PolarCNC_MachineSettings")

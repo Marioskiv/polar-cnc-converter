@@ -69,3 +69,21 @@ def build_job(pocket_off_centre=False):
     pocket.ClearingPattern = "Offset"
     doc.recompute()
     return doc, job, [prof, pocket]
+
+
+def catch_messages(store):
+    """Error cards and message boxes must not block the test: their messages go into `store`
+    (the card's own heading is kept in catch_messages.cards)."""
+    from polarcnc import help
+
+    def card(dlg):
+        store.append(dlg.findChild(QtGui.QPlainTextEdit, "message").toPlainText())
+        head = dlg.findChild(QtGui.QLabel, "head")
+        catch_messages.cards.append(head.text() if head is not None else "")
+        dlg.deleteLater()
+        return 0
+    help._exec = card
+    QtGui.QMessageBox.warning = staticmethod(lambda *a, **k: store.append(a[2]))
+
+
+catch_messages.cards = []

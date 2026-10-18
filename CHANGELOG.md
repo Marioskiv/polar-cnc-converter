@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Added
+- **Help inside Polar CNC, Greek and English.** Hovering a *Polar CNC* toolbar button shows a card with what it
+  does, an animation recorded in a real FreeCAD (chuck, clamps, Polar Face, Polar Wrap, the simulator), numbered
+  steps and a warning. The Polar Face and Polar Wrap panels have a **?** button on every field. Refusals come as
+  **error cards**: what happened, why, what to do, and the original message. Language follows FreeCAD (Greek or
+  English); toolbar button *Polar CNC help language* chooses it or switches the popups off. No extra packages.
+  Test: `tests/freecad/help_test.py`.
+
 ### Fixed (from a professional review)
 - **Polar Face could pass over the jaw tops** (clearance sideways only); jaws within the clearance below the cut
   are now kept clear. Found when the chuck got its real shape.
@@ -19,6 +27,9 @@
 - Simulator: an empty program or any error never leaves the document hidden; it frames the whole chuck.
 - The live chuck check runs only for paths of a usual size (big paths are checked by Post Process); the converter
   engine is loaded once; Wrap paths are thinned where the joint move is exact.
+
+- **Clamps were drawn at 0 degrees whatever their angle** (the checks used the right place, the clamp object
+  did not). A clamp turned to another angle now also moves in to the stock edge again.
 
 ### Changed
 - The chuck looks like the real one: chamfered body, bore, jaw slots, steel colours.

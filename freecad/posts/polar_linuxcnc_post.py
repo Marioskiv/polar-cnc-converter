@@ -49,8 +49,12 @@ def _job(objectslist):
 def _refuse(msg):
     FreeCAD.Console.PrintError("Polar CNC: %s\n" % msg)
     if FreeCAD.GuiUp:
-        from PySide import QtGui
-        QtGui.QMessageBox.warning(None, "Polar CNC", msg)
+        try:
+            from polarcnc import help
+            help.error_card(msg, "Polar CNC — Post Process")
+        except Exception:
+            from PySide import QtGui
+            QtGui.QMessageBox.warning(None, "Polar CNC", msg)
     return None  # Post Process writes no file
 
 

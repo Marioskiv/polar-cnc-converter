@@ -11,7 +11,7 @@ import Path.Op.Gui.Base as PathOpGui
 import PathScripts.PathUtils as PathUtils
 from PySide import QtGui
 
-from . import polarface_gui, polarwrap
+from . import help, polarface_gui, polarwrap
 
 NAME = "PolarWrap"          # also the key of its defaults in the Job's SetupSheet
 ICON = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
@@ -34,7 +34,7 @@ class TaskPanelOpPage(PathOpGui.TaskPanelPage):
         self.strategy = QtGui.QComboBox()
         self.strategy.addItems(polarwrap.STRATEGIES)
         self.strategy.setToolTip(_tip("Strategy"))
-        lay.addRow("Strategy", self.strategy)
+        help.add_row(lay, "PolarWrap:Strategy", "Strategy", self.strategy)
 
         def length(prop, lo, hi, suffix=" mm", dec=3):
             box = QtGui.QDoubleSpinBox()
@@ -53,27 +53,24 @@ class TaskPanelOpPage(PathOpGui.TaskPanelPage):
         self.style = QtGui.QComboBox()
         self.style.addItems(polarwrap.FINISH_STYLES)
         self.style.setToolTip(_tip("FinishStyle"))
-        lay.addRow("Finishing", self.style)
+        help.add_row(lay, "PolarWrap:FinishStyle", "Finishing", self.style)
         self.step = percent("StepOver")
-        lay.addRow("Finish step over", self.step)
+        help.add_row(lay, "PolarWrap:StepOver", "Finish step over", self.step)
         self.rstep = percent("RoughStepOver")
-        lay.addRow("Rough step over", self.rstep)
+        help.add_row(lay, "PolarWrap:RoughStepOver", "Rough step over", self.rstep)
         self.down = length("StepDown", 0.01, 50)
-        lay.addRow("Step down", self.down)
+        help.add_row(lay, "PolarWrap:StepDown", "Step down", self.down)
         self.allow = length("FinishAllowance", 0, 10)
-        lay.addRow("Finish allowance", self.allow)
+        help.add_row(lay, "PolarWrap:FinishAllowance", "Finish allowance", self.allow)
         self.leave = length("StockToLeave", -5, 10)
-        lay.addRow("Stock to leave", self.leave)
+        help.add_row(lay, "PolarWrap:StockToLeave", "Stock to leave", self.leave)
         self.direction = QtGui.QComboBox()
         self.direction.addItems(polarwrap.DIRECTIONS)
         self.direction.setToolTip(_tip("Direction"))
-        lay.addRow("Chuck turns", self.direction)
+        help.add_row(lay, "PolarWrap:Direction", "Chuck turns", self.direction)
         self.grid = length("GridStep", 0.05, 5)
-        lay.addRow("Resolution", self.grid)
-        note = QtGui.QLabel("The part as it is (solid or STL), its axis on Z: it is unrolled "
-                            "automatically and machined with helices round it, from the free "
-                            "end toward the chuck. Set the stock diameter in the Job "
-                            "(Polar Wrap Diameter).")
+        help.add_row(lay, "PolarWrap:GridStep", "Resolution", self.grid)
+        note = QtGui.QLabel(help.note("PolarWrap", ""))
         note.setWordWrap(True)
         lay.addRow(note)
         return w
@@ -154,8 +151,7 @@ def create(res):
             obj.ViewObject.Document.setEdit(obj.ViewObject, 0)
             return obj
     except PathUtils.PathNoTCExistsException:
-        QtGui.QMessageBox.warning(None, "Polar Wrap",
-                                  "No suitable tool controller found. Add one to the Job first.")
+        help.error_card("No suitable tool controller found. Add one to the Job first.", "Polar Wrap")
     doc.abortTransaction()
     doc.recompute()
     return None

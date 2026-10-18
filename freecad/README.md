@@ -42,6 +42,19 @@ FreeCAD.
 The operations stay normal CAM operations, so FreeCAD shows and simulates them as usual. The polar conversion
 happens only when the G-code is written.
 
+## Help inside FreeCAD (Greek or English)
+
+- **Hover** over a button of the *Polar CNC* toolbar: a card shows what it does, a short animation recorded in
+  FreeCAD, the numbered steps (the same numbers as in the animation) and what to watch out for.
+- In the **Polar Face** and **Polar Wrap** panels every field has a **?** button with its explanation.
+- When something is refused (Post Process, the simulator, a missing tool), an **error card** says what happened,
+  **why**, and **what to do**, with the original message below it (button *Copy* for asking for help).
+- Language: Greek when FreeCAD is in Greek, otherwise English. The **?** button at the end of the toolbar
+  (*Polar CNC help language*) chooses Greek, English, automatic, or no popups (the plain tooltips again).
+
+The texts are in `freecad/help/help.json`; the animations are made by `tools/help_gifs/record.py` (in a real
+FreeCAD, with the addon's own chuck, Polar Face, Polar Wrap and simulator) and `tools/help_gifs/compose.py`.
+
 ## Wrap: the outside of the part (router radial)
 
 Turn the router so that it looks at the part (the machine axes stay as they are: X radius, Z along the part, C the

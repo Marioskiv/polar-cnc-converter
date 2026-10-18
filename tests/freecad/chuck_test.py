@@ -21,7 +21,7 @@ import FreeCADGui as Gui
 from PySide import QtCore, QtGui
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from common import OUT, check, fails, finish, log, pump  # noqa: E402
+from common import OUT, check, fails, finish, log, pump, catch_messages  # noqa: E402
 
 
 def job_for(doc, part_shape, stock_shape):
@@ -188,10 +188,8 @@ def go():
         from Path.Post.Processor import PostProcessorFactory
         job.PostProcessorArgs = "--no-show-editor"
         boxes = []
-        warn_box = QtGui.QMessageBox.warning
-        QtGui.QMessageBox.warning = staticmethod(lambda *a, **k: boxes.append(a[2]))
+        catch_messages(boxes)
         res = PostProcessorFactory.get_post_processor(job, "polar_linuxcnc").export()
-        QtGui.QMessageBox.warning = warn_box
         check(res and all(r[1] is None for r in res) and boxes and "runs into the chuck" in boxes[-1],
               "B: Post Process refuses a program that hits the chuck: %r" % (boxes[-1:] or "")[:160])
         doc.removeObject(bad.Name)
@@ -289,6 +287,17 @@ def go():
         check(len(c.Clamps) == 3 and all(abs(k.Height.Value - 28) < 1e-6 for k in clamps),
               "D: three strap clamps, 8 mm above the stock")
         check(abs(c.Shape.BoundBox.ZMax - 28) < 1e-6, "D: clamps stand on the faceplate (top %.1f)" % c.Shape.BoundBox.ZMax)
+        # each clamp object is drawn at its own angle (it was drawn at 0 degrees) ...
+        mid = clamps[1].Shape.BoundBox.Center
+        check(abs(math.degrees(math.atan2(mid.y, mid.x)) - 120) < 1, "D: the 120 degree clamp is drawn at 120 (%s)" % mid)
+        # ... and turned, it moves in to the stock edge again (the plate is 70 x 40: far corner)
+        r0 = clamps[2].Radius.Value
+        clamps[2].Angle = 270
+        doc.recompute()
+        check(abs(clamps[2].Radius.Value - (16 - clamps[2].Overlap.Value)) < 1e-6 and clamps[2].Radius.Value != r0,
+              "D: turned to 270, the clamp reaches the stock edge (radius %.2f)" % clamps[2].Radius.Value)
+        clamps[2].Angle = 240
+        doc.recompute()
         op = polar_face(job, 15)
         gap = min_clearance(op, c, c.Shape.BoundBox.ZMax + op.ChuckClearance.Value)
         check(gap >= op.ChuckClearance.Value - 0.05, "D: keeps %.2f mm from the clamps" % gap)

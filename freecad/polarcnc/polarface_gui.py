@@ -14,7 +14,7 @@ import Path.Op.Gui.Selection as PathSelection
 import PathScripts.PathUtils as PathUtils
 from PySide import QtCore, QtGui
 
-from . import polarface
+from . import help, polarface
 
 NAME = "PolarFace"          # also the key of its defaults in the Job's SetupSheet
 ICON = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
@@ -31,26 +31,24 @@ class TaskPanelOpPage(PathOpGui.TaskPanelPage):
         self.step.setRange(5, 100)
         self.step.setSuffix(" %")
         self.step.setToolTip(polarface_tip("StepOver"))
-        lay.addRow("Step over", self.step)
+        help.add_row(lay, "PolarFace:StepOver", "Step over", self.step)
         self.leave = QtGui.QDoubleSpinBox()
         self.leave.setRange(0, 50)
         self.leave.setDecimals(3)
         self.leave.setSuffix(" mm")
         self.leave.setToolTip(polarface_tip("StockToLeave"))
-        lay.addRow("Stock to leave", self.leave)
+        help.add_row(lay, "PolarFace:StockToLeave", "Stock to leave", self.leave)
         self.mode = QtGui.QComboBox()
         self.mode.addItems(["Climb", "Conventional"])
         self.mode.setToolTip(polarface_tip("CutMode"))
-        lay.addRow("Cut mode", self.mode)
+        help.add_row(lay, "PolarFace:CutMode", "Cut mode", self.mode)
         self.air = QtGui.QDoubleSpinBox()
         self.air.setRange(1, 20)
         self.air.setDecimals(1)
         self.air.setSuffix(" ×")
         self.air.setToolTip(polarface_tip("AirFeedFactor"))
-        lay.addRow("Air feed", self.air)
-        note = QtGui.QLabel("Circles round the chuck axis, outside in, only where the stock is "
-                            "(any shape). Depths: from the stock top down to the part top by "
-                            "default.")
+        help.add_row(lay, "PolarFace:AirFeedFactor", "Air feed", self.air)
+        note = QtGui.QLabel(help.note("PolarFace", ""))
         note.setWordWrap(True)
         lay.addRow(note)
         return w
@@ -141,8 +139,7 @@ def create(res):
             obj.ViewObject.Document.setEdit(obj.ViewObject, 0)
             return obj
     except PathUtils.PathNoTCExistsException:
-        QtGui.QMessageBox.warning(None, "Polar Face",
-                                  "No suitable tool controller found. Add one to the Job first.")
+        help.error_card("No suitable tool controller found. Add one to the Job first.", "Polar Face")
     doc.abortTransaction()
     doc.recompute()
     return None

@@ -9,7 +9,7 @@ import os
 import FreeCAD as App
 import FreeCADGui as Gui
 
-from . import machine, policy
+from . import help, machine, policy
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ICON = os.path.join(os.path.dirname(HERE), "Resources", "PolarCNC.svg")
@@ -243,7 +243,7 @@ def _ensure_toolbar():
         grp.SetString("Name", "Polar CNC")
         grp.SetBool("Active", True)
     for cmd in ("PolarCNC_MachineSettings", "PolarCNC_Chuck", "PolarCNC_Clamp",
-                "PolarCNC_PolarFace", "PolarCNC_PolarWrap", "PolarCNC_Simulate"):
+                "PolarCNC_PolarFace", "PolarCNC_PolarWrap", "PolarCNC_Simulate", "PolarCNC_Help"):
         if not grp.GetString(cmd, ""):
             grp.SetString(cmd, "PolarCNC")
 
@@ -267,6 +267,11 @@ def _on_workbench(name):
             polarwrap_gui.register()
         except Exception as e:
             App.Console.PrintError("Polar CNC: %s\n" % e)
+        try:     # the toolbar buttons exist once the workbench has built them
+            from PySide import QtCore
+            QtCore.QTimer.singleShot(300, help.install_toolbar)
+        except Exception as e:
+            App.Console.PrintLog("Polar CNC help: %s\n" % e)
 
 
 def install():
@@ -277,6 +282,7 @@ def install():
     Gui.addCommand("PolarCNC_PolarWrap", PolarWrapCommand())
     Gui.addCommand("PolarCNC_Chuck", ChuckCommand())
     Gui.addCommand("PolarCNC_Clamp", ClampCommand())
+    Gui.addCommand("PolarCNC_Help", help.LanguageCommand())
     _ensure_toolbar()
     policy.install_observer()
     Gui.getMainWindow().workbenchActivated.connect(_on_workbench)

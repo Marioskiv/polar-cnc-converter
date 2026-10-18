@@ -491,5 +491,6 @@ def open_for(job):
         if not isinstance(e, (ValueError, OSError, bridge.ConverterError)):
             import traceback
             App.Console.PrintError(traceback.format_exc())
-        QtGui.QMessageBox.warning(None, "Polar CNC", "Cannot simulate: %s" % e)
+        from . import help
+        help.error_card("Cannot simulate: %s" % e, "Polar CNC — simulation")
         return None

@@ -1,0 +1,532 @@
+{
+ "_about": "Polar CNC help: hover help for the toolbar buttons and the task-panel fields, and the error cards. 'el' Greek, 'en' English. Each command/field: t title, d what it does, steps (numbered like the badges in its animation), w warning, r what the end of its animation shows, i animation (file name in help/img/<lang>/).",
+ "commands": {
+  "PolarCNC_MachineSettings": {
+   "i": "machine.gif",
+   "en": {
+    "t": "Polar machine settings",
+    "d": "Makes the selected CAM Job a polar Job for your lathe conversion: the chuck turns the part (C), the router moves in and out (X) and up and down (Z). Post Process then writes polar G-code.",
+    "steps": [
+     "Select the Job in the tree.",
+     "Press this button.",
+     "In the Job's properties, group Polar CNC: enter your X travel (Polar X Max) and the cutting side."
+    ],
+    "w": "The part must be drawn with its centre on X0 Y0: that point is the chuck axis.",
+    "r": "Post Process writes polar G-code: the chuck turns, the router moves in X and Z."
+   },
+   "el": {
+    "t": "Ρυθμίσεις πολικού μηχανήματος",
+    "d": "Κάνει το επιλεγμένο Job πολικό, για τον τόρνο σου: το τσοκ γυρίζει το κομμάτι (C), το router πηγαίνει μέσα-έξω (X) και πάνω-κάτω (Z). Το Post Process μετά γράφει πολικό G-code.",
+    "steps": [
+     "Διάλεξε το Job στο δέντρο.",
+     "Πάτα αυτό το κουμπί.",
+     "Στις ιδιότητες του Job, ομάδα Polar CNC: γράψε τη διαδρομή του X (Polar X Max) και την πλευρά κοπής."
+    ],
+    "w": "Το κομμάτι πρέπει να είναι σχεδιασμένο με το κέντρο του στο X0 Y0: εκεί είναι ο άξονας του τσοκ.",
+    "r": "Το Post Process γράφει πολικό G-code: το τσοκ γυρίζει, το router κινείται σε X και Z."
+   }
+  },
+  "PolarCNC_Chuck": {
+   "i": "chuck.gif",
+   "en": {
+    "t": "Chuck",
+    "d": "Puts your chuck (3-jaw, 4-jaw or a faceplate) under the part. The jaws close on the real stock, Polar Face keeps clear of them and Post Process refuses a program that would hit them.",
+    "steps": [
+     "Select the Job.",
+     "Press Chuck and pick your chuck from the list (or Custom).",
+     "In the chuck's properties set Grip length: how deep the jaws hold the stock."
+    ],
+    "w": "Round stock can sit in the jaws at any angle, so the jaws are kept clear as a ring all the way round.",
+    "r": "The jaws hold the real stock; the checks keep the cutter away from them."
+   },
+   "el": {
+    "t": "Τσοκ",
+    "d": "Βάζει το τσοκ σου (3άρι, 4άρι ή πλατό) κάτω από το κομμάτι. Οι σιαγόνες κλείνουν στο πραγματικό stock, το Polar Face κρατάει απόσταση από αυτές και το Post Process δεν γράφει πρόγραμμα που θα τις χτυπούσε.",
+    "steps": [
+     "Διάλεξε το Job.",
+     "Πάτα Τσοκ και διάλεξε το τσοκ σου από τη λίστα (ή Custom).",
+     "Στις ιδιότητες του τσοκ βάλε το Grip length: πόσο βαθιά πιάνουν οι σιαγόνες το stock."
+    ],
+    "w": "Μια στρογγυλή μπάρα μπορεί να μπει στις σιαγόνες σε οποιαδήποτε γωνία: γι' αυτό οι σιαγόνες ελέγχονται σαν δαχτυλίδι γύρω-γύρω.",
+    "r": "Οι σιαγόνες κρατούν το πραγματικό stock· οι έλεγχοι κρατούν το κοπτικό μακριά τους."
+   }
+  },
+  "PolarCNC_Clamp": {
+   "i": "clamp.gif",
+   "en": {
+    "t": "Add clamp",
+    "d": "A clamp or support on the faceplate. It reaches the stock edge by itself; you only say where round the plate it goes.",
+    "steps": [
+     "Make a faceplate with Chuck.",
+     "Press Add clamp once for each clamp.",
+     "In the clamp's properties set its Angle (and size if you like)."
+    ],
+    "w": "",
+    "r": "The clamps are kept clear like the jaws."
+   },
+   "el": {
+    "t": "Σφιγκτήρας",
+    "d": "Ένας σφιγκτήρας ή στήριγμα πάνω στο πλατό. Φτάνει μόνος του ως την άκρη του κομματιού· εσύ λες μόνο σε ποια γωνία μπαίνει.",
+    "steps": [
+     "Φτιάξε πλατό με το κουμπί Τσοκ.",
+     "Πάτα Σφιγκτήρας μία φορά για κάθε σφιγκτήρα.",
+     "Στις ιδιότητες του σφιγκτήρα βάλε τη γωνία του (και το μέγεθος αν θέλεις)."
+    ],
+    "w": "",
+    "r": "Οι σφιγκτήρες προστατεύονται όπως οι σιαγόνες."
+   }
+  },
+  "PolarCNC_PolarFace": {
+   "i": "polarface.gif",
+   "en": {
+    "t": "Polar Face",
+    "d": "Facing for the lathe: circles round the chuck axis, only where the stock really is (round, square, hexagon, any shape), so the cutter does not cut air. The chuck turns smoothly and the part is never touched.",
+    "steps": [
+     "Select the Job.",
+     "Press Polar Face.",
+     "Check the step over and press OK."
+    ],
+    "w": "Depths go from the stock top down to the part top unless you change them.",
+    "r": "Circles only where the stock is: no cutting air."
+   },
+   "el": {
+    "t": "Polar Face (πλανάρισμα)",
+    "d": "Πλανάρισμα για τον τόρνο: κύκλοι γύρω από τον άξονα του τσοκ, μόνο εκεί που υπάρχει πραγματικά υλικό (στρογγυλό, τετράγωνο, εξάγωνο, οποιοδήποτε σχήμα), οπότε το κοπτικό δεν κόβει αέρα. Το τσοκ γυρίζει ομαλά και το κομμάτι δεν ακουμπιέται ποτέ.",
+    "steps": [
+     "Διάλεξε το Job.",
+     "Πάτα Polar Face.",
+     "Δες το βήμα (step over) και πάτα OK."
+    ],
+    "w": "Το βάθος πάει από την κορυφή του stock ως την κορυφή του κομματιού, αν δεν το αλλάξεις.",
+    "r": "Κύκλοι μόνο όπου υπάρχει υλικό: δεν κόβει αέρα."
+   }
+  },
+  "PolarCNC_PolarWrap": {
+   "i": "polarwrap.gif",
+   "en": {
+    "t": "Polar Wrap",
+    "d": "With the router turned to look at the part, machines its outside from the real 3D part (solid or STL): it is unrolled automatically and cut with helices round it, roughing then finishing.",
+    "steps": [
+     "Job properties: Polar Layout = Wrap and Polar Wrap Diameter = the bar diameter.",
+     "Press Polar Wrap.",
+     "Choose roughing/finishing and press OK."
+    ],
+    "w": "Tool lengths go in the X column of the tool table (the router lies sideways).",
+    "r": "On the machine: the chuck turns, the router goes along the bar."
+   },
+   "el": {
+    "t": "Polar Wrap (γύρω από τον κύλινδρο)",
+    "d": "Με το router γυρισμένο να κοιτάει το κομμάτι, κατεργάζεται την εξωτερική του επιφάνεια από το πραγματικό 3D κομμάτι (στερεό ή STL): ξετυλίγεται μόνο του και κόβεται σε έλικα γύρω-γύρω, πρώτα ξεχόνδρισμα και μετά φινίρισμα.",
+    "steps": [
+     "Ιδιότητες Job: Polar Layout = Wrap και Polar Wrap Diameter = η διάμετρος της μπάρας.",
+     "Πάτα Polar Wrap.",
+     "Διάλεξε ξεχόνδρισμα/φινίρισμα και πάτα OK."
+    ],
+    "w": "Τα μήκη των κοπτικών μπαίνουν στη στήλη X του πίνακα εργαλείων (το router είναι πλάγια).",
+    "r": "Στο μηχάνημα: το τσοκ γυρίζει, το router πηγαίνει κατά μήκος της μπάρας."
+   }
+  },
+  "PolarCNC_Simulate": {
+   "i": "simulate.gif",
+   "en": {
+    "t": "Polar simulation",
+    "d": "Plays the polar program exactly as Post Process writes it: the chuck turns the part and the router moves only in X and Z, as on your machine. Or switch to the part view to compare with CAM.",
+    "steps": [
+     "Select the Job.",
+     "Press Polar simulation.",
+     "Play, or drag the time slider. Close puts everything back."
+    ],
+    "w": "The times are the program's own: near the centre a real machine is slower.",
+    "r": "Part view: the same program with the part standing still."
+   },
+   "el": {
+    "t": "Πολική προσομοίωση",
+    "d": "Παίζει το πολικό πρόγραμμα ακριβώς όπως το γράφει το Post Process: το τσοκ γυρίζει το κομμάτι και το router κινείται μόνο σε X και Z, όπως στο μηχάνημά σου. Ή γύρνα στην προβολή κομματιού για να το συγκρίνεις με το CAM.",
+    "steps": [
+     "Διάλεξε το Job.",
+     "Πάτα Πολική προσομοίωση.",
+     "Play, ή σύρε τη μπάρα χρόνου. Το Close τα επαναφέρει όλα."
+    ],
+    "w": "Οι χρόνοι είναι του προγράμματος: κοντά στο κέντρο το πραγματικό μηχάνημα πηγαίνει πιο αργά.",
+    "r": "Προβολή κομματιού: το ίδιο πρόγραμμα με το κομμάτι ακίνητο."
+   }
+  },
+  "PolarCNC_Help": {
+   "i": "",
+   "en": {
+    "t": "Polar CNC help language",
+    "d": "Chooses the language of these help popups and of the error cards: Greek, English, or off.",
+    "steps": [],
+    "w": ""
+   },
+   "el": {
+    "t": "Γλώσσα βοήθειας Polar CNC",
+    "d": "Διαλέγει τη γλώσσα αυτών των παραθύρων βοήθειας και των καρτών λάθους: Ελληνικά, Αγγλικά ή καθόλου.",
+    "steps": [],
+    "w": ""
+   }
+  }
+ },
+ "fields": {
+  "PolarFace:StepOver": {
+   "en": {
+    "t": "Step over",
+    "d": "Distance between the circles, in % of the cutter diameter. 40-60 % is a good start; smaller = smoother face, longer time."
+   },
+   "el": {
+    "t": "Βήμα (step over)",
+    "d": "Απόσταση ανάμεσα στους κύκλους, σε % της διαμέτρου του κοπτικού. 40-60 % είναι καλή αρχή· μικρότερο = πιο λεία επιφάνεια, περισσότερος χρόνος."
+   }
+  },
+  "PolarFace:StockToLeave": {
+   "en": {
+    "t": "Stock to leave",
+    "d": "Material left round the part, for a later finishing pass. 0 = cut to the part."
+   },
+   "el": {
+    "t": "Υλικό που μένει",
+    "d": "Υλικό που αφήνεται γύρω από το κομμάτι, για επόμενο φινίρισμα. 0 = κόβει ως το κομμάτι."
+   }
+  },
+  "PolarFace:CutMode": {
+   "en": {
+    "t": "Cut mode",
+    "d": "Climb (usual on a CNC) or Conventional, for a spindle turning forward (M3)."
+   },
+   "el": {
+    "t": "Τρόπος κοπής",
+    "d": "Climb (το συνηθισμένο σε CNC) ή Conventional, για άτρακτο που γυρίζει δεξιά (M3)."
+   }
+  },
+  "PolarFace:AirFeedFactor": {
+   "en": {
+    "t": "Air feed",
+    "d": "Where the cutter goes round without touching material, it goes this many times faster than the cutting feed."
+   },
+   "el": {
+    "t": "Ταχύτητα στον αέρα",
+    "d": "Όπου το κοπτικό γυρίζει χωρίς να ακουμπάει υλικό, πηγαίνει τόσες φορές πιο γρήγορα από την ταχύτητα κοπής."
+   }
+  },
+  "PolarFace:ChuckClearance": {
+   "en": {
+    "t": "Chuck clearance",
+    "d": "How far the cutter stays from the jaws and clamps, sideways and in height."
+   },
+   "el": {
+    "t": "Απόσταση από το τσοκ",
+    "d": "Πόσο μακριά μένει το κοπτικό από τις σιαγόνες και τους σφιγκτήρες, στο πλάι και καθ' ύψος."
+   }
+  },
+  "PolarWrap:Strategy": {
+   "en": {
+    "t": "Strategy",
+    "d": "Roughing layers from the bar down, then finishing on the part; or only one of them."
+   },
+   "el": {
+    "t": "Στρατηγική",
+    "d": "Στρώσεις ξεχονδρίσματος από τη μπάρα προς τα μέσα, μετά φινίρισμα πάνω στο κομμάτι· ή μόνο το ένα από τα δύο."
+   }
+  },
+  "PolarWrap:FinishStyle": {
+   "en": {
+    "t": "Finishing",
+    "d": "Helix round the part: one continuous cut, the best surface on round shapes. Lines along the part: better for steps, grooves and flats along the axis."
+   },
+   "el": {
+    "t": "Φινίρισμα",
+    "d": "Έλικα γύρω-γύρω: μία συνεχής κοπή, η καλύτερη επιφάνεια σε στρογγυλά σχήματα. Γραμμές κατά μήκος: καλύτερο για σκαλοπάτια, σφήνες και επίπεδα κατά μήκος του άξονα."
+   }
+  },
+  "PolarWrap:StepOver": {
+   "en": {
+    "t": "Finish step over",
+    "d": "Distance between the finishing passes, in % of the cutter diameter. Small (10-20 %) with a ball end for a smooth surface."
+   },
+   "el": {
+    "t": "Βήμα φινιρίσματος",
+    "d": "Απόσταση ανάμεσα στα περάσματα φινιρίσματος, σε % της διαμέτρου του κοπτικού. Μικρό (10-20 %) με μπίλια για λεία επιφάνεια."
+   }
+  },
+  "PolarWrap:RoughStepOver": {
+   "en": {
+    "t": "Rough step over",
+    "d": "How far the roughing helix advances along the part per turn, in % of the cutter diameter."
+   },
+   "el": {
+    "t": "Βήμα ξεχονδρίσματος",
+    "d": "Πόσο προχωράει η έλικα του ξεχονδρίσματος κατά μήκος σε κάθε στροφή, σε % της διαμέτρου του κοπτικού."
+   }
+  },
+  "PolarWrap:StepDown": {
+   "en": {
+    "t": "Step down",
+    "d": "Depth of each roughing layer (radial)."
+   },
+   "el": {
+    "t": "Βάθος στρώσης",
+    "d": "Πόσο βαθιά κόβει κάθε στρώση ξεχονδρίσματος (ακτινικά)."
+   }
+  },
+  "PolarWrap:FinishAllowance": {
+   "en": {
+    "t": "Finish allowance",
+    "d": "Roughing leaves this much on the part for the finishing pass."
+   },
+   "el": {
+    "t": "Υλικό για φινίρισμα",
+    "d": "Το ξεχόνδρισμα αφήνει τόσο υλικό πάνω στο κομμάτι για το φινίρισμα."
+   }
+  },
+  "PolarWrap:StockToLeave": {
+   "en": {
+    "t": "Stock to leave",
+    "d": "Material left on the part after finishing."
+   },
+   "el": {
+    "t": "Υλικό που μένει",
+    "d": "Υλικό που μένει πάνω στο κομμάτι μετά το φινίρισμα."
+   }
+  },
+  "PolarWrap:Direction": {
+   "en": {
+    "t": "Chuck turns",
+    "d": "Which way the chuck turns while cutting (the roughing layers alternate so C does not pile up turns)."
+   },
+   "el": {
+    "t": "Φορά τσοκ",
+    "d": "Προς τα πού γυρίζει το τσοκ όταν κόβει (οι στρώσεις ξεχονδρίσματος εναλλάσσονται για να μη μαζεύει στροφές ο C)."
+   }
+  },
+  "PolarWrap:GridStep": {
+   "en": {
+    "t": "Resolution",
+    "d": "Detail of the part's map, along it and round it. Smaller = more exact, slower to compute."
+   },
+   "el": {
+    "t": "Ανάλυση",
+    "d": "Λεπτομέρεια του χάρτη του κομματιού, κατά μήκος και γύρω-γύρω. Μικρότερο = πιο ακριβές, πιο αργός υπολογισμός."
+   }
+  }
+ },
+ "errors": [
+  {
+   "re": "X Axis Max is not set",
+   "en": {
+    "t": "The machine's X travel is missing",
+    "why": "Without it the program could ask for an X your machine cannot reach.",
+    "do": "Job properties, group Polar CNC: enter Polar X Max (your X soft limit)."
+   },
+   "el": {
+    "t": "Λείπει η διαδρομή X του μηχανήματος",
+    "why": "Χωρίς αυτήν το πρόγραμμα μπορεί να ζητήσει X που το μηχάνημα δεν φτάνει.",
+    "do": "Ιδιότητες Job, ομάδα Polar CNC: γράψε το Polar X Max (το όριο του X σου)."
+   }
+  },
+  {
+   "re": "Cutting side is not set",
+   "en": {
+    "t": "The cutting side is missing",
+    "why": "The converter must know if the cutter may cross the centre.",
+    "do": "Job properties, Polar CNC: choose the Polar Cutting Side."
+   },
+   "el": {
+    "t": "Λείπει η πλευρά κοπής",
+    "why": "Ο converter πρέπει να ξέρει αν το κοπτικό επιτρέπεται να περάσει το κέντρο.",
+    "do": "Ιδιότητες Job, Polar CNC: διάλεξε Polar Cutting Side."
+   }
+  },
+  {
+   "re": "Wrap (radius|diameter) is not set",
+   "en": {
+    "t": "The bar diameter is missing",
+    "why": "Wrap needs the diameter of the bar in the chuck to unroll the part.",
+    "do": "Job properties, Polar CNC: enter Polar Wrap Diameter."
+   },
+   "el": {
+    "t": "Λείπει η διάμετρος της μπάρας",
+    "why": "Το Wrap χρειάζεται τη διάμετρο της μπάρας στο τσοκ για να ξετυλίξει το κομμάτι.",
+    "do": "Ιδιότητες Job, Polar CNC: γράψε το Polar Wrap Diameter."
+   }
+  },
+  {
+   "re": "runs into the chuck",
+   "en": {
+    "t": "The cutter would hit the chuck",
+    "why": "A cut or a rapid move goes into a jaw, a clamp or the chuck body. Nothing was written.",
+    "do": "Change that operation (its depth or area), raise the Safe Height, or change the grip length or the jaw position."
+   },
+   "el": {
+    "t": "Το κοπτικό θα χτυπούσε το τσοκ",
+    "why": "Μια κοπή ή μια γρήγορη κίνηση μπαίνει σε σιαγόνα, σφιγκτήρα ή στο σώμα του τσοκ. Δεν γράφτηκε τίποτα.",
+    "do": "Άλλαξε αυτή την εργασία (βάθος ή περιοχή), ανέβασε το Safe Height, ή άλλαξε το Grip length ή τη θέση των σιαγόνων."
+   }
+  },
+  {
+   "re": "tool length offsets|X column",
+   "en": {
+    "t": "Tool length along the wrong axis",
+    "why": "In Wrap the router lies sideways: its length runs along X. Lengths in the Z column would shift the whole program along the part.",
+    "do": "Put each tool's length in the X column of the LinuxCNC tool table, then tick Job -> Polar Wrap Tool Length In X."
+   },
+   "el": {
+    "t": "Μήκος κοπτικού σε λάθος άξονα",
+    "why": "Στο Wrap το router είναι πλάγια: το μήκος του είναι κατά τον X. Μήκη στη στήλη Z θα μετακινούσαν όλο το πρόγραμμα κατά μήκος του κομματιού.",
+    "do": "Βάλε το μήκος κάθε κοπτικού στη στήλη X του πίνακα εργαλείων του LinuxCNC και τσέκαρε Job -> Polar Wrap Tool Length In X."
+   }
+  },
+  {
+   "re": "only Polar Wrap operations",
+   "en": {
+    "t": "This operation does not belong in a Wrap Job",
+    "why": "The other CAM operations cut a flat face from above; with the router sideways they would cut wrong.",
+    "do": "Use Polar Wrap, or switch the other operation off (Active = false)."
+   },
+   "el": {
+    "t": "Αυτή η εργασία δεν ανήκει σε Wrap Job",
+    "why": "Οι άλλες εργασίες του CAM κόβουν επίπεδη επιφάνεια από πάνω· με το router πλάγια θα έκοβαν λάθος.",
+    "do": "Χρησιμοποίησε Polar Wrap, ή απενεργοποίησε την άλλη εργασία (Active = false)."
+   }
+  },
+  {
+   "re": "without a feed|has no feed",
+   "en": {
+    "t": "A tool has no feed",
+    "why": "Without a feed the time of each move cannot be computed.",
+    "do": "Open the tool controller and set Horiz Feed and Vert Feed."
+   },
+   "el": {
+    "t": "Ένα κοπτικό δεν έχει ταχύτητα κοπής",
+    "why": "Χωρίς ταχύτητα δεν υπολογίζεται ο χρόνος κάθε κίνησης.",
+    "do": "Άνοιξε τον tool controller και βάλε Horiz Feed και Vert Feed."
+   }
+  },
+  {
+   "re": "in mm",
+   "en": {
+    "t": "Inches are not used in Wrap",
+    "why": "The wrap is computed in millimetres.",
+    "do": "Remove --inches from the post-processor arguments of the Job."
+   },
+   "el": {
+    "t": "Οι ίντσες δεν χρησιμοποιούνται στο Wrap",
+    "why": "Το Wrap υπολογίζεται σε χιλιοστά.",
+    "do": "Βγάλε το --inches από τα ορίσματα του post-processor στο Job."
+   }
+  },
+  {
+   "re": "past X Axis Max|past the chuck axis",
+   "en": {
+    "t": "X beyond the machine's travel",
+    "why": "A move asks for an X your machine cannot reach.",
+    "do": "Lower the Safe/Clearance heights, or check the diameters and X Max."
+   },
+   "el": {
+    "t": "X πέρα από τη διαδρομή",
+    "why": "Μια κίνηση ζητάει X που το μηχάνημα δεν φτάνει.",
+    "do": "Χαμήλωσε τα Safe/Clearance Height, ή έλεγξε τις διαμέτρους και το X Max."
+   }
+  },
+  {
+   "re": "was not converted",
+   "en": {
+    "t": "The program could not be converted safely",
+    "why": "The converter found something it cannot turn into polar moves safely (the line is named below). Nothing was written.",
+    "do": "Read the line named below and change the operation that writes it."
+   },
+   "el": {
+    "t": "Το πρόγραμμα δεν μετατράπηκε με ασφάλεια",
+    "why": "Ο converter βρήκε κάτι που δεν μπορεί να γίνει πολικές κινήσεις με ασφάλεια (η γραμμή φαίνεται πιο κάτω). Δεν γράφτηκε τίποτα.",
+    "do": "Δες τη γραμμή πιο κάτω και άλλαξε την εργασία που τη γράφει."
+   }
+  },
+  {
+   "re": "No suitable tool controller",
+   "en": {
+    "t": "The Job has no tool",
+    "why": "Every operation needs a tool controller (cutter, speed, feeds).",
+    "do": "Add a tool to the Job (Job -> Tools -> Add), then try again."
+   },
+   "el": {
+    "t": "Το Job δεν έχει κοπτικό",
+    "why": "Κάθε εργασία χρειάζεται tool controller (κοπτικό, στροφές, ταχύτητες).",
+    "do": "Πρόσθεσε κοπτικό στο Job (Job -> Tools -> Add) και ξαναδοκίμασε."
+   }
+  },
+  {
+   "re": "no moves to show",
+   "en": {
+    "t": "There is nothing to play",
+    "why": "The program has no moves: the operations are switched off or empty.",
+    "do": "Switch the operations on (Active = true) and recompute the Job."
+   },
+   "el": {
+    "t": "Δεν υπάρχει τίποτα να παίξει",
+    "why": "Το πρόγραμμα δεν έχει κινήσεις: οι εργασίες είναι απενεργοποιημένες ή άδειες.",
+    "do": "Ενεργοποίησε τις εργασίες (Active = true) και κάνε recompute στο Job."
+   }
+  },
+  {
+   "re": "no Polar CNC machine settings",
+   "en": {
+    "t": "This Job is not polar yet",
+    "why": "Polar CNC needs its machine settings in the Job.",
+    "do": "Select the Job and press Polar machine settings."
+   },
+   "el": {
+    "t": "Το Job δεν είναι ακόμα πολικό",
+    "why": "Το Polar CNC χρειάζεται τις ρυθμίσεις μηχανήματος μέσα στο Job.",
+    "do": "Διάλεξε το Job και πάτα Ρυθμίσεις πολικού μηχανήματος."
+   }
+  },
+  {
+   "re": "Cannot simulate",
+   "en": {
+    "t": "The simulation could not start",
+    "why": "The program could not be made (see the message).",
+    "do": "Fix what the message says, then press Polar simulation again."
+   },
+   "el": {
+    "t": "Η προσομοίωση δεν ξεκίνησε",
+    "why": "Το πρόγραμμα δεν μπόρεσε να φτιαχτεί (δες το μήνυμα).",
+    "do": "Διόρθωσε αυτό που λέει το μήνυμα και πάτα ξανά Πολική προσομοίωση."
+   }
+  }
+ ],
+ "generic_error": {
+  "en": {
+   "t": "Polar CNC stopped",
+   "why": "Something is not right; nothing was written.",
+   "do": "Read the message below; the Report view has the details."
+  },
+  "el": {
+   "t": "Το Polar CNC σταμάτησε",
+   "why": "Κάτι δεν είναι σωστό· δεν γράφτηκε τίποτα.",
+   "do": "Διάβασε το μήνυμα πιο κάτω· οι λεπτομέρειες είναι στο Report view."
+  }
+ },
+ "labels": {
+  "en": {
+   "why": "Why",
+   "do": "What to do",
+   "msg": "Message",
+   "steps": "How"
+  },
+  "el": {
+   "why": "Γιατί",
+   "do": "Τι να κάνεις",
+   "msg": "Μήνυμα",
+   "steps": "Πώς"
+  }
+ },
+ "notes": {
+  "PolarFace": {
+   "en": "Circles round the chuck axis, outside in, only where the stock is (any shape). Depths: from the stock top down to the part top by default.",
+   "el": "Κύκλοι γύρω από τον άξονα του τσοκ, από έξω προς τα μέσα, μόνο όπου υπάρχει υλικό (οποιοδήποτε σχήμα). Βάθος: από την κορυφή του stock ως την κορυφή του κομματιού, αν δεν το αλλάξεις."
+  },
+  "PolarWrap": {
+   "en": "The part as it is (solid or STL), its axis on Z: it is unrolled automatically and machined with helices round it, from the free end toward the chuck. Set the stock diameter in the Job (Polar Wrap Diameter).",
+   "el": "Το κομμάτι όπως είναι (στερεό ή STL), με τον άξονά του στον Z: ξετυλίγεται μόνο του και κόβεται σε έλικα γύρω-γύρω, από την ελεύθερη άκρη προς το τσοκ. Τη διάμετρο της μπάρας τη βάζεις στο Job (Polar Wrap Diameter)."
+  }
+ }
+}
