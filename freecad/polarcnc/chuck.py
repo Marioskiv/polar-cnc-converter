@@ -37,8 +37,8 @@ PRESETS = {
     # SAN OU catalogue sizes. Body thickness from the tables; jaw height above the face, jaw
     # length and width are not in them for every model: scaled from the catalogue drawings
     # (3-jaw: body 58 -> jaws about 18). Measure your own chuck.
-    # K72-125: jaw height 25.5, length 53, width 16 measured on a real chuck
-    "4-jaw SAN OU K72-125 independent (Ø125)": (FOUR_JAW, 125, 56, 53, 16, 25.5),
+    # K72-125: jaw height 21.7, length 56, width 18 measured on a real chuck
+    "4-jaw SAN OU K72-125 independent (Ø125)": (FOUR_JAW, 125, 56, 56, 18, 21.7),
     # K12 table: D 125, H1 58 body, H 84 overall -> jaws 26 above the face
     "4-jaw SAN OU K12-125 self-centring (Ø125)": (FOUR_JAW_SC, 125, 58, 40, 14, 26),
     "3-jaw SAN OU 125 (Ø125)": (THREE_JAW, 125, 58, 39, 14, 18),

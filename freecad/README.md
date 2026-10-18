@@ -71,7 +71,7 @@ properties choose a **Preset** or type your own sizes:
 
 | Preset | What |
 |---|---|
-| 4-jaw SAN OU K72-125 | the default: 4 independent jaws, Ø125, body 56 (SAN OU K72 table); jaws 25.5 above the face, 53 long, 16 wide (measured on a real chuck) |
+| 4-jaw SAN OU K72-125 | the default: 4 independent jaws, Ø125, body 56 (SAN OU K72 table); jaws 21.7 above the face, 56 long, 18 wide (measured on a real chuck) |
 | 4-jaw SAN OU K12-125 | 4 jaws that move together (self-centring), Ø125, body 58, jaws 26 above the face (H 84 − H1 58) |
 | 3-jaw SAN OU 125 | Ø125, body 58 |
 | 3-jaw SC-3 … SC-16 | self-centring scroll chuck, sizes from the usual catalogue table |
