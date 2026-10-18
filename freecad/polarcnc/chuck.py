@@ -34,9 +34,13 @@ SELF_CENTRING = (THREE_JAW, FOUR_JAW_SC)
 # catalogue sizes: (type, A diameter, B body, H jaw length, J jaw width, K jaw height)
 PRESETS = {
     "Custom": None,
-    # SAN OU K12 (4 jaws, one key): D 125, H1 58 body, H 84 overall -> jaws 26 above the face.
-    # Jaw length and width are not in the table: taken from the drawing, measure them.
-    "4-jaw SAN OU K12-125 (Ø125)": (FOUR_JAW_SC, 125, 58, 40, 14, 26),
+    # SAN OU catalogue sizes. Body thickness from the tables; jaw height above the face, jaw
+    # length and width are not in them for every model: scaled from the catalogue drawings
+    # (K72: H1 56 -> H about 80; 3-jaw: body 58 -> jaws about 18). Measure your own chuck.
+    "4-jaw SAN OU K72-125 independent (Ø125)": (FOUR_JAW, 125, 56, 45, 16, 24),
+    # K12 table: D 125, H1 58 body, H 84 overall -> jaws 26 above the face
+    "4-jaw SAN OU K12-125 self-centring (Ø125)": (FOUR_JAW_SC, 125, 58, 40, 14, 26),
+    "3-jaw SAN OU 125 (Ø125)": (THREE_JAW, 125, 58, 39, 14, 18),
     "3-jaw SC-3 (Ø86)": (THREE_JAW, 86, 46, 36, 11, 14.3),
     "3-jaw SC-4 (Ø112)": (THREE_JAW, 112, 60, 42, 14, 16.6),
     "3-jaw SC-5 (Ø132)": (THREE_JAW, 132, 60, 50, 16, 20.3),
@@ -273,7 +277,7 @@ class Clamp:
         return None
 
 
-def make_chuck(job, preset="4-jaw SAN OU K12-125 (Ø125)"):
+def make_chuck(job, preset="4-jaw SAN OU K72-125 independent (Ø125)"):
     doc = job.Document
     obj = doc.addObject("Part::FeaturePython", "PolarChuck")
     Chuck(obj)

@@ -17,7 +17,7 @@
   16–60 % less time than full circles in the tests, nothing left uncut, the part never touched. FreeCAD's Facing
   (bounding rectangle, cuts air) is greyed out in polar Jobs.
 - **Chuck, 4-jaw chuck and faceplate** (*Chuck* / *Add clamp* buttons): a parametric chuck object on the Job.
-  Presets from catalogue tables (SAN OU K12-125 4-jaw self-centring, the default; 3-jaw SC-3 … SC-16, 4-jaw independent 12–24 in, faceplate Ø250/Ø400) or your own
+  Presets from catalogue tables (SAN OU K72-125 4-jaw independent (the default), K12-125 4-jaw self-centring and 3-jaw 125; 3-jaw SC-3 … SC-16, 4-jaw independent 12–24 in, faceplate Ø250/Ø400) or your own
   sizes. The jaws close on the real stock (independent 4-jaw: each jaw on its own; self-centring 3- or 4-jaw: a
   note when the stock cannot be centred, e.g. a square in a 3-jaw, a rectangle in a 4-jaw). On a faceplate you place clamps by angle and radius; they reach the stock edge by
   themselves. Polar Face keeps *Chuck clearance* (2 mm) from jaws and clamps; the simulator shows the chuck
