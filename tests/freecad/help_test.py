@@ -222,26 +222,56 @@ def run():
     dlg = dialogs.SettingsDialog(job, Gui.getMainWindow())
     dlg.show()
     pump(200)
-    check(len(dlg.findChildren(QtGui.QToolButton, "polarFieldHelp")) == 6, "settings: a ? on every field")
-    check(not dlg.diameter.isEnabled() and not dlg.past.isEnabled(), "settings: Wrap and both-sides fields off for Face")
+    check(len(dlg.findChildren(QtGui.QToolButton, "polarFieldHelp")) == 8, "settings: a ? on every field")
+    check(dlg.kind_box.currentIndex() == 1 and dlg.kind_box.count() == 3,
+          "settings: machining type Normal / Polar / Wrap, Polar chosen")
+    check(not dlg.diameter.isEnabled() and not dlg.past.isEnabled() and not dlg.wrap_xmax.isEnabled(),
+          "settings: Wrap and both-sides fields off for Polar")
     dlg.accept()
     check(dlg.isVisible() and "X Max" in dlg.findChild(QtGui.QLabel, "problem").text(),
           "settings: OK without X Max is refused, in Greek: %r" % dlg.findChild(QtGui.QLabel, "problem").text())
     dlg.xmax.setValue(125)
-    dlg.layout_box.setCurrentIndex(1)
+    dlg.side.setCurrentIndex(1)
+    dlg.past.setValue(3)
+    dlg.kind_box.setCurrentIndex(2)
     pump(50)
-    check(dlg.diameter.isEnabled() and dlg.in_x.isEnabled(), "settings: Wrap fields on for Wrap")
+    check(dlg.diameter.isEnabled() and dlg.in_x.isEnabled() and dlg.wrap_xmax.isEnabled(),
+          "settings: Wrap fields on for Wrap (with its own X Max)")
     dlg.accept()
     check(dlg.isVisible() and "διάμετρο" in dlg.findChild(QtGui.QLabel, "problem").text(), "settings: Wrap without a diameter refused")
     dlg.diameter.setValue(40)
-    dlg.side.setCurrentIndex(1)
-    dlg.past.setValue(3)
+    dlg.wrap_xmax.setValue(90)
     grab(dlg, "settings_el.png")
     dlg.accept()
     pump(50)
     check(not dlg.isVisible() and job.PolarXMax.Value == 125 and machine.is_wrap(job)
           and job.PolarWrapDiameter.Value == 40 and job.PolarCuttingSide == machine.BOTH_SIDES
-          and job.PolarPastCentre.Value == 3, "settings: OK writes them into the Job")
+          and job.PolarPastCentre.Value == 3 and job.PolarWrapXMax.Value == 90, "settings: OK writes them into the Job")
+    check(machine.options(job)["xMax"] == 90, "Wrap uses its own X Max (90, the Polar one is 125)")
+    job.PolarLayout = machine.FACE
+    check(machine.options(job)["xMax"] == 125, "Polar uses X Max 125")
+
+    # Normal: the Job goes back to an ordinary CAM Job, with the post it had
+    from PySide import QtCore as _QtCore
+    job.PostProcessor = "polar_linuxcnc"
+    App.ParamGet(help.PARAM).SetBool("SettingsDialog", True)
+
+    def pick_normal():
+        d = QtGui.QApplication.activeModalWidget()
+        if d is None:
+            _QtCore.QTimer.singleShot(200, pick_normal)
+            return
+        d.kind_box.setCurrentIndex(0)
+        d.accept()
+    _QtCore.QTimer.singleShot(300, pick_normal)
+    Gui.Selection.clearSelection()
+    Gui.Selection.addSelection(job)
+    Gui.runCommand("PolarCNC_MachineSettings")
+    pump(300)
+    App.ParamGet(help.PARAM).SetBool("SettingsDialog", False)
+    check(not machine.has_settings(job) and not hasattr(job, "PolarPreviousPost")
+          and job.PostProcessor != "polar_linuxcnc",
+          "Normal: an ordinary Job again (post %r)" % job.PostProcessor)
 
     # the chuck chooser: type, then size
     dlg = dialogs.ChuckDialog(chuck.PRESETS, chuck.CUSTOM, "4-jaw SAN OU K72-125 independent (Ø125)", Gui.getMainWindow())

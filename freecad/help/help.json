@@ -4,25 +4,25 @@
   "PolarCNC_MachineSettings": {
    "i": "machine.gif",
    "en": {
-    "t": "Polar machine settings",
-    "d": "Makes the selected CAM Job a polar Job for your lathe conversion: the chuck turns the part (C), the router moves in and out (X) and up and down (Z). Post Process then writes polar G-code.",
+    "t": "Machining type",
+    "d": "Chooses what the selected Job is: ordinary CAM (a 3-axis mill), polar (the chuck turns the part, the router looks at its face) or Wrap (the router turned to look at a bar). It sets the post-processor and the machine settings and greys out the operations that do not suit it. Choose ordinary to go back.",
     "steps": [
      "Select the Job in the tree.",
-     "Press this button.",
-     "In the Job's properties, group Polar CNC: enter your X travel (Polar X Max) and the cutting side."
+     "Press Machining type.",
+     "Choose Polar or Wrap, enter X Max (and the bar diameter for Wrap), OK."
     ],
-    "w": "The part must be drawn with its centre on X0 Y0: that point is the chuck axis.",
+    "w": "Polar: X0 Y0 = the chuck axis, Z0 = the stock top. Wrap has its own X Max (its own LinuxCNC profile).",
     "r": "Post Process writes polar G-code: the chuck turns, the router moves in X and Z."
    },
    "el": {
-    "t": "Ρυθμίσεις πολικού μηχανήματος",
-    "d": "Κάνει το επιλεγμένο Job πολικό, για τον τόρνο σου: το τσοκ γυρίζει το κομμάτι (C), το router πηγαίνει μέσα-έξω (X) και πάνω-κάτω (Z). Το Post Process μετά γράφει πολικό G-code.",
+    "t": "Τύπος κατεργασίας",
+    "d": "Διαλέγει τι είναι το επιλεγμένο Job: κανονική CAM (φρέζα 3 αξόνων), πολική (το τσοκ γυρίζει το κομμάτι, το router κοιτάει τη φάτσα) ή Wrap (το router γυρισμένο να κοιτάει μπάρα). Βάζει τον post-processor και τις ρυθμίσεις του μηχανήματος και γκριζάρει τις εργασίες που δεν ταιριάζουν. Με «Κανονική» γυρίζει πίσω.",
     "steps": [
      "Διάλεξε το Job στο δέντρο.",
-     "Πάτα αυτό το κουμπί.",
-     "Στις ιδιότητες του Job, ομάδα Polar CNC: γράψε τη διαδρομή του X (Polar X Max) και την πλευρά κοπής."
+     "Πάτα Τύπος κατεργασίας.",
+     "Διάλεξε Πολική ή Wrap, γράψε X Max (και διάμετρο μπάρας για Wrap), OK."
     ],
-    "w": "Το κομμάτι πρέπει να είναι σχεδιασμένο με το κέντρο του στο X0 Y0: εκεί είναι ο άξονας του τσοκ.",
+    "w": "Πολική: X0 Y0 = ο άξονας του τσοκ, Z0 = η κορυφή του stock. Το Wrap έχει δικό του X Max (δικό του προφίλ LinuxCNC).",
     "r": "Το Post Process γράφει πολικό G-code: το τσοκ γυρίζει, το router κινείται σε X και Z."
    }
   },
@@ -107,7 +107,7 @@
     "t": "Polar Wrap",
     "d": "With the router turned to look at the part, machines its outside from the real 3D part (solid or STL): it is unrolled automatically and cut with helices round it, roughing then finishing.",
     "steps": [
-     "Job properties: Polar Layout = Wrap and Polar Wrap Diameter = the bar diameter.",
+     "Machining type → Wrap, with the bar diameter.",
      "Press Polar Wrap.",
      "Choose roughing/finishing and press OK."
     ],
@@ -118,7 +118,7 @@
     "t": "Polar Wrap (γύρω από τον κύλινδρο)",
     "d": "Με το router γυρισμένο να κοιτάει το κομμάτι, κατεργάζεται την εξωτερική του επιφάνεια από το πραγματικό 3D κομμάτι (στερεό ή STL): ξετυλίγεται μόνο του και κόβεται σε έλικα γύρω-γύρω, πρώτα ξεχόνδρισμα και μετά φινίρισμα.",
     "steps": [
-     "Ιδιότητες Job: Polar Layout = Wrap και Polar Wrap Diameter = η διάμετρος της μπάρας.",
+     "Τύπος κατεργασίας → Wrap, με τη διάμετρο της μπάρας.",
      "Πάτα Polar Wrap.",
      "Διάλεξε ξεχόνδρισμα/φινίρισμα και πάτα OK."
     ],
@@ -479,6 +479,36 @@
     "t": "Βάθος πιασίματος",
     "d": "Πόσο από το stock πιάνουν οι σιαγόνες, από κάτω. Από μόνο του: το υλικό κάτω από το κομμάτι (ως το ύψος των σιαγόνων), ώστε το κοπτικό να μη χρειάζεται να πάει εκεί."
    }
+  },
+  "Settings:Kind": {
+   "en": {
+    "t": "Machining type",
+    "d": "Ordinary CAM: every FreeCAD operation, the usual post. Polar: the chuck turns; face with Polar Face, pockets, holes and contours with the usual Pocket, Drilling, Helix, Profile. Wrap: the router radial; the whole job with Polar Wrap."
+   },
+   "el": {
+    "t": "Τύπος κατεργασίας",
+    "d": "Κανονική CAM: όλες οι εργασίες του FreeCAD, ο κανονικός post. Πολική: γυρίζει το τσοκ· φάτσα με Polar Face, pocket, τρύπες και περιγράμματα με τα κανονικά Pocket, Drilling, Helix, Profile. Wrap: το router ακτινικά· όλη η δουλειά με το Polar Wrap."
+   }
+  },
+  "Settings:WrapXMax": {
+   "en": {
+    "t": "Wrap X Max",
+    "d": "Wrap only: the largest X of the machine's Wrap profile (the router turned changes the travel and the X zero). 0 = the same as X Max."
+   },
+   "el": {
+    "t": "X Max για Wrap",
+    "d": "Μόνο για Wrap: το μεγαλύτερο X του προφίλ Wrap του μηχανήματος (με το router γυρισμένο αλλάζει η διαδρομή και το μηδέν του X). 0 = ίδιο με το X Max."
+   }
+  },
+  "PolarFace:Pattern": {
+   "en": {
+    "t": "Pattern",
+    "d": "Rings: circles round the chuck axis, any stock; on the machine only the chuck turns on each one. Spiral: one spiral from the edge to the centre, for the top of round stock: X falls steadily while the chuck turns, one smooth cut with no step-in marks. Auto: the spiral on round stock (face only), rings everywhere else."
+   },
+   "el": {
+    "t": "Μοτίβο",
+    "d": "Κύκλοι: κύκλοι γύρω από τον άξονα του τσοκ, για κάθε υλικό· στο μηχάνημα σε κάθε κύκλο γυρίζει μόνο το τσοκ. Σπείρα: μία σπείρα από την άκρη ως το κέντρο, για τη φάτσα στρογγυλού υλικού: το X μικραίνει σιγά-σιγά όσο γυρίζει το τσοκ, μία ομαλή κοπή χωρίς σημάδια. Αυτόματο: σπείρα σε στρογγυλό υλικό (μόνο φάτσα), κύκλοι παντού αλλού."
+   }
   }
  },
  "errors": [
@@ -656,12 +686,12 @@
    "en": {
     "t": "This Job is not polar yet",
     "why": "Polar CNC needs its machine settings in the Job.",
-    "do": "Select the Job and press Polar machine settings."
+    "do": "Select the Job and press Machining type."
    },
    "el": {
     "t": "Το Job δεν είναι ακόμα πολικό",
     "why": "Το Polar CNC χρειάζεται τις ρυθμίσεις μηχανήματος μέσα στο Job.",
-    "do": "Διάλεξε το Job και πάτα Ρυθμίσεις πολικού μηχανήματος."
+    "do": "Διάλεξε το Job και πάτα Τύπος κατεργασίας."
    }
   },
   {
@@ -716,7 +746,7 @@
  },
  "dialogs": {
   "en": {
-   "settings": "Polar CNC — machine settings",
+   "settings": "Polar CNC — machining type",
    "face": "Face (router parallel to Z)",
    "wrap": "Wrap (router radial)",
    "one": "One side of the centre",
@@ -735,10 +765,16 @@
     "Faceplate with clamps": "Faceplate with clamps"
    },
    "pick_face": "Click the face of the part (or of the stock) that goes INTO the chuck, then press Chuck again.\n\nThe part is then turned so that face looks down, put on the chuck axis with Z0 on the stock top, and the chuck that holds this stock is chosen for you.",
-   "by_hand": "Choose the chuck by hand"
+   "by_hand": "Choose the chuck by hand",
+   "kind_normal": "Ordinary CAM (3-axis mill)",
+   "kind_face": "Polar (the chuck turns, face)",
+   "kind_wrap": "Wrap (router turned, round a bar)",
+   "what_normal": "Every FreeCAD operation, the usual post-processor. Nothing of Polar CNC is used.",
+   "what_face": "Face: Polar Face. Pockets, holes, contours: the usual Pocket (Offset), Drilling, Helix, Profile. FreeCAD's Facing and the 3D operations are greyed out.",
+   "what_wrap": "The whole job with Polar Wrap (roughing and finishing round the bar). The other operations are greyed out."
   },
   "el": {
-   "settings": "Polar CNC — ρυθμίσεις μηχανήματος",
+   "settings": "Polar CNC — τύπος κατεργασίας",
    "face": "Face (router παράλληλα με τον Z)",
    "wrap": "Wrap (router ακτινικά)",
    "one": "Μία πλευρά του κέντρου",
@@ -757,7 +793,13 @@
     "Faceplate with clamps": "Πλατό με σφιγκτήρες"
    },
    "pick_face": "Κάνε κλικ στην πλευρά του κομματιού (ή του stock) που ΜΠΑΙΝΕΙ ΣΤΟ ΤΣΟΚ και ξαναπάτα Τσοκ.\n\nΤο κομμάτι τότε γυρίζει ώστε αυτή η πλευρά να κοιτάει κάτω, μπαίνει στον άξονα του τσοκ με το Z0 στην κορυφή του stock, και διαλέγεται μόνο του το τσοκ που το πιάνει.",
-   "by_hand": "Διάλεξε τσοκ με το χέρι"
+   "by_hand": "Διάλεξε τσοκ με το χέρι",
+   "kind_normal": "Κανονική CAM (φρέζα 3 αξόνων)",
+   "kind_face": "Πολική (γυρίζει το τσοκ, φάτσα)",
+   "kind_wrap": "Wrap (router γυρισμένο, γύρω από μπάρα)",
+   "what_normal": "Όλες οι εργασίες του FreeCAD, ο κανονικός post-processor. Τίποτα από το Polar CNC.",
+   "what_face": "Φάτσα: Polar Face. Pocket, τρύπες, περίγραμμα: τα κανονικά Pocket (Offset), Drilling, Helix, Profile. Το Facing του FreeCAD και οι 3D εργασίες γκριζάρουν.",
+   "what_wrap": "Όλη η δουλειά με το Polar Wrap (ξεχόνδρισμα και φινίρισμα γύρω από τη μπάρα). Οι άλλες εργασίες γκριζάρουν."
   }
  }
 }

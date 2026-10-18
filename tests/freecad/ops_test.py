@@ -124,6 +124,22 @@ def run():
         if cmd is not None:
             check(cmd.isActive(), "%s offered in a polar Job" % name)
 
+    # a Wrap Job: only Polar Wrap is offered
+    from polarcnc import machine
+    job.PolarLayout = machine.WRAP
+    job.PolarWrapDiameter = 86
+    policy._cache[0] = 0.0
+    pump(200)
+    for name in ("CAM_Profile", "CAM_Pocket_Shape", "CAM_Helix", "CAM_Drilling", "CAM_MillFacing"):
+        cmd = Gui.Command.get(name)
+        if cmd is not None:
+            check(not cmd.isActive(), "%s greyed out in a Wrap Job" % name)
+    check(Gui.Command.get("PolarCNC_PolarWrap").isActive(), "Polar Wrap offered in a Wrap Job")
+    job.PolarLayout = machine.FACE
+    policy._cache[0] = 0.0
+    pump(200)
+    check(Gui.Command.get("CAM_Profile").isActive(), "back to polar: Profile offered again")
+
     # every clearing of Polar Face, with the chuck
     for mode in (pf.FACE_ONLY, pf.WHOLE, pf.BAND):
         if face_op is None:

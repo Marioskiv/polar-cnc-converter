@@ -1,5 +1,19 @@
 # Changelog
 
+## 2.19.0 — machining type, Wrap on its own, spiral facing
+
+### Changed
+- **Machining type** (the first Polar CNC button, was *Polar machine settings*): *Ordinary CAM*, *Polar* or *Wrap*
+  in one window, each with a line saying which operations to use. *Ordinary CAM* takes a Job back (the Polar CNC
+  settings go, its former post-processor comes back). Cancel leaves the Job as it was.
+- **A Wrap Job greys out every operation but Polar Wrap** (Post Process refused them anyway).
+- **Wrap has its own X Max** (*Polar Wrap X Max*: the Wrap profile of the machine has its own travel and X zero);
+  0 = the same as Polar X Max.
+
+### Added
+- **Polar Face pattern**: *Rings*, *Spiral* (one spiral from the edge to the centre: X falls steadily while the
+  chuck turns, no step-in marks) or *Auto* (spiral on round stock when only the face is cut, rings elsewhere).
+
 ## 2.18.0 — the chuck from one click, no more freezes, sharper help
 
 ### Fixed
