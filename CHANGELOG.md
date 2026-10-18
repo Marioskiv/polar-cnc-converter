@@ -12,6 +12,10 @@
 - **Polar Jobs offer only polar operations**: 3D Pocket, 3D Surface, Waterline, Planar/Rotary Surface and Probe
   are greyed out while the current Job is polar; new Pockets default to Offset and Facings to Spiral; Adaptive,
   V-carve, Slot, Deburr, Thread milling and line-by-line patterns get a warning (Report view, never a dialog).
+- **Polar Face** operation: facing that follows the real stock (round, square, hexagon, plate, off the centre) —
+  circles round the chuck axis clipped to the stock at every depth, linked without fast moves over uncut material;
+  16–60 % less time than full circles in the tests, nothing left uncut, the part never touched. FreeCAD's Facing
+  (bounding rectangle, cuts air) is greyed out in polar Jobs.
 - **Polar simulation in FreeCAD**: plays the polar program (what Post Process writes) — machine view with the part
   turning on the chuck, or part view — with program time, chuck turns and chuck speed.
 - `tests/freecad/run.sh`: tests the addon in a real FreeCAD (golden set inside FreeCAD, refusals, output equal to

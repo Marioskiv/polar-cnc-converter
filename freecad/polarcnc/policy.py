@@ -26,6 +26,9 @@ BLOCKED = {
     "CAM_PlanarSurface": "Path.Op.Gui.PlanarSurface",
     "CAM_RotarySurface": "Path.Op.Gui.RotarySurface",
     "CAM_Probe": "Path.Op.Gui.Probe",
+    # FreeCAD's Facing covers the stock's bounding rectangle (measured on round stock: 40 % of
+    # its path in the air); a polar Job faces with Polar Face, which follows the real stock
+    "CAM_MillFacing": "Path.Op.Gui.MillFacing",
 }
 
 # operations allowed in a polar Job with a word of warning: operation module -> reason
@@ -40,6 +43,8 @@ WARN_OPS = {
     "Path.Op.Deburr": "Deburr follows the edge: fine away from the centre, slow close to it.",
     "Path.Op.ThreadMilling": "Thread milling: each small helix off the centre makes the chuck "
                              "swing to and fro; use a low feed, holes away from the centre.",
+    "Path.Op.MillFacing": "Facing covers the bounding rectangle of the stock, not the stock "
+                          "itself, so much of it cuts air; use Polar Face.",
 }
 # the same (dressups have no reachable command object, so they are only warned about)
 WARN_DRESSUPS = {

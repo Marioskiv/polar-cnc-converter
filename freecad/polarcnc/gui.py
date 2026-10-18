@@ -96,13 +96,35 @@ class SimulateCommand:
             simulator.open_for(job)
 
 
+class PolarFaceCommand:
+    """Polar Face (the CAM modules are loaded only when it is used)."""
+
+    def GetResources(self):
+        return {"Pixmap": os.path.join(os.path.dirname(HERE), "Resources", "PolarFace.svg"),
+                "MenuText": "Polar Face",
+                "ToolTip": "Polar Face: facing for a polar Job that cuts only where the stock "
+                           "is (round, square, hexagon, any shape): circles round the chuck "
+                           "axis, outside in, linked without cutting air."}
+
+    def IsActive(self):
+        try:
+            return policy.is_polar(policy.current_job())
+        except Exception:
+            return False
+
+    def Activated(self):
+        from . import polarface_gui
+        polarface_gui.register()
+        return polarface_gui.Command().Activated()
+
+
 def _ensure_toolbar():
     """A 'Polar CNC' toolbar in the CAM workbench (the same mechanism as Tools -> Customize)."""
     grp = App.ParamGet("User parameter:BaseApp/Workbench/CAMWorkbench/Toolbar/PolarCNC")
     if not grp.GetString("Name", ""):
         grp.SetString("Name", "Polar CNC")
         grp.SetBool("Active", True)
-    for cmd in ("PolarCNC_MachineSettings", "PolarCNC_Simulate"):
+    for cmd in ("PolarCNC_MachineSettings", "PolarCNC_PolarFace", "PolarCNC_Simulate"):
         if not grp.GetString(cmd, ""):
             grp.SetString(cmd, "PolarCNC")
 
@@ -121,6 +143,8 @@ def _on_workbench(name):
     if name == "CAMWorkbench":
         try:
             policy.install_blocking()
+            from . import polarface_gui
+            polarface_gui.register()
         except Exception as e:
             App.Console.PrintError("Polar CNC: %s\n" % e)
 
@@ -129,6 +153,7 @@ def install():
     register_post()
     Gui.addCommand("PolarCNC_MachineSettings", MachineSettingsCommand())
     Gui.addCommand("PolarCNC_Simulate", SimulateCommand())
+    Gui.addCommand("PolarCNC_PolarFace", PolarFaceCommand())
     _ensure_toolbar()
     policy.install_observer()
     Gui.getMainWindow().workbenchActivated.connect(_on_workbench)

@@ -61,7 +61,8 @@ def op_policy(doc, job):
     check(pocket.ClearingPattern == "Offset", "polar Job: new Pocket is Offset (%s)" % pocket.ClearingPattern)
     check(ofacing.ClearingPattern == "ZigZag", "ordinary Job keeps FreeCAD's default (%s)"
           % ofacing.ClearingPattern)
-    check(not obs._said.get((doc.Name, face.Name)), "no warning for a Spiral facing")
+    check(any("Polar Face" in m for m in obs._said.get((doc.Name, face.Name)) or []),
+          "FreeCAD's Facing in a polar Job -> warning pointing to Polar Face")
     pocket.ClearingPattern = "ZigZag"
     pump(200)
     said = obs._said.get((doc.Name, pocket.Name)) or []

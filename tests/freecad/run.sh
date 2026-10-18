@@ -33,6 +33,21 @@ sim=$(cat "$OUT/sim/result.txt" 2>/dev/null || echo "RESULT: no result (see $OUT
 echo "simulator: $sim"
 [ "$sim" = "RESULT: PASS" ] || result="$result; simulator $sim"
 
+# Polar Face: its geometry without the GUI (FreeCADCmd), then in the GUI with square stock
+CMD=$(dirname "$FREECAD")/freecadcmd
+HOME="$OUT/home" PC_OUT="$OUT/pfgeo" PC_REPO="$REPO" "$CMD" "$REPO/tests/freecad/polarface_geometry_test.py" \
+    > "$OUT/freecad-pfgeo.log" 2>&1
+cat "$OUT/pfgeo/log.txt" 2>/dev/null
+pfgeo=$(cat "$OUT/pfgeo/result.txt" 2>/dev/null || echo "RESULT: no result (see $OUT/freecad-pfgeo.log)")
+echo "polar face geometry: $pfgeo"
+[ "$pfgeo" = "RESULT: PASS" ] || result="$result; polar face geometry $pfgeo"
+HOME="$OUT/home" PC_OUT="$OUT/pf" PC_REPO="$REPO" xvfb-run -a -s "-screen 0 1600x1000x24" \
+    "$FREECAD" "$REPO/tests/freecad/polarface_test.py" > "$OUT/freecad-pf.log" 2>&1
+cat "$OUT/pf/log.txt" 2>/dev/null
+pfr=$(cat "$OUT/pf/result.txt" 2>/dev/null || echo "RESULT: no result (see $OUT/freecad-pf.log)")
+echo "polar face: $pfr"
+[ "$pfr" = "RESULT: PASS" ] || result="$result; polar face $pfr"
+
 same="no"
 if [ -f "$OUT/run/cartesian.ngc" ] && [ -f "$OUT/run/polar.ngc" ]; then
     node "$REPO/tests/freecad/compare.js" "$OUT/run" && same="yes"

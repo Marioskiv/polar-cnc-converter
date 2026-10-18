@@ -28,7 +28,7 @@ FreeCAD.
    - **Polar Cutting Side**: one side of the centre, or both sides (then **Polar Past Centre**: how far).
    - **Polar Profile** (optional): a `.polar-profile.json` saved from the web page (rotary letter, directions,
      X as diameter, chord tolerance).
-4. **Polar simulation** (second button on the *Polar CNC* toolbar) plays the polar program — exactly what Post
+4. **Polar simulation** (last button on the *Polar CNC* toolbar) plays the polar program — exactly what Post
    Process writes, read back the way LinuxCNC moves the axes:
    - *Machine view*: the part turns with the chuck and the cutter only moves in X and Z, as on the machine;
    - *Part view*: the part stands still and the cutter moves over it — compare it with the CAM paths.
@@ -42,6 +42,28 @@ FreeCAD.
 The operations stay normal CAM operations, so FreeCAD shows and simulates them as usual. The polar conversion
 happens only when the G-code is written.
 
+## Polar Face: facing any stock without cutting air
+
+The stock in the chuck is often not round: square or hexagon bar, a plate, a casting, held off the centre in a
+4-jaw chuck. **Polar Face** (third button on the *Polar CNC* toolbar) faces it from the stock top down to the part
+top (or the depths you set), at every depth only where the stock really is:
+
+- circles round the chuck axis, from the outside in, each cut only where it meets material. On a polar machine
+  such a circle is a pure turn of the chuck at constant X — its smoothest move — and the converter writes it with no
+  error; inside the largest circle that fits in the stock it is one continuous cut;
+- where a circle leaves the stock (the corners of a square) the cutter goes on round the same circle — fast where
+  it reaches nothing, at the cutting feed where it still touches material that later circles will cut — or lifts,
+  whichever is quicker. A straight move at depth is never used to link two cuts (a chord runs inside the circle,
+  where material may be). It goes down where it reaches nothing and comes into the material along the circle,
+  never by plunging into it where it can avoid it;
+- the part (everything of it at or above the depth being cut) is never touched; *Stock to leave* keeps a skin round
+  it; the last pass runs straight into the centre (X only), where no circle could keep the feed.
+
+Measured (`tests/freecad/polarface_geometry_test.py`, Ø6 cutter, step 40 %): nothing left uncut, the part never
+touched, no fast move over uncut material, and compared with full circles over the whole swept circle the time is
+16–21 % shorter on round stock, 37–41 % on a square, 44–46 % on a square turned and off the centre, 33–36 % on a
+hexagon and 58–60 % on a plate off the centre.
+
 ## Which operations suit polar machining
 
 The chuck turns and the cutter only moves in X and Z. Close to the centre the chuck must turn very fast to keep
@@ -51,9 +73,9 @@ does the same:
 
 | | Operations |
 |---|---|
-| **Offered** | Profile, Pocket (**Offset** by default), Facing (**Spiral** by default), Drilling, Helix, Engrave |
+| **Offered** | **Polar Face** (below), Profile, Pocket (**Offset** by default), Drilling, Helix, Engrave |
 | **Offered, with a warning** | Adaptive (many direction changes of the chuck, large files: pockets away from the centre), V-carve (Z moves together with many direction changes), Slot, Deburr, Thread milling (fine away from the centre) |
-| **Greyed out** | 3D Pocket, 3D Surface, Waterline, Planar / Rotary Surface (3D), Probe (probing is not converted) |
+| **Greyed out** | FreeCAD's Facing (it covers the stock's bounding rectangle: on round stock 40 % of its path is in the air — use Polar Face), 3D Pocket, 3D Surface, Waterline, Planar / Rotary Surface (3D), Probe (probing is not converted) |
 
 - The defaults are the Job's own *Operation defaults* (SetupSheet), set by *Polar machine settings*; they apply
   to operations made after that. Operations that were already there are checked once and reported.
