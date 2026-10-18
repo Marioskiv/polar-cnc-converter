@@ -24,6 +24,7 @@ bridge turns that logging category off, or it fills FreeCAD's report view on eve
 | post-processor | `freecad/posts/polar_linuxcnc_post.py` | a legacy-style post (`export(objectslist, filename, argstring)`), so it appears in the Job's *Processor* list. It runs a **fresh copy** of FreeCAD's `linuxcnc_legacy_post` (that post keeps its settings in module globals) and converts its output. Any refusal: message box + `None`, so Post Process writes no file |
 | machine settings | `freecad/polarcnc/machine.py` | Job properties, group *Polar CNC*: `PolarXMax` (required, 0 = not set), `PolarCuttingSide`, `PolarPastCentre`, `PolarProfile` (the web page's profile file). Builds the converter options; nothing is guessed |
 | command + toolbar | `freecad/polarcnc/gui.py` | *Polar machine settings*: adds the properties to the selected Job and picks the post. The toolbar is created through `BaseApp/Workbench/CAMWorkbench/Toolbar/PolarCNC` (the same mechanism as Tools → Customize) |
+| polar Job policy | `freecad/polarcnc/policy.py` | greys out 3D operations and Probe while the current Job is polar, by wrapping `IsActive` of their Python command objects (`Path.Op.Gui.<Op>.Command`; the original is kept and called) — no toolbar rebuild, works in toolbars, menus and shortcuts. Sets the Job's SetupSheet operation defaults (`setFromTemplate`). A document observer warns (deferred to the next event-loop turn: CAM sets temporary values while creating an operation) about warned operations and line-by-line patterns |
 | start-up | `freecad/InitGui.py`, `package.xml` | `package.xml` at the repository root declares a workbench item in the subdirectory `freecad` (FreeCAD runs its `InitGui.py`) |
 
 **FreeCAD 26.3 facts found while building it**
@@ -32,10 +33,15 @@ bridge turns that logging category off, or it fills FreeCAD's report view on eve
   are used through a Machine definition. Hence the legacy-style post.
 - 26.3 passes posts `Postable` wrappers, not document objects; the real object is in `.source`
   (`Path/Post/PostList.py`).
-- `package.xml` can declare `<postprocessor>` directories, but 26.3 looks for the key `"Postprocessor"` while
-  `FreeCAD.Metadata.Content` returns `"postprocessor"`, so the declaration alone is never found
-  (`Path/Preferences.py`, `_scan_addon_post_dirs`). The addon calls `Path.Preferences.addAddonPostPath()` at
-  start-up instead; the declaration stays for versions where the scan works.
+- `package.xml` can declare post-processor directories. 26.3 looks for the content key `"Postprocessor"` (capital
+  P), and `FreeCAD.Metadata` keeps tag names exactly as written, so the tag must be `<Postprocessor>`; a lowercase
+  `<postprocessor>` is silently ignored (`Path/Preferences.py`, `_scan_addon_post_dirs`, while machines use the
+  lowercase `<machine>`). The addon also calls `Path.Preferences.addAddonPostPath()` at start-up.
+- SetupSheet operation defaults are looked up by the name the operation was created with (`Op/Base.py`,
+  `setOperationProperties(obj, name)`): the toolbar commands use `"MillFacing"`, `"Pocket Shape"`, …; an operation
+  created from Python under another name gets none of them.
+- Workbench manipulators are applied only when a workbench is (re)activated, and re-applying them rebuilds every
+  toolbar (and puts restored buttons at the end): unsuitable for following the selected Job.
 - FreeCAD's own rotary pieces, for the wrap / 4th-axis work to come: `Path/Dressup/Gui/AxisMap.py` maps Y to A
   but writes the feed as `F / R` in degrees with G94 — wrong on moves that combine a linear axis with A.
   `Path/Op/RotarySurface.py` (experimental, needs OpenCamLib) with the generators

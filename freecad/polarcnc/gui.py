@@ -9,7 +9,7 @@ import os
 import FreeCAD as App
 import FreeCADGui as Gui
 
-from . import machine
+from . import machine, policy
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ICON = os.path.join(os.path.dirname(HERE), "Resources", "PolarCNC.svg")
@@ -52,7 +52,16 @@ class MachineSettingsCommand:
         else:
             App.Console.PrintWarning("Polar CNC: the %s post-processor was not found; check that "
                                      "the addon is installed.\n" % POST)
+        try:
+            ops = policy.apply_defaults(job)
+            App.Console.PrintMessage("Polar CNC: polar defaults for new operations: %s\n"
+                                     % ", ".join(ops))
+        except Exception as e:
+            App.Console.PrintWarning("Polar CNC: could not set the operation defaults: %s\n" % e)
         App.ActiveDocument.commitTransaction()
+        for op in job.Operations.Group:     # operations made before the Job became polar
+            for msg in policy.problems(op):
+                App.Console.PrintWarning("Polar CNC (%s): %s\n" % (op.Label, msg))
         Gui.Selection.clearSelection()
         Gui.Selection.addSelection(job)   # the property editor shows the new "Polar CNC" group
         App.Console.PrintMessage(
@@ -72,15 +81,26 @@ def _ensure_toolbar():
 
 
 def register_post():
-    """Make the polar_linuxcnc post known to CAM. package.xml declares it, but FreeCAD 26.3 looks
-    for the key "Postprocessor" while its own Metadata gives "postprocessor", so the declaration
-    alone is never found; addAddonPostPath() is the documented call for addons."""
+    """Make the polar_linuxcnc post known to CAM. package.xml declares it (<Postprocessor>, with
+    the capital P that FreeCAD 26.3 looks for); addAddonPostPath() is the documented call for
+    addons and covers versions that scan package.xml differently."""
     import Path.Preferences
     if hasattr(Path.Preferences, "addAddonPostPath"):
         Path.Preferences.addAddonPostPath(os.path.join(os.path.dirname(HERE), "posts"))
+
+
+def _on_workbench(name):
+    # the CAM command objects exist once CAM has loaded: grey out the unsuitable ones then
+    if name == "CAMWorkbench":
+        try:
+            policy.install_blocking()
+        except Exception as e:
+            App.Console.PrintError("Polar CNC: %s\n" % e)
 
 
 def install():
     register_post()
     Gui.addCommand("PolarCNC_MachineSettings", MachineSettingsCommand())
     _ensure_toolbar()
+    policy.install_observer()
+    Gui.getMainWindow().workbenchActivated.connect(_on_workbench)

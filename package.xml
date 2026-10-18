@@ -14,9 +14,9 @@
       <subdirectory>freecad</subdirectory>
       <freecadmin>1.1</freecadmin>
     </workbench>
-    <postprocessor>
+    <Postprocessor>
       <name>polar_linuxcnc</name>
       <subdirectory>freecad/posts</subdirectory>
-    </postprocessor>
+    </Postprocessor>
   </content>
 </package>

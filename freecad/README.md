@@ -37,10 +37,21 @@ happens only when the G-code is written.
 ## Which operations suit polar machining
 
 The chuck turns and the cutter only moves in X and Z. Close to the centre the chuck must turn very fast to keep
-the feed, so the controller slows down there.
+the feed; it cannot, so the controller slows the cut there. Commercial CAM systems therefore offer 2D / 2.5D
+operations on a polar face (contour, pocket, facing, drilling) and no 3D surfacing. In a **polar Job** the addon
+does the same:
 
 | | Operations |
 |---|---|
-| **Best** | Drilling and Helix (a position, then Z); **Facing with the Spiral pattern** (stock centred on X0 Y0) and 3D Surface with the Circular / Spiral pattern, *Pattern Center At* = Custom X0 Y0 (the chuck turns steadily, the feed stays even); Profile of shapes away from the centre (a circle round the centre is a pure C turn); Engrave / V-carve |
-| **Good, with care** | Pocket with the **Offset** pattern (crosses the centre correctly, but slowly); Adaptive (works, but many short moves make the chuck reverse often: large files, away from the centre only); Slot, Deburr, Thread milling away from the centre |
-| **Avoid** | **ZigZag / Line patterns** (Pocket, Facing, Surface): every pass crosses the face, the chuck reverses at each line and crawls near the centre — use Spiral or Offset instead. Tapping and cutter compensation in the machine (G41/G42) are refused by the converter |
+| **Offered** | Profile, Pocket (**Offset** by default), Facing (**Spiral** by default), Drilling, Helix, Engrave |
+| **Offered, with a warning** | Adaptive (many direction changes of the chuck, large files: pockets away from the centre), V-carve (Z moves together with many direction changes), Slot, Deburr, Thread milling (fine away from the centre) |
+| **Greyed out** | 3D Pocket, 3D Surface, Waterline, Planar / Rotary Surface (3D), Probe (probing is not converted) |
+
+- The defaults are the Job's own *Operation defaults* (SetupSheet), set by *Polar machine settings*; they apply
+  to operations made after that. Operations that were already there are checked once and reported.
+- If a pattern that crosses the face line by line is chosen (ZigZag, Line, Grid, ZigZag Offset; Facing ZigZag,
+  Bidirectional, Directional), a warning appears in the Report view and the status bar — never a dialog. The same
+  for the dressups AxisMap, Drag knife and Z correction, and for a Drilling operation set to Tapping (the converter
+  refuses tapping cycles).
+- Greying out follows the Job CAM would put a new operation in: the selected Job, the Job of the selected
+  operation, or the only Job of the document. Ordinary Jobs keep every operation.
