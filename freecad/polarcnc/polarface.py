@@ -968,7 +968,8 @@ class ObjectPolarFace(PathOp.ObjectOp):
                 said_rings = True
                 Path.Log.warning("Polar Face: at Z %.2f the area is not one round disc (square stock, "
                                  "the part or the jaws are there): rings are cut there." % z)
-            cmds.extend(commands(plan, z, safe, feed, vfeed, air, above, ramp))
+            # a spiral starts beside the stock, in the air: straight down there, no ramp
+            cmds.extend(commands(plan, z, safe, feed, vfeed, air, above, 0.0 if plan.spiral else ramp))
 
 
 def SetupProperties():

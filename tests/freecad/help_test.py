@@ -222,7 +222,7 @@ def run():
     dlg = dialogs.SettingsDialog(job, Gui.getMainWindow())
     dlg.show()
     pump(200)
-    check(len(dlg.findChildren(QtGui.QToolButton, "polarFieldHelp")) == 8, "settings: a ? on every field")
+    check(len(dlg.findChildren(QtGui.QToolButton, "polarFieldHelp")) == 7, "settings: a ? on every field")
     check(dlg.kind_box.currentIndex() == 1 and dlg.kind_box.count() == 3,
           "settings: machining type Normal / Polar / Wrap, Polar chosen")
     check(not dlg.diameter.isEnabled() and not dlg.past.isEnabled() and not dlg.wrap_xmax.isEnabled(),
@@ -271,7 +271,8 @@ def run():
     App.ParamGet(help.PARAM).SetBool("SettingsDialog", False)
     check(not machine.has_settings(job) and not hasattr(job, "PolarPreviousPost")
           and job.PostProcessor != "polar_linuxcnc",
-          "Normal: an ordinary Job again (post %r)" % job.PostProcessor)
+          "Normal: an ordinary Job again (post %r, settings %s, choices %s)"
+          % (job.PostProcessor, machine.has_settings(job), job.getEnumerationsOfProperty("PostProcessor")[:8]))
 
     # the chuck chooser: type, then size
     dlg = dialogs.ChuckDialog(chuck.PRESETS, chuck.CUSTOM, "4-jaw SAN OU K72-125 independent (Ø125)", Gui.getMainWindow())

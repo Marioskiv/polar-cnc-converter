@@ -60,8 +60,11 @@ def remove_settings(job):
             job.removeProperty(name)
     if hasattr(job, "PolarPreviousPost"):
         job.removeProperty("PolarPreviousPost")
-    if before in job.getEnumerationsOfProperty("PostProcessor"):
-        job.PostProcessor = before
+    choices = job.getEnumerationsOfProperty("PostProcessor")
+    for post in (before, NORMAL_POST, NORMAL_POST + "_legacy", ""):    # "" = none chosen
+        if post in choices:
+            job.PostProcessor = post
+            break
 
 
 def add_settings(job):

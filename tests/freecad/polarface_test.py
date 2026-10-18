@@ -250,11 +250,13 @@ def go():
             x, y, z = pr.get("X", x), pr.get("Y", y), pr.get("Z", z)
             if c.Name == "G1" and x is not None and z is not None and abs(z - 10) < 1e-6:
                 rs.append(math.hypot(x, y))
-        falling = rs[2:]
+        falling = rs[1:]     # rs[0]: the plunge beside the stock, in the air
         check(not arcs2 and len(rs) > 100, "round stock, Auto: a spiral (%d moves, no arcs)" % len(rs))
         check(falling and all(b <= a + 1e-9 for a, b in zip(falling, falling[1:])) and falling[-1] < 1e-6
               and abs(max(falling) - 25) < 0.01,
-              "the spiral runs from the stock edge R25 steadily in to the centre")
+              "the spiral runs from the stock edge R25 steadily in to the centre (%s .. %s, max %.3f, up at %s)"
+              % (["%.2f" % r for r in falling[:4]], ["%.3f" % r for r in falling[-3:]], max(falling or [0]),
+                 [k for k, (a, b) in enumerate(zip(falling, falling[1:])) if b > a + 1e-9][:5]))
         text2, _o = program.polar(job2)
         check("G93" in text2, "the spiral converts to polar G-code")
         op2.Pattern = pf.RINGS
