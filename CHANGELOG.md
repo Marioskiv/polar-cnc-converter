@@ -1,5 +1,52 @@
 # Changelog
 
+## 2.15.0 — FreeCAD addon (Polar CNC for the CAM workbench, in testing) and Wrap
+
+### Added
+- **Wrap: the outside of a cylinder** (layout *Wrap (router radial)*, web page and FreeCAD). The router is turned to
+  look at the part; the machine axes stay as they are (X radius, Z along the part, C round it). The CAM program is
+  the cylinder's surface **unrolled flat**: X along the part, Y round it (mm of arc at the *wrap radius*), Z 0 on the
+  surface. Each straight move becomes one X/Z/C block (the map is linear, so it is exact); arcs are split within the
+  chord tolerance; G93 times use the true path of the tool tip at its real radius. Simulator: the cylinder with the
+  router radial. FreeCAD: Job → *Polar Layout* = Wrap and *Polar Wrap Radius*. `tests/wrap.test.js` replays the
+  output in joint space; `tests/freecad/wrap_test.py` runs a Wrap Job through Post Process and the simulator.
+  **FreeCAD: Polar Wrap** — no flat drawing: the real 3D part (solid or STL, axis on Z) and the stock diameter.
+  It maps the part's radius round the axis (slices; solid and STL agree within 0.02 mm), finds how far a flat or
+  ball end mill may go in without cutting the part (radial drop-cutter, conservative between grid points), and
+  cuts helices round it: roughing layers from the stock down, then a finishing helix; it stops clear of the jaws.
+  Post Process unrolls its path for the converter. Tests: `tests/freecad/wrapcut_geometry_test.py` (no cutter
+  point inside the solid, groove and flat reached), `tests/freecad/wrap_test.py` (the whole Job).
+  The chuck works in Wrap too: it holds the cylinder from the chuck end (X min of the unrolled stock), is shown in
+  the simulator, and Post Process refuses a wrapped program whose radial router runs into the body or the jaws.
+- **FreeCAD addon** (`freecad/`, `package.xml`): polar face machining from the FreeCAD CAM workbench. A
+  post-processor `polar_linuxcnc` turns a normal CAM Job into polar G-code; the command *Polar machine settings*
+  adds the Job's machine settings (X Axis Max, cutting side, optional profile). It runs the converter in `src/core`
+  itself, through Qt's JavaScript engine: no second copy, the web page and FreeCAD always convert the same way.
+  The converter itself is unchanged (golden 144/144). See [freecad/README.md](freecad/README.md) and
+  [docs/FREECAD.md](docs/FREECAD.md).
+- **Polar Jobs offer only polar operations**: 3D Pocket, 3D Surface, Waterline, Planar/Rotary Surface and Probe
+  are greyed out while the current Job is polar; new Pockets default to Offset and Facings to Spiral; Adaptive,
+  V-carve, Slot, Deburr, Thread milling and line-by-line patterns get a warning (Report view, never a dialog).
+- **Polar Face** operation: facing that follows the real stock (round, square, hexagon, plate, off the centre) —
+  circles round the chuck axis clipped to the stock at every depth, linked without fast moves over uncut material;
+  16–60 % less time than full circles in the tests, nothing left uncut, the part never touched. FreeCAD's Facing
+  (bounding rectangle, cuts air) is greyed out in polar Jobs.
+- **Chuck, 4-jaw chuck and faceplate** (*Chuck* / *Add clamp* buttons): a parametric chuck object on the Job;
+  the *Chuck* button asks which chuck (a catalogue size or *Custom (my own sizes)*).
+  Presets from catalogue tables (SAN OU K72-125 4-jaw independent (the default), K12-125 4-jaw self-centring and 3-jaw 125; 3-jaw SC-3 … SC-16, 4-jaw independent 12–24 in, faceplate Ø250/Ø400) or your own
+  sizes. The jaws close on the real stock (independent 4-jaw: each jaw on its own; self-centring 3- or 4-jaw: a
+  note when the stock cannot be centred, e.g. a square in a 3-jaw, a rectangle in a 4-jaw). On a faceplate you place clamps by angle and radius; they reach the stock edge by
+  themselves. Polar Face keeps *Chuck clearance* (2 mm) from jaws and clamps; the simulator shows the chuck
+  turning with the part (jaws and clamps in red). An operation that cuts below the jaw / clamp tops gets a warning
+  (the collet nut is not checked). Every operation and its rapids are checked against the chuck body, jaws and
+  clamps; Post Process refuses a program that runs into them.
+- **Polar Face**: a part made of several separate solids is now fully protected (only the first one was before),
+  and a final pass round off-centre parts of the part removes the cusps the rings leave beside them.
+- **Polar simulation in FreeCAD**: plays the polar program (what Post Process writes) — machine view with the part
+  turning on the chuck, or part view — with program time, chuck turns and chuck speed.
+- `tests/freecad/run.sh`: tests the addon in a real FreeCAD (golden set inside FreeCAD, refusals, output equal to
+  the Node converter on FreeCAD's own LinuxCNC output).
+
 ## 2.14.1 — simulator: cutter on the side where it is on the machine
 
 ### Added

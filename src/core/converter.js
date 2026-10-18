@@ -10,11 +10,13 @@
 (function (root, factory) {
   'use strict';
   var isNode = typeof module === 'object' && module.exports;
-  var api = isNode ? factory(require('./gcode-input.js'), require('./layout-xzc.js'), require('./layout-xzcb.js'))
-                   : factory(root.PolarCNC.gcodeInput, root.PolarCNC.layoutXZC, root.PolarCNC.layoutXZCB);
+  var api = isNode ? factory(require('./gcode-input.js'), require('./layout-xzc.js'), require('./layout-xzcb.js'),
+                             require('./layout-wrap.js'))
+                   : factory(root.PolarCNC.gcodeInput, root.PolarCNC.layoutXZC, root.PolarCNC.layoutXZCB,
+                             root.PolarCNC.layoutWrap);
   if (isNode) module.exports = api;
   else { root.PolarCNC = root.PolarCNC || {}; root.PolarCNC.converter = api; }
-})(typeof self !== 'undefined' ? self : this, function (gcodeInput, layoutXZC, layoutXZCB) {
+})(typeof self !== 'undefined' ? self : this, function (gcodeInput, layoutXZC, layoutXZCB, layoutWrap) {
   'use strict';
 
   // ---------------------------------------------------------------------------
@@ -40,7 +42,7 @@
     xDiameter:     false,   //      controller expects X as a DIAMETER (lathe diameter mode)
     // ---- machine layout (2.6.0). 'xzc' = today's machine; 'xzcb' = XZC plus a router
     // that tilts in the X-Z plane (the radial plane through the chuck axis). ----
-    layout:        'xzc',   //      'xzc' | 'xzcb'
+    layout:        'xzc',   //      'xzc' | 'xzcb' | 'wrap'
     tiltAxis:      'B',     //      letter of the tilt axis (B by ISO 841 / LinuxCNC; A only as a rename)
     invertTilt:    false,   //      tilt axis turns the other way
     tiltPivot:     null,    // mm   pivot axis -> tool holder face (machine constant; no default on purpose)
@@ -48,7 +50,9 @@
     tiltMax:       null,    // deg
     tiltLean:      0,       // deg  lean wanted for BALL-END tools (+ = tool tip toward the chuck axis)
     toolTable:     '',      //      LinuxCNC tool.tbl text (T.. Z<length> D<dia> ;comment "ball")
-    ballTools:     ''       //      ball-end tool numbers, e.g. "1, 3" (also: "ball" in the tool table comment)
+    ballTools:     '',      //      ball-end tool numbers, e.g. "1, 3" (also: "ball" in the tool table comment)
+    // ---- layout 'wrap' (2.15.0): the router turned radial, milling the outside of a cylinder ----
+    wrapRadius:    null     // mm   radius the unrolled program is drawn at (CAM Y = arc length there); no default
   });
   // CLEANUP (2026-10-02): the C velocity limit, C motor rpm, C acceleration
   // and corner-feed settings were removed. Every controller this targets
@@ -59,7 +63,7 @@
   // duplicated machine-specific values that every user would have to copy.
   var ROTARY_AXES = ['C', 'A', 'B'];
   var CENTER_MODES = ['auto', 'signed', 'index', 'fill'];
-  var LAYOUT_NAMES = ['xzc', 'xzcb'];
+  var LAYOUT_NAMES = ['xzc', 'xzcb', 'wrap'];
 
   // normalizeOptions: accepts partial options (numbers or numeric strings, as
   // read from form fields) and returns a complete, clamped options object.
@@ -112,7 +116,8 @@
       tiltMax:       (function (v) { var p = parseFloat(v); return isFinite(p) ? p : null; })(o.tiltMax),
       tiltLean:      num(o.tiltLean, D.tiltLean),
       toolTable:     typeof o.toolTable === 'string' ? o.toolTable : D.toolTable,
-      ballTools:     typeof o.ballTools === 'string' ? o.ballTools : (o.ballTools == null ? D.ballTools : String(o.ballTools))
+      ballTools:     typeof o.ballTools === 'string' ? o.ballTools : (o.ballTools == null ? D.ballTools : String(o.ballTools)),
+      wrapRadius:    (function (v) { var p = parseFloat(v); return (isFinite(p) && p > 0) ? p : null; })(o.wrapRadius)
     };
   }
 
@@ -152,12 +157,15 @@
   //   layout-xzcb.js  - XZC + a router tilting in the X-Z plane (B), built on XZC
   //   this file       - options, the common header/footer, output clean-up
   // The output is byte-for-byte the same as before (tests/golden.test.js).
-  var LAYOUTS = { xzc: layoutXZC, xzcb: layoutXZCB };
+  //   layout-wrap.js  - the router turned radial: the outside of a cylinder (2.15.0)
+  var LAYOUTS = { xzc: layoutXZC, xzcb: layoutXZCB, wrap: layoutWrap };
 
   function convertCartesianToPolar(text, options) {
     var O = normalizeOptions(options);
     // 2.10.0: the machine's X travel and cutting side are required - no guessing.
-    if (O.xMin === null)
+    if (O.layout === 'wrap' && O.wrapRadius === null)
+      throw new Error('Wrap radius is not set. Enter the radius the unrolled program is drawn at (usually the stock radius).');
+    if (O.xMin === null && O.layout !== 'wrap')     // wrap: the tool never crosses the centre
       throw new Error('Cutting side is not set. Choose "one side of the centre" or "both sides" (Machine settings).');
     if (O.xMax === null)
       throw new Error('X Axis Max is not set. Enter the largest X your machine can reach (its X soft limit).');

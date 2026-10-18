@@ -1,1 +1,5 @@
 node_modules/
+
+# Python bytecode (FreeCAD addon)
+__pycache__/
+*.pyc

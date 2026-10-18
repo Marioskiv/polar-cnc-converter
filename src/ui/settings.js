@@ -22,7 +22,9 @@ var SETTINGS_FIELDS = {
   tiltMax:         'inpTiltMax',
   tiltLean:        'inpTiltLean',
   ballTools:       'inpBallTools',
-  toolTable:       'inpToolTable'
+  toolTable:       'inpToolTable',
+  // 2.15.0: layout Wrap
+  wrapRadius:      'inpWrapRadius'
 };
 var SETTINGS_CHECKS = { autoStepover: 'chkAutoStep', invertC: 'chkInvertC', invertX: 'chkInvertX', invertTilt: 'chkInvertTilt' };
 // Plain <select> settings: option key -> element id (value = option value).
@@ -152,10 +154,12 @@ function restoreConverterSettings() {
   } catch (e) { /* ignore */ }
 }
 
-// The tilt fields are shown only for the layout "XZC + tilt".
+// The tilt fields are shown only for the layout "XZC + tilt", the wrap fields only for "Wrap".
 function showTiltFields() {
   var sel = document.getElementById('selLayout'), box = document.getElementById('tiltFields');
   if (sel && box) box.style.display = sel.value === 'xzcb' ? '' : 'none';
+  var wrap = document.getElementById('wrapFields');
+  if (sel && wrap) wrap.style.display = sel.value === 'wrap' ? '' : 'none';
 }
 
 (function wireSettingsPersistence() {

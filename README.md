@@ -25,6 +25,8 @@ converted so that the chuck turns the part while a spindle on the cross-slide ma
 - Shows the result in a **3D simulator**, with material removal and rapid-collision warnings.
 - Adds a short report at the top of every file: how many turns the chuck makes, and where the machine will have
   to slow down near the centre.
+- **Wrap** (new): with the router turned to look at the part, it machines the **outside of a cylinder** from an
+  ordinary 3-axis program of its surface unrolled flat — see [Technical notes](docs/TECHNICAL.md).
 
 ## Quick start
 
@@ -52,6 +54,8 @@ Post for a 3-axis mill with a LinuxCNC (or grbl) post, in mm or inch:
 
 ## More
 
+- [FreeCAD addon](freecad/README.md) (new, in testing): the same conversion as a post-processor in the
+  FreeCAD CAM workbench — make a normal Job, Post Process writes polar G-code.
 - [Technical notes](docs/TECHNICAL.md): how it works, centre handling, accepted G-codes, tests.
 - [CHANGELOG](CHANGELOG.md): what changed in each version.
 - [`examples/linuxcnc-vismach-xzc-lathe`](examples/linuxcnc-vismach-xzc-lathe/): a LinuxCNC simulation of a lathe
