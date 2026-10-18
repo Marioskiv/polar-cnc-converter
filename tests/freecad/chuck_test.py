@@ -277,6 +277,21 @@ def go():
               "F: Custom keeps the sizes and takes your own (%s, %.1f)" % (c.Preset, c.JawHeight.Value))
         App.closeDocument(doc.Name)
 
+        # G: the SAN OU K11-125 3-jaw (measured jaws), and what its jaws can hold
+        for dia, word in ((30, None), (60, "reversed jaws"), (120, "bigger than")):
+            doc = App.newDocument("ChuckG%d" % dia)
+            job = job_for(doc, Part.makeCylinder(dia / 2 - 1, 20), Part.makeCylinder(dia / 2, 30))
+            c = ch.make_chuck(job, "3-jaw SAN OU K11-125 (Ø125)")
+            doc.recompute()
+            if dia == 30:
+                check(c.ChuckType == ch.THREE_JAW and abs(c.JawHeight.Value - 25.5) < 1e-9
+                      and abs(c.JawLength.Value - 53) < 1e-9 and abs(c.JawWidth.Value - 16) < 1e-9,
+                      "G: K11-125 with the measured jaws (25.5 / 53 / 16)")
+            said = [n for n in c.Notes if "jaws (" in n or "bigger than" in n or "smaller than" in n]
+            check((not said) if word is None else any(word in n for n in said),
+                  "G: Ø%d stock -> %s" % (dia, said or "no grip-range note"))
+            App.closeDocument(doc.Name)
+
         # D: a plate on a faceplate with three clamps
         doc = App.newDocument("ChuckD")
         job = job_for(doc, part, Part.makeBox(70, 40, 20, App.Vector(-27, -16, 0)))

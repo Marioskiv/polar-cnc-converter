@@ -80,24 +80,24 @@
    "i": "polarface.gif",
    "en": {
     "t": "Polar Face",
-    "d": "Facing for the lathe: circles round the chuck axis, only where the stock really is (round, square, hexagon, any shape), so the cutter does not cut air. The chuck turns smoothly and the part is never touched.",
+    "d": "Polar facing and clearing: circles round the chuck axis, only where the stock really is (round, square, hexagon, any shape), so the cutter does not cut air. Choose: the top only, all the stock round the part (a square bar becomes round), or only a band round the part.",
     "steps": [
      "Select the Job.",
      "Press Polar Face.",
-     "Check the step over and press OK."
+     "Choose what to cut, check the step over and press OK."
     ],
-    "w": "Depths go from the stock top down to the part top unless you change them.",
+    "w": "X0 Y0 = the chuck axis; Z0 = the stock top, where you touch off the cutter.",
     "r": "Circles only where the stock is: no cutting air."
    },
    "el": {
     "t": "Polar Face (πλανάρισμα)",
-    "d": "Πλανάρισμα για τον τόρνο: κύκλοι γύρω από τον άξονα του τσοκ, μόνο εκεί που υπάρχει πραγματικά υλικό (στρογγυλό, τετράγωνο, εξάγωνο, οποιοδήποτε σχήμα), οπότε το κοπτικό δεν κόβει αέρα. Το τσοκ γυρίζει ομαλά και το κομμάτι δεν ακουμπιέται ποτέ.",
+    "d": "Πολικό πλανάρισμα και καθάρισμα: κύκλοι γύρω από τον άξονα του τσοκ, μόνο εκεί που υπάρχει πραγματικά υλικό (στρογγυλό, τετράγωνο, εξάγωνο, οποιοδήποτε σχήμα), οπότε δεν κόβει αέρα. Διαλέγεις: μόνο τη φάτσα, όλο το υλικό γύρω από το κομμάτι (η τετράγωνη μπάρα γίνεται στρογγυλή), ή μόνο μια λωρίδα γύρω του.",
     "steps": [
      "Διάλεξε το Job.",
      "Πάτα Polar Face.",
-     "Δες το βήμα (step over) και πάτα OK."
+     "Διάλεξε τι κόβει, δες το βήμα και πάτα OK."
     ],
-    "w": "Το βάθος πάει από την κορυφή του stock ως την κορυφή του κομματιού, αν δεν το αλλάξεις.",
+    "w": "X0 Y0 = ο άξονας του τσοκ· Z0 = η πάνω επιφάνεια του stock, εκεί που μηδενίζεις το κοπτικό.",
     "r": "Κύκλοι μόνο όπου υπάρχει υλικό: δεν κόβει αέρα."
    }
   },
@@ -387,9 +387,52 @@
     "t": "Μέγεθος",
     "d": "Ένα μέγεθος καταλόγου. Όλες οι διαστάσεις αλλάζουν μετά στις ιδιότητες του τσοκ· το πιο σημαντικό είναι το ύψος των σιαγόνων: μέτρησέ το στο δικό σου τσοκ."
    }
+  },
+  "PolarFace:Clearing": {
+   "en": {
+    "t": "What to cut",
+    "d": "Face only: the top, down to the part top. All the stock: everything outside the part is cut away down to the final depth (a square bar becomes the round part; round stock is turned down to the part). Only round the part: a band round the part, the rest of the stock stays. The final depth goes to the part bottom, but stops above the jaws (on a faceplate: above the plate)."
+   },
+   "el": {
+    "t": "Τι κόβει",
+    "d": "Μόνο φάτσα: η κορυφή, ως την κορυφή του κομματιού. Όλο το υλικό: ό,τι είναι έξω από το κομμάτι φεύγει ως το τελικό βάθος (μια τετράγωνη μπάρα γίνεται το στρογγυλό κομμάτι· μια στρογγυλή μπάρα κατεβαίνει στη διάμετρο του κομματιού). Μόνο γύρω από το κομμάτι: μια λωρίδα γύρω του, το υπόλοιπο υλικό μένει. Το τελικό βάθος πάει ως τον πάτο του κομματιού, αλλά σταματάει πάνω από τις σιαγόνες (σε πλατό: πάνω από το πλατό)."
+   }
+  },
+  "PolarFace:BandWidth": {
+   "en": {
+    "t": "Band width",
+    "d": "Only round the part: how wide the band cut round the part is. auto (0) = 1.5 cutter diameters."
+   },
+   "el": {
+    "t": "Πλάτος λωρίδας",
+    "d": "Μόνο γύρω από το κομμάτι: πόσο φαρδιά είναι η λωρίδα που κόβεται γύρω του. auto (0) = 1,5 φορές η διάμετρος του κοπτικού."
+   }
+  },
+  "PolarFace:RampAngle": {
+   "en": {
+    "t": "Ramp angle",
+    "d": "Where the cutter must go down into material, it does not plunge: it ramps down along the circle it is going to cut (the chuck turns while Z goes down), back and forth on a short cut, then back to the start at depth. 2-5° suits most end mills; 0 = straight down (needs a centre-cutting end mill)."
+   },
+   "el": {
+    "t": "Γωνία ράμπας",
+    "d": "Όπου το κοπτικό πρέπει να μπει μέσα σε υλικό, δεν βυθίζεται κάθετα: κατεβαίνει σε ράμπα πάνω στον κύκλο που θα κόψει (το τσοκ γυρίζει ενώ το Z κατεβαίνει), μπρος-πίσω αν η κοπή είναι μικρή, και μετά γυρίζει στην αρχή στο βάθος. 2-5° κάνει για τις περισσότερες φρέζες· 0 = κάθετα (θέλει φρέζα που κόβει στο κέντρο)."
+   }
   }
  },
  "errors": [
+  {
+   "re": "needs a part",
+   "en": {
+    "t": "There is no part to cut round",
+    "why": "'Only round the part' follows the outline of the part, and the Job has none.",
+    "do": "Add the part to the Job's Model, or choose another 'What to cut'."
+   },
+   "el": {
+    "t": "Δεν υπάρχει κομμάτι για να κόψει γύρω του",
+    "why": "Το «Μόνο γύρω από το κομμάτι» ακολουθεί το περίγραμμα του κομματιού, και το Job δεν έχει.",
+    "do": "Βάλε το κομμάτι στο Model του Job, ή διάλεξε άλλο «Τι κόβει»."
+   }
+  },
   {
    "re": "X Axis Max is not set",
    "en": {
@@ -601,8 +644,8 @@
  },
  "notes": {
   "PolarFace": {
-   "en": "Circles round the chuck axis, outside in, only where the stock is (any shape). Depths: from the stock top down to the part top by default.",
-   "el": "Κύκλοι γύρω από τον άξονα του τσοκ, από έξω προς τα μέσα, μόνο όπου υπάρχει υλικό (οποιοδήποτε σχήμα). Βάθος: από την κορυφή του stock ως την κορυφή του κομματιού, αν δεν το αλλάξεις."
+   "en": "Circles round the chuck axis, outside in, only where the stock is (any shape). Choose what to cut: the top only, all the stock round the part, or only a band round it.",
+   "el": "Κύκλοι γύρω από τον άξονα του τσοκ, από έξω προς τα μέσα, μόνο όπου υπάρχει υλικό (οποιοδήποτε σχήμα). Διάλεξε τι κόβει: μόνο τη φάτσα, όλο το υλικό γύρω από το κομμάτι, ή μόνο μια λωρίδα γύρω του."
   },
   "PolarWrap": {
    "en": "The part as it is (solid or STL), its axis on Z: it is unrolled automatically and machined with helices round it, from the free end toward the chuck. Set the stock diameter in the Job (Polar Wrap Diameter).",

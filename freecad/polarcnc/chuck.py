@@ -33,19 +33,28 @@ SELF_CENTRING = (THREE_JAW, FOUR_JAW_SC)
 
 CUSTOM = "Custom (my own sizes)"
 OLD_NAMES = {"Custom": CUSTOM,         # presets saved under an older name
-             "4-jaw SAN OU K12-125 (Ø125)": "4-jaw SAN OU K12-125 self-centring (Ø125)"}
+             "4-jaw SAN OU K12-125 (Ø125)": "4-jaw SAN OU K12-125 self-centring (Ø125)",
+             "3-jaw SAN OU 125 (Ø125)": "3-jaw SAN OU K11-125 (Ø125)"}
+
+# what the jaws can hold, stock diameter in mm (catalogue): (normal jaws from, to, reversed
+# jaws from, to)
+GRIP_RANGES = {
+    "3-jaw SAN OU K11-125 (Ø125)": (2.5, 40, 38, 110),
+    "4-jaw SAN OU K12-125 self-centring (Ø125)": (2.5, 40, 38, 110),
+}
 
 # catalogue sizes: (type, A diameter, B body, H jaw length, J jaw width, K jaw height)
 PRESETS = {
     CUSTOM: None,
-    # SAN OU catalogue sizes. Body thickness from the tables; jaw height above the face, jaw
-    # length and width are not in them for every model: scaled from the catalogue drawings
-    # (3-jaw: body 58 -> jaws about 18). Measure your own chuck.
+    # SAN OU catalogue sizes. Body thickness from the tables; jaw length and width are not in
+    # them: measured (K72, K11) or scaled from the catalogue drawings (K12). Measure your own.
     # K72-125: jaw height 21.7, length 56, width 18 measured on a real chuck
     "4-jaw SAN OU K72-125 independent (Ø125)": (FOUR_JAW, 125, 56, 56, 18, 21.7),
     # K12 table: D 125, H1 58 body, H 84 overall -> jaws 26 above the face
     "4-jaw SAN OU K12-125 self-centring (Ø125)": (FOUR_JAW_SC, 125, 58, 40, 14, 26),
-    "3-jaw SAN OU 125 (Ø125)": (THREE_JAW, 125, 58, 39, 14, 18),
+    # K11-125 table: D 125, H1 58 body, H 84 overall (jaws 26 above the face), bore D3 30;
+    # jaw height 25.5, length 53, width 16 measured on a real chuck
+    "3-jaw SAN OU K11-125 (Ø125)": (THREE_JAW, 125, 58, 53, 16, 25.5),
     "3-jaw SC-3 (Ø86)": (THREE_JAW, 86, 46, 36, 11, 14.3),
     "3-jaw SC-4 (Ø112)": (THREE_JAW, 112, 60, 42, 14, 16.6),
     "3-jaw SC-5 (Ø132)": (THREE_JAW, 132, 60, 50, 16, 20.3),
@@ -356,6 +365,17 @@ def _build(obj):
                          % ", ".join("%.2f" % r for r in radii))
         if radii and not notes:
             notes.append("Jaws closed on the stock at %s mm." % ", ".join("%.2f" % r for r in radii))
+        span = GRIP_RANGES.get(getattr(obj, "Preset", ""))
+        if span and radii and kind in SELF_CENTRING:
+            d = 2 * sum(radii) / len(radii)
+            if d < span[0]:
+                notes.append("Stock Ø%.1f is smaller than this chuck holds (from Ø%g)." % (d, span[0]))
+            elif d > span[3]:
+                notes.append("Stock Ø%.1f is bigger than this chuck holds, even with the reversed "
+                             "jaws (up to Ø%g)." % (d, span[3]))
+            elif d > span[1]:
+                notes.append("Stock Ø%.1f: past the normal jaws (Ø%g-%g), use the reversed jaws "
+                             "(Ø%g-%g)." % (d, span[0], span[1], span[2], span[3]))
         round_ = stock_is_round(section)
         if round_ and not getattr(obj, "JawsAtKnownAngle", False):
             notes.append("Round stock: the jaws may sit at any angle on the machine, so they are "

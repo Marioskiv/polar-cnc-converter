@@ -27,6 +27,19 @@ class TaskPanelOpPage(PathOpGui.TaskPanelPage):
         w = QtGui.QWidget()
         w.setWindowTitle("Polar Face")
         lay = QtGui.QFormLayout(w)
+        self.clearing = QtGui.QComboBox()
+        self.clearing.addItems(polarface.CLEARINGS)
+        self.clearing.setToolTip(polarface_tip("Clearing"))
+        help.add_row(lay, "PolarFace:Clearing", "What to cut", self.clearing)
+        self.band = QtGui.QDoubleSpinBox()
+        self.band.setRange(0, 500)
+        self.band.setDecimals(3)
+        self.band.setSuffix(" mm")
+        self.band.setSpecialValueText("auto")
+        self.band.setToolTip(polarface_tip("BandWidth"))
+        help.add_row(lay, "PolarFace:BandWidth", "Band width", self.band)
+        self.clearing.currentIndexChanged.connect(
+            lambda i: self.band.setEnabled(polarface.CLEARINGS[i] == polarface.BAND))
         self.step = QtGui.QSpinBox()
         self.step.setRange(5, 100)
         self.step.setSuffix(" %")
@@ -48,12 +61,23 @@ class TaskPanelOpPage(PathOpGui.TaskPanelPage):
         self.air.setSuffix(" ×")
         self.air.setToolTip(polarface_tip("AirFeedFactor"))
         help.add_row(lay, "PolarFace:AirFeedFactor", "Air feed", self.air)
+        self.ramp = QtGui.QDoubleSpinBox()
+        self.ramp.setRange(0, 45)
+        self.ramp.setDecimals(1)
+        self.ramp.setSuffix(" °")
+        self.ramp.setSpecialValueText("0 (straight down)")
+        self.ramp.setToolTip(polarface_tip("RampAngle"))
+        help.add_row(lay, "PolarFace:RampAngle", "Ramp angle", self.ramp)
         note = QtGui.QLabel(help.note("PolarFace", ""))
         note.setWordWrap(True)
         lay.addRow(note)
         return w
 
     def getFields(self, obj):
+        if obj.Clearing != self.clearing.currentText():
+            obj.Clearing = self.clearing.currentText()
+        if abs(obj.BandWidth.Value - self.band.value()) > 1e-9:
+            obj.BandWidth = self.band.value()
         if obj.StepOver != self.step.value():
             obj.StepOver = self.step.value()
         if abs(obj.StockToLeave.Value - self.leave.value()) > 1e-9:
@@ -62,16 +86,23 @@ class TaskPanelOpPage(PathOpGui.TaskPanelPage):
             obj.CutMode = self.mode.currentText()
         if abs(obj.AirFeedFactor - self.air.value()) > 1e-9:
             obj.AirFeedFactor = self.air.value()
+        if abs(obj.RampAngle.Value - self.ramp.value()) > 1e-9:
+            obj.RampAngle = self.ramp.value()
 
     def setFields(self, obj):
+        self.clearing.setCurrentIndex(max(self.clearing.findText(obj.Clearing), 0))
+        self.band.setValue(obj.BandWidth.Value)
+        self.band.setEnabled(obj.Clearing == polarface.BAND)
         self.step.setValue(obj.StepOver)
         self.leave.setValue(obj.StockToLeave.Value)
         self.mode.setCurrentIndex(max(self.mode.findText(obj.CutMode), 0))
         self.air.setValue(obj.AirFeedFactor)
+        self.ramp.setValue(obj.RampAngle.Value)
 
     def getSignalsForUpdate(self, obj):
-        return [self.step.valueChanged, self.leave.valueChanged, self.mode.currentIndexChanged,
-                self.air.valueChanged]
+        return [self.clearing.currentIndexChanged, self.band.valueChanged,
+                self.step.valueChanged, self.leave.valueChanged, self.mode.currentIndexChanged,
+                self.air.valueChanged, self.ramp.valueChanged]
 
 
 def polarface_tip(prop):

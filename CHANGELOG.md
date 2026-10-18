@@ -1,5 +1,25 @@
 # Changelog
 
+## 2.17.0 — Polar Face: what to cut
+
+### Added
+- **Polar Face → What to cut**: *Face only* (as before), *All the stock round the part* (everything outside the
+  part down to the final depth: a square bar becomes the round part, a round bar is turned down to it), or *Only
+  round the part* (a band of *Band width* round it, the rest of the stock left and kept clear). For round and
+  square stock alike. The final depth follows the choice: the part bottom, but above the jaws (or the faceplate).
+- **Ramp entry** (*Ramp angle*, default 3°): where Polar Face must go down into material it no longer plunges.
+  It ramps down along the cut it is about to make (on a circle the chuck turns while Z goes down: a helix round
+  the axis), back and forth on a short cut, then back to the start at depth. 0 = straight down as before.
+- **SAN OU K11-125** 3-jaw preset (replaces the scaled "3-jaw SAN OU 125"): K11 table body 58, bore Ø30, jaws
+  25.5 / 53 / 16 measured on a real chuck. The chuck says when the stock needs the reversed jaws (normal Ø2.5-40,
+  reversed Ø38-110) or is too big; the same ranges for the K12-125.
+- README: where X0 Y0 and Z0 are (chuck axis; stock top).
+
+### Fixed
+- **Polar Face could pass up to ~0.3 mm closer to the part, jaws or clamps than allowed**: moves round a circle
+  between two cuts were checked on a 0.25 mm grid only. Near anything that must not be touched they are now also
+  checked exactly. Found when the ramps (drawn point by point) were measured against the clamps.
+
 ## 2.16.0 — help inside FreeCAD (Greek/English), settings dialog, review fixes
 
 ### Added
