@@ -71,7 +71,7 @@ properties choose a **Preset** or type your own sizes:
 
 | Preset | What |
 |---|---|
-| 4-jaw SAN OU K72-125 | the default: 4 independent jaws, Ø125, body 56 (SAN OU K72 table) |
+| 4-jaw SAN OU K72-125 | the default: 4 independent jaws, Ø125, body 56 (SAN OU K72 table); jaws 25.5 above the face, 53 long, 16 wide (measured on a real chuck) |
 | 4-jaw SAN OU K12-125 | 4 jaws that move together (self-centring), Ø125, body 58, jaws 26 above the face (H 84 − H1 58) |
 | 3-jaw SAN OU 125 | Ø125, body 58 |
 | 3-jaw SC-3 … SC-16 | self-centring scroll chuck, sizes from the usual catalogue table |
@@ -81,7 +81,7 @@ properties choose a **Preset** or type your own sizes:
 Catalogue letters: **A** diameter, **B** body thickness, **H** jaw length (radial), **J** jaw width,
 **K** jaw height above the face (the one that matters for collisions — measure your own chuck), **L** step.
 For the SAN OU presets the tables give the body, but not always the jaw height above the face, the jaw length
-and width: those were scaled from the catalogue drawings (K72-125: 24 / 45 / 16 mm; 3-jaw 125: 18 / 39 / 14 mm).
+and width: for the K12-125 and the 3-jaw 125 those were scaled from the catalogue drawings (3-jaw 125: 18 / 39 / 14 mm).
 Measure your chuck and correct them. *Grip length* is how much of the stock the jaws hold; *First jaw angle* turns the jaws.
 
 - The jaws always close on the real stock. A self-centring chuck (3 or 4 jaws that move together) holds only
