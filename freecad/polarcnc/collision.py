@@ -127,7 +127,7 @@ def check(obs, path, radius):
     P, I, R = samples(path)
     best = None
     for name, top, poly in obs:
-        below = P[:, 2] < top - 1e-6           # only where the tip is lower than the obstacle top
+        below = P[:, 2] < top + TOUCH          # where the tip is lower than the obstacle top (or on it)
         if not below.any():
             continue
         Q = P[below]

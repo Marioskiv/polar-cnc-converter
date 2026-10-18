@@ -217,10 +217,45 @@ def contact_radius(section, angle):
     return max(v.Point.sub(App.Vector(0, 0, z)).Length for v in hits.Vertexes)
 
 
-def _jaw(r_in, length, width, z0, height, angle):
+def _jaw(r_in, length, width, z0, height, angle, chamfer=0.0):
     box = Part.makeBox(length, width, height, App.Vector(r_in, -width / 2, z0))
+    if chamfer > 0:                      # the look of a real jaw: its top edges broken
+        try:
+            top = [e for e in box.Edges if abs(e.BoundBox.ZMin - (z0 + height)) < 1e-6
+                   and abs(e.BoundBox.ZMax - (z0 + height)) < 1e-6]
+            box = box.makeChamfer(min(chamfer, width / 4, height / 4), top)
+        except Exception:
+            pass
     box.rotate(App.Vector(0, 0, 0), App.Vector(0, 0, 1), math.degrees(angle))
     return box
+
+
+def _body(obj, z_face, n_jaws, first_angle):
+    """The chuck body or faceplate as it looks: chamfered edges, the bore through it and, on a jaw
+    chuck, the slots the jaws run in. A few simple booleans, made once per recompute."""
+    r = obj.Diameter.Value / 2
+    t = obj.BodyThickness.Value
+    body = Part.makeCylinder(r, t, App.Vector(0, 0, z_face - t))
+    try:
+        ring = [e for e in body.Edges if e.Curve.__class__.__name__ == "Circle"]
+        body = body.makeChamfer(min(1.5, r * 0.02 + 0.5, t / 6), ring)
+    except Exception:
+        pass
+    bore = min(r * 0.24, max(r - 10.0, 1.0))
+    cuts = [Part.makeCylinder(bore, t + 2, App.Vector(0, 0, z_face - t - 1))]
+    if n_jaws:
+        w = obj.JawWidth.Value + 2.0
+        depth = min(3.0, t / 8)
+        for k in range(n_jaws):
+            slot = Part.makeBox(r + 2, w, depth + 1, App.Vector(0, -w / 2, z_face - depth))
+            slot.rotate(App.Vector(0, 0, 0), App.Vector(0, 0, 1),
+                        math.degrees(first_angle) + 360.0 * k / n_jaws)
+            cuts.append(slot)
+    try:
+        body = body.cut(Part.makeCompound(cuts))
+    except Exception:
+        pass
+    return body
 
 
 def build(obj):
@@ -249,10 +284,9 @@ def build_parts(obj):
     if kind != FACEPLATE and grip > jaw_h + 1e-9:
         notes.append("Grip length %.1f is more than the jaw height %.1f: the jaws hold only %.1f."
                      % (grip, jaw_h, jaw_h))
-    parts = [Part.makeCylinder(obj.Diameter.Value / 2, obj.BodyThickness.Value,
-                               App.Vector(0, 0, fz - obj.BodyThickness.Value))]
+    n = 0 if kind == FACEPLATE else (3 if kind == THREE_JAW else 4)
+    parts = [_body(obj, fz, n, math.radians(obj.FirstJawAngle.Value))]
     if kind != FACEPLATE:
-        n = 3 if kind == THREE_JAW else 4
         z_grip = sb.ZMin + max(grip, 0.5) * 0.5
         wires = stock.slice(App.Vector(0, 0, 1), min(z_grip, sb.ZMax - 1e-3))
         section = Part.makeFace(wires, "Part::FaceMakerBullseye") if wires else None
@@ -267,7 +301,7 @@ def build_parts(obj):
             if r + obj.JawLength.Value > obj.Diameter.Value / 2 + obj.JawLength.Value * 0.5:
                 notes.append("Jaw %d would stand %.0f mm out of the chuck: the stock is too big for "
                              "this chuck." % (k + 1, r + obj.JawLength.Value - obj.Diameter.Value / 2))
-            parts.append(_jaw(r, obj.JawLength.Value, obj.JawWidth.Value, fz, jaw_h, a))
+            parts.append(_jaw(r, obj.JawLength.Value, obj.JawWidth.Value, fz, jaw_h, a, chamfer=1.0))
         if kind in SELF_CENTRING and radii and max(radii) - min(radii) > 0.05:
             notes.append("A self-centring chuck cannot hold this stock as it is placed: the jaws "
                          "would meet it at %s mm. Centre the stock on X0 Y0, turn the jaws "

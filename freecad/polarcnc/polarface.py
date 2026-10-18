@@ -543,7 +543,9 @@ class ObjectPolarFace(PathOp.ObjectOp):
             keep = part_keep(part, z)
             held = None
             if chuck is not None:                  # jaws and clamps: kept clear like the part
-                held = part_keep(chuck.Shape, z)
+                # the clearance holds in height too: a cut at (or just above) the jaw tops would
+                # rub them, so jaws reaching within ChuckClearance below the cut are kept clear
+                held = part_keep(chuck.Shape, z - max(obj.ChuckClearance.Value, 0))
                 if held is not None:
                     held = grow(held, max(obj.ChuckClearance.Value, 0) + EPS)
             plan = plan_depth(sec, keep, radius, step, obj.StockToLeave.Value, cw, speeds, held)

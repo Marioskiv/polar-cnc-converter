@@ -74,8 +74,9 @@ def polar_face(job, final):
 
 
 def min_clearance(op, chuck, z_top):
-    """Smallest distance (XY) from the cutter edge to the jaws/clamps, over all cutting points
-    below the top of the jaws."""
+    """Smallest distance from the cutter (radius R, its tip and everything above it) to the
+    jaws/clamps, over all cutting points below z_top (the jaw tops + the clearance: a cut just
+    above the jaws must keep clear of them too)."""
     import Part
     R = op.ToolController.Tool.Diameter.Value / 2
     obst = chuck.Shape
@@ -122,7 +123,7 @@ def go():
         jaw_top = c.Shape.BoundBox.ZMax
         check(abs(jaw_top - 10) < 1e-6, "A: jaw tops at stock bottom + grip = 10 (%.2f)" % jaw_top)
         op = polar_face(job, 6)
-        gap = min_clearance(op, c, jaw_top)
+        gap = min_clearance(op, c, jaw_top + op.ChuckClearance.Value)  # also just above the jaw tops
         check(gap >= op.ChuckClearance.Value - 0.05, "A: Polar Face keeps %.2f mm from the jaws (needs %.1f)"
               % (gap, op.ChuckClearance.Value))
         # the path follows the chuck: jaws turned 45 deg -> the path is made again round them
@@ -132,7 +133,7 @@ def go():
         before = arcs(op)
         c.FirstJawAngle = 45
         doc.recompute()
-        gap = min_clearance(op, c, c.Shape.BoundBox.ZMax)
+        gap = min_clearance(op, c, c.Shape.BoundBox.ZMax + op.ChuckClearance.Value)
         check(op.PolarChuck == c and arcs(op) != before and gap >= op.ChuckClearance.Value - 0.05,
               "A: jaws turned -> Polar Face made again by itself, keeps %.2f mm" % gap)
         c.FirstJawAngle = 0
@@ -152,7 +153,7 @@ def go():
         doc.recompute()
         check(any("closed on the stock at 25.00, 25.00, 25.00, 25.00" in n for n in c.Notes), "B: %s" % c.Notes)
         op = polar_face(job, 6)
-        gap = min_clearance(op, c, c.Shape.BoundBox.ZMax)
+        gap = min_clearance(op, c, c.Shape.BoundBox.ZMax + op.ChuckClearance.Value)
         check(gap >= op.ChuckClearance.Value - 0.05, "B: keeps %.2f mm from the jaws" % gap)
         # the collision check of every operation: Polar Face is clear, a cut onto a jaw and a
         # rapid into a jaw are found, and Post Process writes no file
@@ -212,7 +213,7 @@ def go():
               "E: SAN OU K12-125 preset, jaws 26 mm above the face")
         check(any("closed on the stock at 20.00, 20.00, 20.00, 20.00" in n for n in c.Notes), "E: %s" % c.Notes)
         op = polar_face(job, 6)
-        gap = min_clearance(op, c, 10)
+        gap = min_clearance(op, c, 10 + op.ChuckClearance.Value)
         check(gap >= op.ChuckClearance.Value - 0.05, "E: keeps %.2f mm from the jaws" % gap)
         App.closeDocument(doc.Name)
         doc = App.newDocument("ChuckE2")
@@ -277,7 +278,7 @@ def go():
               "D: three strap clamps, 8 mm above the stock")
         check(abs(c.Shape.BoundBox.ZMax - 28) < 1e-6, "D: clamps stand on the faceplate (top %.1f)" % c.Shape.BoundBox.ZMax)
         op = polar_face(job, 15)
-        gap = min_clearance(op, c, c.Shape.BoundBox.ZMax)
+        gap = min_clearance(op, c, c.Shape.BoundBox.ZMax + op.ChuckClearance.Value)
         check(gap >= op.ChuckClearance.Value - 0.05, "D: keeps %.2f mm from the clamps" % gap)
         check(len([x for x in op.Path.Commands if x.Name in ("G2", "G3")]) > 10, "D: still faces the plate")
         try:

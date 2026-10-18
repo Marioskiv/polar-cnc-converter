@@ -219,15 +219,15 @@ class ClampCommand:
             doc.abortTransaction()
             raise
         doc.commitTransaction()
-        _style(obj, (0.75, 0.2, 0.2))
+        _style(obj, (0.46, 0.48, 0.52))
         Gui.Selection.clearSelection()
         Gui.Selection.addSelection(obj)
 
 
-def _style(obj, rgb=(0.5, 0.53, 0.58)):
+def _style(obj, rgb=(0.66, 0.68, 0.72)):
     try:
-        obj.ViewObject.ShapeColor = rgb
-        obj.ViewObject.Transparency = 40
+        obj.ViewObject.ShapeColor = rgb          # steel
+        obj.ViewObject.Transparency = 30
     except Exception:
         pass
 
