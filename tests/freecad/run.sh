@@ -72,6 +72,17 @@ wr=$(cat "$OUT/wrap/result.txt" 2>/dev/null || echo "RESULT: no result (see $OUT
 echo "wrap: $wr"
 [ "$wr" = "RESULT: PASS" ] || result="$result; wrap $wr"
 
+# the chuck from one click (the face that goes into the chuck), and every usual CAM operation in
+# a polar Job end to end (made, checked against the chuck, Post Process, simulator)
+for t in setup ops; do
+    HOME="$OUT/home" PC_OUT="$OUT/$t" PC_REPO="$REPO" xvfb-run -a -s "-screen 0 1600x1000x24" \
+        "$FREECAD" "$REPO/tests/freecad/${t}_test.py" > "$OUT/freecad-$t.log" 2>&1
+    grep -v "^ok" "$OUT/$t/log.txt" 2>/dev/null
+    r=$(cat "$OUT/$t/result.txt" 2>/dev/null || echo "RESULT: no result (see $OUT/freecad-$t.log)")
+    echo "$t: $r"
+    [ "$r" = "RESULT: PASS" ] || result="$result; $t $r"
+done
+
 # the help: popups on the toolbar, field help, error cards, Greek and English
 HOME="$OUT/home" PC_OUT="$OUT/help" PC_REPO="$REPO" xvfb-run -a -s "-screen 0 1600x1000x24" \
     "$FREECAD" "$REPO/tests/freecad/help_test.py" > "$OUT/freecad-help.log" 2>&1

@@ -1,5 +1,32 @@
 # Changelog
 
+## 2.18.0 — the chuck from one click, no more freezes, sharper help
+
+### Fixed
+- **The chuck and the clamps were never drawn in the 3D view** (made from a script, they had no display mode; only
+  the simulator showed them). They now have a view provider of their own; documents saved before are fixed when
+  they are recomputed.
+- **Polar Face froze FreeCAD** for 30 s to minutes ("All the stock" / "Only round the part", bigger stock, small
+  cutters): every move was measured against the whole 0.25 mm grid. It now looks only at the points near each move
+  and checks exactly in one boolean per run: 44 s → 3 s, 68 s → 4 s, the heaviest case tried under 10 s, the same
+  path. A progress bar shows while it works and **Esc stops it**; the panel no longer remakes the path on every
+  change of a field (OK or Apply does).
+- **Polar Wrap** was as slow (51 s for a Ø80 × 120 bar): the part is now sliced as a fine mesh in one call,
+  5–7 times faster, on the safe side by at most 2.5 µm. Progress bar and Esc too.
+- Picking the face to hold: the direction out of a face is found from the solid itself (some faces gave the
+  opposite one and the part turned upside down).
+
+### Added
+- **Chuck from one click**: click the face that goes into the chuck, press Chuck. The part is turned, put on the
+  axis with Z0 on the stock top, and your chuck that holds it (K11-125 3-jaw for round stock, K72-125 4-jaw for
+  square) is chosen with the grip under the part. Undo puts it back.
+- **Help animations like WikiTips**: 1248 × 750, recorded at 150 % scale, one palette, no words in the picture
+  (one animation for every language), the step playing lit in the card; a smaller card (30 % of the screen,
+  400–540 px), drawn sharp at that size. New animations for *What to cut*, the *Ramp*, and Polar Wrap's
+  strategies and finishing.
+- Tests: `setup_test.py` (the one-click chuck), `ops_test.py` (Profile, Pocket Offset and ZigZag, Helix, Drilling off
+  and on the axis, Adaptive, Polar Face in all its modes: made, checked against the chuck, Post Process, simulator).
+
 ## 2.17.0 — Polar Face: what to cut
 
 ### Added

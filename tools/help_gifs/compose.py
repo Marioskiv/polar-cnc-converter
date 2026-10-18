@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
-# Polar CNC — turns the frames that record.py wrote into the help animations, one per language:
-# the 3D view framed on what moves, the toolbar button in a card at the top left (shown pressed
-# when the step presses it) and a caption with the numbered step from help.json.
+# Polar CNC — turns the frames that record.py wrote into the help animations, the way WikiTips
+# makes its own (sharp, light, 1248 x 750): the 3D view framed on what moves, the toolbar button
+# in a card at the top left (shown pressed when the step presses it) and a numbered badge for
+# the step. No words in the picture: the popup writes the steps beside it in the reader's
+# language and lights the step that is playing (from <name>.json, frame -> step), so one
+# animation serves every language.
 #
 #   python3 tools/help_gifs/compose.py /tmp/frames            # every scene found there
 #   python3 tools/help_gifs/compose.py /tmp/frames chuck      # one scene
 #
-# Writes freecad/help/img/<lang>/<scene>.gif. Needs Pillow (not the addon: only this tool).
+# Writes freecad/help/img/<name>.gif and <name>.json. Needs Pillow (only this tool, not the addon).
 #
 # Copyright (c) 2026 Marioskiv
 # https://github.com/Marioskiv/polar-cnc-converter
@@ -19,143 +22,134 @@ import sys
 from PIL import Image, ImageChops, ImageDraw, ImageFont
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-HELP = os.path.join(REPO, "freecad", "help")
-W, H = 576, 360              # shown at 480 x 300 in the popup: still sharp on high-DPI screens
-CAPTION_H = 64
+IMG = os.path.join(REPO, "freecad", "help", "img")
+W, H = 1248, 750             # 3x the 416 x 250 the popup shows at least: sharp up to 300 % screens
+K = W / 640.0                # the sizes below are given for 640 wide
 BG = (244, 245, 242)
 SLATE = (38, 50, 64)
 AMBER = (240, 160, 32)
-FRAME_MS = 110
-COLOURS = 64            # flat shaded CAD: enough, and the files stay small
-COMMANDS = {"machine": "PolarCNC_MachineSettings", "chuck": "PolarCNC_Chuck",
-            "clamp": "PolarCNC_Clamp", "polarface": "PolarCNC_PolarFace",
-            "polarwrap": "PolarCNC_PolarWrap", "simulate": "PolarCNC_Simulate"}
-FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+FRAME_MS = 120
+HOLD_MS = 1600               # the last frame, before it starts again
 FONT_BOLD = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+# scene -> animation file (a toolbar command's, or a field's)
+SCENES = {"machine": "machine", "chuck": "chuck", "clamp": "clamp", "polarface": "polarface",
+          "polarwrap": "polarwrap", "simulate": "simulate", "pf_clearing": "pf_clearing",
+          "pf_ramp": "pf_ramp", "wrap_strategy": "wrap_strategy"}
 
 
-def font(size, bold=False):
-    return ImageFont.truetype(FONT_BOLD if bold else FONT, size)
+def px(v):
+    return int(round(v * K))
 
 
-def content_box(paths):
-    """The part of the view where anything is drawn, over all frames, with a margin."""
+def content_box(images):
+    """The part of the view where anything is drawn, over all these frames, with a margin, in
+    the shape of the picture."""
     box = None
-    for p in paths[::3] + paths[-1:]:
-        im = Image.open(p).convert("RGB")
-        diff = ImageChops.difference(im, Image.new("RGB", im.size, BG)).convert("L")
+    for im in images[::3] + images[-1:]:
+        bg = im.getpixel((4, 4))
+        diff = ImageChops.difference(im, Image.new("RGB", im.size, bg)).convert("L")
         b = diff.point(lambda v: 255 if v > 12 else 0).getbbox()
         if b:
             box = b if box is None else (min(box[0], b[0]), min(box[1], b[1]),
                                          max(box[2], b[2]), max(box[3], b[3]))
-    im = Image.open(paths[0])
     if box is None:
-        return (0, 0) + im.size
-    # the shape of the space it is shown in, with room round it
-    area_w, area_h = W, H - CAPTION_H
+        return (0, 0) + images[0].size
     cx, cy = (box[0] + box[2]) / 2.0, (box[1] + box[3]) / 2.0
-    w, h = (box[2] - box[0]) * 1.18, (box[3] - box[1]) * 1.18
-    if w / h < area_w / float(area_h):
-        w = h * area_w / float(area_h)
+    w, h = (box[2] - box[0]) * 1.16, (box[3] - box[1]) * 1.16
+    if w / h < W / float(H):
+        w = h * W / float(H)
     else:
-        h = w * area_h / float(area_w)
+        h = w * H / float(W)
     return (int(cx - w / 2), int(cy - h / 2), int(cx + w / 2), int(cy + h / 2))
 
 
-def wrap(draw, text, fnt, width):
-    lines, line = [], ""
-    for word in text.split():
-        test = (line + " " + word).strip()
-        if draw.textlength(test, font=fnt) <= width or not line:
-            line = test
-        else:
-            lines.append(line)
-            line = word
-    if line:
-        lines.append(line)
-    return lines
-
-
-def caption(img, number, text):
-    """The dark caption at the bottom: an amber badge with the step number (a tick for the
-    result) and the text, one or two lines."""
+def badge(img, step):
+    """The step number (a tick for the result) in an amber disc, bottom left."""
     d = ImageDraw.Draw(img)
-    top = H - CAPTION_H + 6
-    d.rounded_rectangle((10, top, W - 10, H - 8), radius=14, fill=SLATE)
-    cx, cy = 40, (top + H - 8) // 2
-    d.ellipse((cx - 15, cy - 15, cx + 15, cy + 15), fill=AMBER)
-    if number:
-        d.text((cx, cy), str(number), font=font(18, True), fill=SLATE, anchor="mm")
+    r = px(17)
+    cx, cy = px(14) + r, H - px(14) - r
+    d.ellipse((cx - r - px(3), cy - r - px(3), cx + r + px(3), cy + r + px(3)), fill=(255, 255, 255))
+    d.ellipse((cx - r, cy - r, cx + r, cy + r), fill=AMBER)
+    if step:
+        d.text((cx, cy), str(step), font=ImageFont.truetype(FONT_BOLD, px(20)), fill=SLATE, anchor="mm")
     else:
-        d.line((cx - 7, cy, cx - 2, cy + 6, cx + 8, cy - 6), fill=SLATE, width=4)
-    fnt = font(16)
-    lines = wrap(d, text, fnt, W - 90)
-    if len(lines) > 2:
-        fnt = font(14)
-        lines = wrap(d, text, fnt, W - 90)[:2]
-    y = cy - (len(lines) * 20) // 2 + 1
-    for line in lines:
-        d.text((66, y), line, font=fnt, fill=(255, 255, 255))
-        y += 20
+        d.line((cx - px(8), cy, cx - px(2), cy + px(7), cx + px(9), cy - px(7)), fill=SLATE, width=px(4))
 
 
 def button_card(img, icon, pressed):
     """The toolbar button, top left; pressed: amber ring, pushed in, and the pointer on it."""
     d = ImageDraw.Draw(img)
-    x, y, s = 12, 12, 58
-    off = 2 if pressed else 0
-    d.rounded_rectangle((x + 3, y + 4, x + s + 3, y + s + 4), radius=10, fill=(214, 217, 212))
-    d.rounded_rectangle((x + off, y + off, x + s + off, y + s + off), radius=10,
+    x, y, s = px(12), px(12), px(58)
+    off = px(2) if pressed else 0
+    d.rounded_rectangle((x + px(3), y + px(4), x + s + px(3), y + s + px(4)), radius=px(10), fill=(214, 217, 212))
+    d.rounded_rectangle((x + off, y + off, x + s + off, y + s + off), radius=px(10),
                         fill=(255, 255, 255) if not pressed else (255, 243, 214),
-                        outline=AMBER if pressed else (180, 186, 192), width=3 if pressed else 1)
-    ic = icon.resize((40, 40), Image.LANCZOS)
-    img.paste(ic, (x + 9 + off, y + 9 + off), ic)
+                        outline=AMBER if pressed else (180, 186, 192), width=px(3) if pressed else px(1))
+    ic = icon.resize((px(40), px(40)), Image.LANCZOS)
+    img.paste(ic, (x + px(9) + off, y + px(9) + off), ic)
     if pressed:
-        px, py = x + s - 12, y + s - 10
-        arrow = [(px, py), (px, py + 22), (px + 6, py + 16), (px + 11, py + 26), (px + 15, py + 24),
-                 (px + 10, py + 14), (px + 18, py + 14)]
-        d.polygon(arrow, fill=(255, 255, 255), outline=(20, 20, 20))
+        cx, cy = x + s - px(12), y + s - px(10)
+        arrow = [(0, 0), (0, 22), (6, 16), (11, 26), (15, 24), (10, 14), (18, 14)]
+        d.polygon([(cx + px(a), cy + px(b)) for a, b in arrow], fill=(255, 255, 255), outline=(20, 20, 20))
+
+
+def save_gif(frames, durations, path):
+    """One palette for the whole animation (from a sample of its frames), no dither: the colours
+    stay still from frame to frame and flat CAD shading needs no more."""
+    sample = frames[::max(1, len(frames) // 12)] + frames[-1:]
+    sheet = Image.new("RGB", (W, H * len(sample)))
+    for i, im in enumerate(sample):
+        sheet.paste(im, (0, H * i))
+    pal = sheet.quantize(colors=256, method=Image.Quantize.MEDIANCUT)
+    q = [im.quantize(palette=pal, dither=Image.Dither.NONE) for im in frames]
+    q[0].save(path, save_all=True, append_images=q[1:], duration=durations, loop=0,
+              optimize=True, disposal=1)
 
 
 def compose(frames_dir, scene):
-    with open(os.path.join(frames_dir, scene, "frames.json")) as f:
-        frames = json.load(f)["frames"]
-    paths = [os.path.join(frames_dir, scene, "%03d.png" % i) for i in range(len(frames))]
+    src = os.path.join(frames_dir, scene)
+    with open(os.path.join(src, "frames.json")) as f:
+        meta = json.load(f)["frames"]
+    icon_path = os.path.join(src, "icon.png")
+    icon = Image.open(icon_path).convert("RGBA") if os.path.isfile(icon_path) else None
+    raw = [Image.open(os.path.join(src, "%03d.png" % i)).convert("RGB") for i in range(len(meta))]
     boxes = {}
-    for shot in sorted({m.get("shot", 0) for m in frames}):
-        boxes[shot] = content_box([p for p, m in zip(paths, frames) if m.get("shot", 0) == shot])
-    icon = Image.open(os.path.join(frames_dir, scene, "icon.png")).convert("RGBA")
-    with open(os.path.join(HELP, "help.json"), encoding="utf-8") as f:
-        entry = json.load(f)["commands"][COMMANDS[scene]]
-    views = []
-    for p, meta in zip(paths, frames):
-        box = boxes[meta.get("shot", 0)]
-        im = Image.open(p).convert("RGB")
-        canvas = Image.new("RGB", (box[2] - box[0], box[3] - box[1]), im.getpixel((4, 4)))
+    for shot in sorted({m.get("shot", 0) for m in meta}):
+        boxes[shot] = content_box([im for im, m in zip(raw, meta) if m.get("shot", 0) == shot])
+    out, steps = [], []
+    for im, m in zip(raw, meta):
+        box = boxes[m.get("shot", 0)]
+        bg = im.getpixel((4, 4))
+        canvas = Image.new("RGB", (box[2] - box[0], box[3] - box[1]), bg)
         canvas.paste(im, (-box[0], -box[1]))
-        views.append(canvas.resize((W, H - CAPTION_H), Image.LANCZOS))
-    for lang in ("el", "en"):
-        text = entry[lang]
-        out = []
-        for view, meta in zip(views, frames):
-            img = Image.new("RGB", (W, H), view.getpixel((2, 2)))
-            img.paste(view, (0, 0))
-            button_card(img, icon, meta["pressed"])
-            step = meta["step"]
-            caption(img, step, text["steps"][step - 1] if step else text.get("r", ""))
-            out.append(img.quantize(colors=COLOURS, method=Image.MEDIANCUT, dither=Image.NONE))
-        os.makedirs(os.path.join(HELP, "img", lang), exist_ok=True)
-        path = os.path.join(HELP, "img", lang, entry["i"])
-        durations = [FRAME_MS] * len(out)
-        durations[-1] = 1800                     # a pause on the result before it starts again
-        out[0].save(path, save_all=True, append_images=out[1:], duration=durations, loop=0,
-                    optimize=True, disposal=1)
-        print("%s  %d frames  %d kB" % (path, len(out), os.path.getsize(path) // 1024))
+        frame = canvas.resize((W, H), Image.LANCZOS)
+        if icon is not None:
+            button_card(frame, icon, m["pressed"])
+        badge(frame, m["step"])
+        out.append(frame)
+        steps.append(m["step"])
+    # identical frames in a row become one longer frame
+    frames, durations, kept = [], [], []
+    for frame, step in zip(out, steps):
+        if frames and step == kept[-1] and not ImageChops.difference(frame, frames[-1]).getbbox():
+            durations[-1] += FRAME_MS
+            continue
+        frames.append(frame)
+        durations.append(FRAME_MS)
+        kept.append(step)
+    durations[-1] = max(durations[-1], HOLD_MS)
+    os.makedirs(IMG, exist_ok=True)
+    name = SCENES.get(scene, scene)
+    path = os.path.join(IMG, name + ".gif")
+    save_gif(frames, durations, path)
+    with open(os.path.join(IMG, name + ".json"), "w") as f:
+        json.dump({"steps": kept, "ms": durations}, f)
+    print("%s  %d frames  %d kB" % (path, len(frames), os.path.getsize(path) // 1024))
 
 
 def main():
     frames_dir = sys.argv[1]
-    scenes = sys.argv[2:] or [s for s in COMMANDS if os.path.isfile(os.path.join(frames_dir, s, "frames.json"))]
+    scenes = sys.argv[2:] or [s for s in SCENES if os.path.isfile(os.path.join(frames_dir, s, "frames.json"))]
     for scene in scenes:
         compose(frames_dir, scene)
 

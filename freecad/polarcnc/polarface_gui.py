@@ -100,9 +100,9 @@ class TaskPanelOpPage(PathOpGui.TaskPanelPage):
         self.ramp.setValue(obj.RampAngle.Value)
 
     def getSignalsForUpdate(self, obj):
-        return [self.clearing.currentIndexChanged, self.band.valueChanged,
-                self.step.valueChanged, self.leave.valueChanged, self.mode.currentIndexChanged,
-                self.air.valueChanged, self.ramp.valueChanged]
+        # no remake on every change of a field: the path can take seconds, and a few changes
+        # in a row froze FreeCAD. It is made on OK or Apply.
+        return []
 
 
 def polarface_tip(prop):

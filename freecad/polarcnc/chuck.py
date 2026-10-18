@@ -20,6 +20,7 @@
 # SPDX-License-Identifier: MIT
 
 import math
+import os
 
 import FreeCAD as App
 import Part
@@ -165,12 +166,23 @@ class Chuck:
         shape, notes = build(obj)
         obj.Shape = shape
         obj.Notes = notes
+        _drawn(obj, "PolarChuck.svg")
 
     def dumps(self):
         return None
 
     def loads(self, state):
         return None
+
+
+def _drawn(obj, icon):
+    """A chuck or clamp from a document saved before it had a view provider: give it one."""
+    try:
+        vo = obj.ViewObject if App.GuiUp else None
+        if vo is not None and (not vo.DisplayMode or getattr(vo, "Proxy", None) is None):
+            show(obj, icon, tuple(vo.ShapeColor[:3]) if vo.ShapeColor else (0.66, 0.68, 0.72))
+    except Exception:
+        pass
 
 
 def _differs(preset, now):
@@ -465,6 +477,7 @@ class Clamp:
         # for its own shape, so that there is no link back
         chuck = next((o for o in obj.InList if obj in getattr(o, "Clamps", [])), None)
         obj.Shape = clamp_shape(obj, face_z(chuck) if chuck is not None else 0.0)
+        _drawn(obj, "PolarClamp.svg")
 
     def dumps(self):
         return None
@@ -476,6 +489,50 @@ class Clamp:
 def clamp_shape(clamp, z0):
     return _jaw(clamp.Radius.Value, clamp.Length.Value, clamp.Width.Value, z0,
                 clamp.Height.Value, math.radians(clamp.Angle.Value))
+
+
+RESOURCES = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "Resources")
+
+
+class ViewProviderSteel:
+    """How the chuck and the clamps are drawn. Without a view provider of its own a Python
+    feature made from a script has no display mode, and FreeCAD does not draw it at all (the
+    chuck was invisible in the 3D view, only the simulator showed it)."""
+
+    def __init__(self, vobj, icon):
+        self.icon = icon
+        vobj.Proxy = self
+
+    def attach(self, vobj):
+        self.Object = vobj.Object
+
+    def getIcon(self):
+        return os.path.join(RESOURCES, getattr(self, "icon", "PolarChuck.svg"))
+
+    def getDefaultDisplayMode(self):
+        return "Flat Lines"
+
+    def dumps(self):
+        return getattr(self, "icon", "PolarChuck.svg")
+
+    def loads(self, state):
+        self.icon = state if isinstance(state, str) else "PolarChuck.svg"
+
+
+def show(obj, icon="PolarChuck.svg", rgb=(0.66, 0.68, 0.72)):
+    """Give a chuck or clamp its look in the GUI (and a display mode, so that it is drawn)."""
+    if not App.GuiUp or getattr(obj, "ViewObject", None) is None:
+        return
+    vo = obj.ViewObject
+    try:
+        if not isinstance(getattr(vo, "Proxy", None), ViewProviderSteel):
+            ViewProviderSteel(vo, icon)
+        if not vo.DisplayMode:
+            vo.DisplayMode = "Flat Lines"
+        vo.ShapeColor = rgb
+        vo.Transparency = 30
+    except Exception:
+        pass
 
 
 def make_chuck(job, preset="4-jaw SAN OU K72-125 independent (Ø125)"):
@@ -494,6 +551,7 @@ def make_chuck(job, preset="4-jaw SAN OU K72-125 independent (Ø125)"):
         if "PolarChuck" in op.PropertiesList:
             op.PolarChuck = obj
     obj.recompute()
+    show(obj)
     return obj
 
 
@@ -528,6 +586,7 @@ def add_clamp(chuck, angle=None, length=30, width=20, height=20):
         obj.Height = stock.BoundBox.ZLength + 8 if chuck.ChuckType == FACEPLATE else height
     fit_radius(obj, chuck)
     obj.recompute()
+    show(obj, "PolarClamp.svg", (0.46, 0.48, 0.52))
     chuck.Clamps = list(chuck.Clamps) + [obj]
     chuck.recompute()
     return obj

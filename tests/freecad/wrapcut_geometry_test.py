@@ -50,15 +50,18 @@ try:
     iz = lambda z: int(round(z / step))
     diff = numpy.abs(H - Hm).max()
     check(diff < 0.03, "solid and mesh (STL) give the same radius map: worst %.4f mm" % diff)
-    check(abs(H[iz(10)].min() - 20) < 1e-3 and abs(H[iz(33.5)].max() - 17) < 1e-3,
-          "radius map: bar 20, groove floor 17")
+    # a solid is mapped through a fine mesh: never below the real radius, at most TOL above
+    TOL = 2.5e-3
+    check(0 <= H[iz(10)].min() - 20 < TOL and 0 <= H[iz(33.5)].max() - 17 < TOL,
+          "radius map: bar 20, groove floor 17 (%.4f, %.4f: never below, at most %.4f above)"
+          % (H[iz(10)].min(), H[iz(33.5)].max(), TOL))
     flat = H[iz(47), 0]
     check(abs(flat - 16) < 0.01, "radius map: the flat at 16 (%.4f)" % flat)
 
     for ball in (False, True):
         X = wc.tip_map(H, zs, na, 2.5, ball)
         kind = "ball" if ball else "flat"
-        check(abs(X[iz(10)].min() - 20) < 1e-3 and abs(X[iz(10)].max() - 20) < 1e-3,
+        check(0 <= X[iz(10)].min() - 20 < TOL and 0 <= X[iz(10)].max() - 20 < TOL,
               "%s end: rides on the bar at 20" % kind)
         check(abs(X[iz(33.5)].min() - 17) < 0.01, "%s end: reaches the groove floor (%.3f)" % (kind, X[iz(33.5)].min()))
         check(X[iz(47), 0] < 16.1, "%s end: reaches the flat (%.3f)" % (kind, X[iz(47), 0]))
@@ -101,7 +104,8 @@ try:
           % ["%.2f" % v for v in layers])
     fin = passes[-1]
     on_bar = fin[(fin[:, 0] > 13) & (fin[:, 0] < 27)]
-    check(len(on_bar) and numpy.abs(on_bar[:, 2] - 20).max() < 1e-3, "finishing helix on the bar at 20")
+    check(len(on_bar) and ((on_bar[:, 2] - 20) >= 0).all() and (on_bar[:, 2] - 20).max() < 2.5e-3,
+          "finishing helix on the bar at 20 (+0..2.5 microns)")
     check(abs(fin[:, 0].max() - 58) < 1e-9 and abs(fin[:, 0].min() - 12) < 1e-9,
           "from the free end (58) toward the chuck (12)")
     check(abs(abs(fin[:, 1].max() - fin[:, 1].min()) - 2 * math.pi * (1 + 46 / 0.75 + 1)) < 0.05,

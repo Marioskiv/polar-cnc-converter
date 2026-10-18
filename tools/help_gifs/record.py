@@ -160,6 +160,97 @@ def play(panel, step, frames, start=0.0, end=1.0):
         frame(step)
 
 
+class Sim:
+    """The simulator's own scene in the 3D view, without its task dialog (several of them can
+    be shown one after the other in one FreeCAD start)."""
+
+    def __init__(self, job, machine=False, whole=True, chuck=True):
+        from polarcnc import bridge, program, simulator
+        SHOT[0] += 1
+        text, opts = program.polar(job)
+        self.motion = simulator.Motion(bridge.parse(text, opts))
+        self.scene = simulator.Scene(job, self.motion, opts)
+        self.scene.machine_view = machine
+        self.view = Gui.ActiveDocument.ActiveView
+        self.view.getSceneGraph().addChild(self.scene.root)
+        self.scene.chuck_sw.whichChild.setValue(0 if chuck else -1)
+        self.scene.all_sw.whichChild.setValue(0 if whole else -1)
+        self.shown = [(o, o.ViewObject.Visibility) for o in job.Document.Objects
+                      if getattr(o, "ViewObject", None) is not None]
+        for o, v in self.shown:
+            if v:
+                o.ViewObject.Visibility = False
+        self.scene.show(0.0)
+        self.view.viewIsometric()
+        vp = self.view.getViewer().getSoRenderManager().getViewportRegion()
+        self.view.getCameraNode().viewAll(self.scene.root, vp)
+        pump(200)
+
+    def play(self, step, frames, start=0.0, end=1.0):
+        total = self.motion.total
+        for k in range(frames):
+            self.scene.show(total * (start + (end - start) * k / max(frames - 1, 1)))
+            frame(step)
+
+    def close(self):
+        self.view.getSceneGraph().removeChild(self.scene.root)
+        for o, v in self.shown:
+            o.ViewObject.Visibility = v
+        pump(100)
+
+
+def fit_to(doc, shape, zoom=1.0):
+    """Aim the camera at one region (a box round it), then show the scene again."""
+    SHOT[0] += 1
+    keep = [(o, o.ViewObject.Visibility) for o in doc.Objects if getattr(o, "ViewObject", None)]
+    for o, _v in keep:
+        o.ViewObject.Visibility = False
+    aim = doc.addObject("Part::Feature", "Aim")
+    aim.Shape = shape
+    doc.recompute()
+    v = Gui.ActiveDocument.ActiveView
+    v.viewIsometric()
+    v.fitAll()
+    if zoom != 1.0:
+        cam = v.getCameraNode()
+        cam.height.setValue(cam.height.getValue() / zoom)
+    doc.removeObject(aim.Name)
+    for o, vis in keep:
+        o.ViewObject.Visibility = vis
+    pump(100)
+
+
+def box_of(bb):
+    import Part
+    return Part.makeBox(max(bb.XLength, 1e-3), max(bb.YLength, 1e-3), max(bb.ZLength, 1e-3),
+                        App.Vector(bb.XMin, bb.YMin, bb.ZMin))
+
+
+def bar_job(doc, part, stock):
+    """A Job whose stock is a solid of its own (a round bar), made polar."""
+    import Draft
+    from Path.Main import Job as PathJob
+    from Path.Main.Gui import Job as PathJobGui
+    p = doc.addObject("Part::Feature", "Part")
+    p.Shape = part
+    doc.recompute()
+    job = PathJob.Create("Job", [p], None)
+    job.ViewObject.Proxy = PathJobGui.ViewProvider(job.ViewObject)
+    holder = doc.addObject("Part::Feature", "Bar")
+    holder.Shape = stock
+    holder.ViewObject.Visibility = False
+    old = job.Stock
+    clone = Draft.make_clone(holder)
+    clone.Label = "Stock"
+    job.Stock = clone
+    doc.removeObject(old.Name)
+    tc = job.Tools.Group[0]
+    tc.HorizFeed, tc.VertFeed = "600 mm/min", "200 mm/min"
+    doc.recompute()
+    make_polar(job)
+    return job, p
+
+
 # ---------------------------------------------------------------- scenes
 
 def scene_machine(doc):
@@ -194,23 +285,49 @@ def scene_machine(doc):
 
 
 def scene_chuck(doc):
-    """The stock alone, the chuck appears with its jaws open and they close on the stock; then the
-    grip length, and a look round."""
+    """A bar lying on its side; its end is clicked; the button: the bar turns to stand on that
+    end, on the chuck axis; the 3-jaw chuck that holds it comes, its jaws close; a look round."""
     import Part
-    from polarcnc import chuck
-    job, part = polar_job(doc, Part.makeCylinder(25, 20), stock=(0, 0))
-    make_polar(job)
+    from polarcnc import chuck, setup
+    V = App.Vector
+    part = Part.makeCylinder(12, 45, V(0, 0, 0), V(1, 0, 0)).cut(
+        Part.makeCylinder(14, 4, V(20, 0, 0), V(1, 0, 0)).cut(Part.makeCylinder(9, 4, V(20, 0, 0), V(1, 0, 0))))
+    job, orig = bar_job(doc, part, Part.makeCylinder(14, 54, V(-3, 0, 0), V(1, 0, 0)))
+    model = job.Model.Group[0]
     stock = job.Stock
-    only(doc, [stock])
-    steel(stock, (0.80, 0.62, 0.30))
-    iso(0.55)
-    frame(1, n=4)
-    Gui.Selection.addSelection(stock)
-    frame(1, n=8)
-    Gui.Selection.clearSelection()
-    held = chuck.make_chuck(job)
-    held.GripLength = 8
+    setup.show_job_copy(job)
+    steel(model, (0.80, 0.62, 0.30))
+    steel(stock, (0.80, 0.62, 0.30), 70)
+    start = {o: App.Placement(o.Placement) for o in (model, stock)}
+    k = next(k for k, f in enumerate(model.Shape.Faces) if abs(f.CenterOfMass.x - 45) < 1e-6)
+    face, name = model.Shape.Faces[k], "Face%d" % (k + 1)
+    # where it ends: turned, centred, in the chuck (the camera is set for that)
+    setup.orient(job, model, face)
+    held = setup.apply_chuck(job, setup.MY_CHUCKS[0], 6)
+    end = {o: App.Placement(o.Placement) for o in (model, stock)}
+    bb_end = stock.Shape.BoundBox
+    only(doc, [model, stock, held])
+    held.ViewObject.Visibility = False
+    for o in (model, stock):
+        o.Placement = start[o]
     doc.recompute()
+    bb_start = stock.Shape.BoundBox
+    fit_to(doc, box_of(bb_start), 0.9)
+    frame(1, n=4)
+    Gui.Selection.addSelection(model, name)
+    frame(1, n=10)
+    frame(2, pressed=True, n=4)
+    Gui.Selection.clearSelection()
+    both = App.BoundBox(bb_start)
+    both.add(bb_end)
+    fit_to(doc, box_of(both), 0.95)
+    for k in range(1, 15):
+        t = 0.5 - 0.5 * math.cos(math.pi * k / 14)
+        for o in (model, stock):
+            a, b = start[o], end[o]
+            o.Placement = App.Placement(a.Base + (b.Base - a.Base) * t, a.Rotation.slerp(b.Rotation, t))
+        doc.recompute()
+        frame(2)
     built = chuck._build(held)
     body = doc.addObject("Part::Feature", "AnimBody")
     body.Shape = built["body"]
@@ -219,29 +336,24 @@ def scene_chuck(doc):
     for k, (shape, _r) in enumerate(built["jaws"]):
         j = doc.addObject("Part::Feature", "AnimJaw%d" % k)
         j.Shape = shape
-        start = j.Placement
         c = shape.BoundBox.Center
         d = App.Vector(c.x, c.y, 0)
         steel(j, (0.56, 0.58, 0.62))
-        jaws.append((j, d.normalize() if d.Length > 1e-6 else App.Vector(1, 0, 0), start))
-    only(doc, [stock, body] + [j[0] for j in jaws])
+        jaws.append((j, d.normalize() if d.Length > 1e-6 else App.Vector(1, 0, 0), App.Placement(j.Placement)))
+    held.ViewObject.Visibility = True
     iso(1.0)
-    for k in range(14):
-        open_by = 22.0 * (1 - k / 13.0)
-        for j, d, start in jaws:
-            j.Placement = App.Placement(d * open_by, App.Rotation()).multiply(start)
-        frame(2, pressed=k < 5)
-    frame(2, n=6)
+    held.ViewObject.Visibility = False
+    for k in range(12):
+        open_by = 20.0 * (1 - k / 11.0)
+        for j, d, p0 in jaws:
+            j.Placement = App.Placement(d * open_by, App.Rotation()).multiply(p0)
+        frame(3)
     for j in [j[0] for j in jaws] + [body]:
         doc.removeObject(j.Name)
-    only(doc, [stock])
-    for g in (8, 10, 12, 14, 16, 16, 14, 12):
-        held.GripLength = g
-        doc.recompute()
-        show_copy(doc, held)
-        frame(3)
+    held.ViewObject.Visibility = True
+    steel(held)
     frame(3, n=6)
-    orbit(0, 16, 60.0)
+    orbit(0, 12, 50.0)
 
 
 def scene_clamp(doc):
@@ -389,15 +501,157 @@ def scene_simulate(doc):
 
 ICONS = {"machine": "PolarCNC.svg", "chuck": "PolarChuck.svg", "clamp": "PolarClamp.svg",
          "polarface": "PolarFace.svg", "polarwrap": "PolarWrap.svg", "simulate": "PolarSimulate.svg"}
+# field animations have no button card
 
 
 def save_icon():
     """The toolbar icon as a PNG for compose.py (PIL cannot draw SVG)."""
     from PySide import QtCore
+    if SCENE not in ICONS:
+        return
     path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
                         "freecad", "Resources", ICONS[SCENE])
     icon = QtGui.QIcon(path)
     icon.pixmap(QtCore.QSize(96, 96)).save(os.path.join(OUT, "icon.png"))
+
+
+def scene_pf_clearing(doc):
+    """What Polar Face cuts: 1 the top only, 2 all the stock round the part, 3 a band round it."""
+    import Part
+    from polarcnc import polarface as pf, polarface_gui
+    job, part = polar_job(doc, Part.makeCylinder(18, 16).fuse(Part.makeBox(10, 10, 20, App.Vector(-5, -5, 0))),
+                          stock=(12, 3))
+    job.Stock.ExtZneg = 6
+    make_polar(job)
+    from polarcnc import setup
+    held = setup.apply_chuck(job, setup.MY_CHUCKS[1], 6)
+    polarface_gui.register()
+    cmd = polarface_gui.Command()
+    cmd.res.job = job
+    op = polarface_gui.create(cmd.res)
+    pump(500)
+    Gui.Control.activeTaskDialog().accept()
+    pump(300)
+    for step, mode in ((1, pf.FACE_ONLY), (2, pf.WHOLE), (3, pf.BAND)):
+        op.Clearing = mode
+        op.BandWidth = 6
+        doc.recompute()
+        sim = Sim(job, chuck=False)
+        sim.play(step, 14, 0.0, 1.0)
+        frame(step, n=6)
+        sim.close()
+
+
+def scene_pf_ramp(doc):
+    """Into the material without plunging: the cutter ramps down along its circle (1), then goes
+    back to the start at depth (2) and cuts on."""
+    import Part
+    from polarcnc import polarface as pf, polarface_gui, setup
+    job, part = polar_job(doc, Part.makeCylinder(15, 14), stock=(10, 3))
+    job.Stock.ExtZneg = 6
+    make_polar(job)
+    setup.apply_chuck(job, setup.MY_CHUCKS[1], 6)
+    polarface_gui.register()
+    cmd = polarface_gui.Command()
+    cmd.res.job = job
+    op = polarface_gui.create(cmd.res)
+    pump(500)
+    Gui.Control.activeTaskDialog().accept()
+    pump(300)
+    op.Clearing = pf.BAND
+    op.BandWidth = 6
+    op.StepDown = 3
+    op.RampAngle = 6
+    doc.recompute()
+    # the first ramp: the run of G1 moves that go down while they move sideways
+    pts, z_prev, ramp, back = [], None, [], []
+    x = y = z = None
+    for c in op.Path.Commands:
+        p = c.Parameters
+        nx, ny, nz = p.get("X", x), p.get("Y", y), p.get("Z", z)
+        if c.Name == "G1" and x is not None and z is not None and nz < z - 1e-6 and \
+                math.hypot(nx - x, ny - y) > 1e-6:
+            ramp.append(App.Vector(nx, ny, nz))
+        elif ramp and c.Name == "G1" and abs(nz - z) < 1e-9 and math.hypot(nx - x, ny - y) > 1e-6:
+            back.append(App.Vector(nx, ny, nz))
+        elif ramp and c.Name in ("G2", "G3", "G0"):
+            break
+        x, y, z = nx, ny, nz
+    ramp = [App.Vector(ramp[0].x, ramp[0].y, ramp[0].z + 0.5)] + ramp if ramp else ramp
+    region = Part.makeCompound([Part.Vertex(p) for p in ramp + back]).BoundBox
+    fit_to(doc, Part.makeBox(max(region.XLength, 1) + 24, max(region.YLength, 1) + 24, region.ZLength + 16,
+                             App.Vector(region.XMin - 12, region.YMin - 12, region.ZMin - 8)), 1.25)
+    steel(job.Stock, (0.80, 0.62, 0.30), 75)
+    steel(part, (0.35, 0.55, 0.85))
+    only(doc, [job.Stock, part])
+    r = op.ToolController.Tool.Diameter.Value / 2
+    tool = doc.addObject("Part::Feature", "Cutter")
+    tool.Shape = Part.makeCylinder(r, 30)
+    steel(tool, (0.30, 0.33, 0.38))
+    trail = doc.addObject("Part::Feature", "Trail")
+    steel(trail, (0.94, 0.45, 0.10))
+
+    def tube(points, r=0.35):
+        """The path so far as a thin tube (a plain line is too thin to see at this size)."""
+        parts = []
+        for a, b in zip(points, points[1:]):
+            d = b - a
+            if d.Length > 1e-6:
+                parts.append(Part.makeCylinder(r, d.Length, a, d))
+        return Part.makeCompound(parts)
+    for step, pts in ((1, ramp), (2, back)):
+        n = len(pts)
+        idx = [int(round(k * (n - 1) / 13.0)) for k in range(14)] if n > 14 else list(range(n))
+        for i in idx:
+            q = pts[i]
+            tool.Placement = App.Placement(App.Vector(q.x, q.y, q.z), App.Rotation())
+            done = (ramp if step == 1 else ramp + back)[: (i + 1) if step == 1 else len(ramp) + i + 1]
+            if len(done) > 1:
+                trail.Shape = tube(done)
+            doc.recompute()
+            frame(step)
+    frame(0, n=8)
+
+
+def scene_wrap_strategy(doc):
+    """Polar Wrap: 1 roughing layers from the bar down, 2 finishing as a helix round the part,
+    3 finishing as lines along it."""
+    import Part
+    from polarcnc import machine, polarwrap, polarwrap_gui, policy, setup
+    shape = Part.makeCylinder(20, 60)
+    shape = shape.cut(Part.makeCylinder(30, 7, App.Vector(0, 0, 30)).cut(
+        Part.makeCylinder(17, 7, App.Vector(0, 0, 30))))
+    shape = shape.cut(Part.makeBox(10, 40, 10, App.Vector(16, -20, 42)))
+    job, part = polar_job(doc, shape)
+    make_polar(job)
+    job.PolarLayout = machine.WRAP
+    job.PolarWrapDiameter = 44
+    job.PolarWrapToolLengthInX = True
+    doc.recompute()
+    policy._cache[0] = 0.0
+    polarwrap_gui.register()
+    cmd = polarwrap_gui.Command()
+    cmd.res.job = job
+    op = polarwrap_gui.create(cmd.res)
+    pump(500)
+    Gui.Control.activeTaskDialog().accept()
+    pump(300)
+    strategies = op.getEnumerationsOfProperty("Strategy")
+    styles = op.getEnumerationsOfProperty("FinishStyle")
+    rough = next((x for x in strategies if "ough" in x and "inish" not in x), strategies[0])
+    finish = next((x for x in strategies if "inish" in x and "ough" not in x), strategies[-1])
+    both = strategies[0]
+    # finishing alone on the full bar would cut too deep (Polar Wrap refuses it), so steps 2 and 3
+    # play the finishing part of roughing + finishing
+    for step, (strat, style, a, b) in ((1, (rough, styles[0], 0.0, 1.0)), (2, (both, styles[0], 0.62, 1.0)),
+                                       (3, (both, styles[-1], 0.62, 1.0))):
+        op.Strategy = strat
+        op.FinishStyle = style
+        doc.recompute()
+        sim = Sim(job, machine=False, whole=False)
+        sim.play(step, 16, a, b)
+        frame(step, n=6)
+        sim.close()
 
 
 def run():
