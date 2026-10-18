@@ -27,7 +27,8 @@ QLoggingCategory.setFilterRules("qt.qml.usedbeforedeclared=false")
 CORE_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
                         "src", "core")
 # the order index.html loads them in: each file adds itself to PolarCNC
-CORE_FILES = ("geometry.js", "gcode-input.js", "layout-xzc.js", "layout-xzcb.js", "converter.js",
+CORE_FILES = ("geometry.js", "gcode-input.js", "layout-xzc.js", "layout-xzcb.js", "layout-wrap.js",
+              "converter.js",
               "polar-parser.js")
 
 

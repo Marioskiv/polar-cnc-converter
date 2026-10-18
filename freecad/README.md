@@ -42,6 +42,15 @@ FreeCAD.
 The operations stay normal CAM operations, so FreeCAD shows and simulates them as usual. The polar conversion
 happens only when the G-code is written.
 
+## Wrap: the outside of a cylinder
+
+With the router turned to look at the part (the machine axes stay as they are), set the Job's **Polar Layout** to
+**Wrap** and **Polar Wrap Radius** to the radius you draw at (usually the stock radius). Draw the cylinder's surface
+**unrolled flat**: X along the part, Y round it (a width of 2π × radius is one full turn), Z 0 on the surface and
+negative into it. Use any operation (Profile, Pocket, Engrave, V-carve, Adaptive, 3D); nothing is greyed out, lines
+and zigzags are fine. Post Process wraps it (X = radius + Z, C = Y / radius, Z = X) and the simulator shows the
+cylinder with the router radial. The chuck and Polar Face are for the face only.
+
 ## Polar Face: facing any stock without cutting air
 
 The stock in the chuck is often not round: square or hexagon bar, a plate, a casting, held off the centre in a

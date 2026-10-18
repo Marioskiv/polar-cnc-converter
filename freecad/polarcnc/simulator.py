@@ -113,9 +113,10 @@ class Scene:
     """The Coin nodes of the simulation: a turning part group (chuck, stock, model, path) and a
     cutter that only moves in X and Z."""
 
-    def __init__(self, job, motion):
+    def __init__(self, job, motion, opts=None):
         from pivy import coin
         self.motion = motion
+        self.wrap = (opts or {}).get("layout") == "wrap"
         self.root = coin.SoSeparator()
         self.part = coin.SoSeparator()
         self.turn = coin.SoRotationXYZ()
@@ -123,8 +124,12 @@ class Scene:
         self.part.addChild(self.turn)
 
         stock = job.Stock.Shape if getattr(job, "Stock", None) else None
+        if self.wrap:       # the Job is drawn unrolled: show the cylinder it is wrapped on
+            stock, models = None, []
+            self._wrap_cylinder(opts["wrapRadius"])
         bb = stock.BoundBox if stock and not stock.isNull() else None
-        models = [m.Shape for m in job.Model.Group if hasattr(m, "Shape") and not m.Shape.isNull()]
+        if not self.wrap:
+            models = [m.Shape for m in job.Model.Group if hasattr(m, "Shape") and not m.Shape.isNull()]
         if bb is None and models:
             bb = models[0].BoundBox
             for s in models[1:]:
@@ -137,7 +142,9 @@ class Scene:
         holder = coin.SoSeparator()
         self.chuck_sw.addChild(holder)
         chuck = getattr(job, "PolarChuck", None)
-        if chuck is not None and not chuck.Shape.isNull():      # the Job's own chuck / faceplate
+        if self.wrap:
+            pass                                                  # no chuck in the unrolled frame
+        elif chuck is not None and not chuck.Shape.isNull():      # the Job's own chuck / faceplate
             from . import chuck as chuckmod
             pieces, _notes = chuckmod.build_parts(chuck)
             if pieces:
@@ -167,11 +174,43 @@ class Scene:
         self.tool = coin.SoSeparator()
         self.tool_at = coin.SoTranslation()
         self.tool.addChild(self.tool_at)
+        self.tool_turn = coin.SoRotationXYZ()          # part view: the cutter's angle
+        self.tool_turn.axis.setValue(coin.SoRotationXYZ.Z)
+        self.tool.addChild(self.tool_turn)
+        if self.wrap:                                   # the router radial: its body along +X
+            lie = coin.SoRotationXYZ()
+            lie.axis.setValue(coin.SoRotationXYZ.Y)
+            lie.angle.setValue(math.pi / 2)
+            self.tool.addChild(lie)
         self.tool_mat = coin.SoMaterial()
         self.tool.addChild(self.tool_mat)
         self.tool.addChild(self._cutter(motion.tool_d or 6.0))
         self.root.addChild(self.tool)
         self.machine_view = True
+
+    def _wrap_cylinder(self, radius):
+        """The cylinder of the wrap radius along the program's Z range (part of the turning group)."""
+        from pivy import coin
+        zs = [self.motion.z[i] for i in range(len(self.motion)) if not self.motion.rapid[i]] or [0.0, 1.0]
+        z0, z1 = min(zs), max(zs)
+        margin = max((z1 - z0) * 0.1, radius * 0.2, 2.0)
+        sep = coin.SoSeparator()
+        mat = coin.SoMaterial()
+        mat.diffuseColor.setValue(0.85, 0.8, 0.6)
+        mat.transparency.setValue(0.6)
+        sep.addChild(mat)
+        cx = coin.SoComplexity()
+        cx.value.setValue(0.9)
+        sep.addChild(cx)
+        tr = coin.SoTransform()
+        tr.translation.setValue(0, 0, (z0 + z1) / 2)
+        tr.rotation.setValue(coin.SbVec3f(1, 0, 0), math.pi / 2)   # cylinder axis Y -> Z
+        sep.addChild(tr)
+        cyl = coin.SoCylinder()
+        cyl.radius.setValue(radius)
+        cyl.height.setValue(z1 - z0 + 2 * margin)
+        sep.addChild(cyl)
+        self.part.addChild(sep)
 
     @staticmethod
     def _chuck(radius, zbot):
@@ -238,10 +277,12 @@ class Scene:
         if self.machine_view:
             self.turn.angle.setValue(-math.radians(c))   # the part turns; its point at C faces +X
             self.tool_at.translation.setValue(r, 0, z)
+            self.tool_turn.angle.setValue(0)
         else:
             self.turn.angle.setValue(0)
             a = math.radians(c)
             self.tool_at.translation.setValue(r * math.cos(a), r * math.sin(a), z)
+            self.tool_turn.angle.setValue(a if self.wrap else 0)
         self.tool_mat.diffuseColor.setValue(*(RAPID_RGB if self.motion.rapid[i] else (1, 1, 1)))
         self.done.numVertices.setValue(max(i, 1))
         self.done_sw.whichChild.setValue(0 if i >= 2 else -1)
@@ -252,7 +293,7 @@ class TaskPanel:
     def __init__(self, job, polar_text, opts):
         self.job = job
         self.motion = Motion(bridge.parse(polar_text, opts))
-        self.scene = Scene(job, self.motion)
+        self.scene = Scene(job, self.motion, opts)
         self.view = Gui.ActiveDocument.ActiveView
         self.view.getSceneGraph().addChild(self.scene.root)
         try:     # framed on the part (not on the whole chuck), while the part is still shown

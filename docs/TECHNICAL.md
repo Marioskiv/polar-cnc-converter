@@ -316,6 +316,33 @@ mirrored — and no simulator can show that. If it is, tick **Invert rotary dire
 For a full check of the machine's own behaviour, LinuxCNC can simulate the machine itself with a `vismach`
 model — `examples/linuxcnc-vismach-xzc-lathe` is a ready example.
 
+## Wrap: the outside of a cylinder (layout "Wrap", 2.15.0)
+
+The router is **turned to look at the part** (its nose radial, toward the chuck axis); the machine axes stay as they
+are: X = radius of the tool tip, Z = along the part, C = the chuck. Choose **Machine layout → Wrap (router radial)**
+and enter the **wrap radius** (no default).
+
+- **The CAM program is the surface unrolled flat**, made with any 3-axis CAM: CAM X along the part (→ machine Z),
+  CAM Y round it in mm of arc at the wrap radius R0 (→ C = Y / R0, in degrees), CAM Z the height above the surface
+  (→ X = R0 + Z; Z 0 on the surface, negative into it). A stock 2πR0 wide in Y is one full turn. This is what
+  Fanuc's cylindrical interpolation (G07.1) does inside the control; LinuxCNC has none, so the converter writes the
+  joint moves.
+- Every map is linear, so **a straight CAM move is exactly one straight joint move** (LinuxCNC interpolates X, Z
+  and C linearly): lines are one block, however long (a helix is one line). Arcs in the unrolled XY plane are split
+  within the chord tolerance; arcs in other planes are refused, as for the face.
+- **G93**: the time of a block is the true path of the tool tip — along the part, in depth, and round it at its real
+  radius R0 + Z — over the CAM feed. Under G94 LinuxCNC would apply F to X and Z only and let C follow (wrong as soon
+  as C moves with them); this is also why Kiri:Moto's rotary output and FreeCAD's AxisMap dressup, which write G94,
+  are not used as they are.
+- Size on the part: features drawn at R0 come out exactly at R0; below it (Z < 0) a feature round the part is
+  shorter by the factor (R0 + Z) / R0 (cylindrical geometry, the same in G07.1). Walls are radial.
+- **Setting up:** the router's axis must pass through the chuck axis (centre height), X must read the true radius
+  of the tool tip (touch off on a diameter you have measured), and the tool length lies along X: give it in the X
+  column of the tool table — G43 applies it. C turns are reported at the top of the file.
+- Verified (`tests/wrap.test.js`): the output is replayed as LinuxCNC runs it and mapped back onto the unrolled
+  surface — lines exact, arcs within the chord tolerance, block times within 1 % of the true tip path / CAM feed —
+  with radii 10 and 30, inverted C and X as diameter.
+
 ## Tilting router (layout "XZC + tilt", 2.7.0)
 
 For a machine whose router also **tilts in the X-Z plane** (toward or away from the chuck axis — axis **B** by

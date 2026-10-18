@@ -82,6 +82,8 @@ btnConvert.addEventListener('click', function() {
       // The simulator reads the file the way the user's machine will: same axis
       // letter, direction and radius/diameter convention as the output profile.
       var simProfile = PolarCNC.converter.normalizeOptions(readConverterOptions());
+      // 2.15.0: layout Wrap - the stock is a cylinder of the wrap radius, the router radial
+      window._wrapR = simProfile.layout === 'wrap' ? simProfile.wrapRadius : null;
       toolpath = PolarCNC.parser.parsePolarGCode(polarText, simProfile);
       saveConverterSettings();
       if (toolpath.length < 2) {

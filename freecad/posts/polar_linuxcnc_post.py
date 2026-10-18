@@ -65,7 +65,7 @@ def export(objectslist, filename, argstring):
         return _refuse(str(e))
 
     held = getattr(job, "PolarChuck", None)
-    if held is not None:
+    if held is not None and not machine.is_wrap(job):     # wrap: the Job is drawn unrolled
         from polarcnc import chuck, collision
         obs = collision.obstacles(held)
         ops = [getattr(item, "source", item) for item in objectslist]

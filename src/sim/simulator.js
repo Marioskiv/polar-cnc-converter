@@ -77,6 +77,8 @@ var simHasTilt = false;   // the program uses the tilt axis (shows the Tilt tele
 function buildScene(pts) {
   clearScene();
   simHasTilt = pts.some(function (p) { return Math.abs(p.tilt || 0) > 1e-6; });
+  if (window._wrapR > 0) return buildWrapScene(pts, window._wrapR);
+  simWrap = false;
 
   // Bounds from toolpath
   var maxR = 1, zMin = Infinity, zMax = -Infinity;
@@ -283,11 +285,105 @@ function buildScene(pts) {
     controls.target.set(0, 0, surfaceZ);
   } else {
     // Static 3D mode: slightly off-axis perspective centred on the workpiece
+    camera.up.set(0, 1, 0);
     camera.position.set(camDist * 0.22, camDist * 0.22, surfaceZ + camDist);
     controls.target.set(0, 0, centerZ);
   }
   camera.near = camDist * 0.001;
   camera.far  = camDist * 45;
+  camera.updateProjectionMatrix();
+  controls.update();
+}
+
+// ── 2.15.0: layout Wrap ─────────────────────────────────────────────────────
+// The outside of a cylinder (radius R0, the wrap radius) along the chuck axis, cut by a router
+// that looks at it radially. Same toolpath lines and timing as the face view; no face depth map.
+var simWrap = false;
+function buildWrapScene(pts, R0) {
+  simWrap = true;
+  matSim = null; materialStats = null;
+  var zLo = Infinity, zHi = -Infinity, maxR = R0;
+  pts.forEach(function (p) {
+    if (Math.abs(p.r) > maxR) maxR = Math.abs(p.r);
+    if (p.type === 'G1') { zLo = Math.min(zLo, p.z); zHi = Math.max(zHi, p.z); }
+  });
+  if (!isFinite(zLo)) { zLo = 0; zHi = 1; }
+  var margin = Math.max((zHi - zLo) * 0.1, R0 * 0.2, 2);
+  var len = zHi - zLo + 2 * margin, zMid = (zLo + zHi) / 2;
+  sceneMaxR = maxR;
+  workpieceGroup = reg(new THREE.Group());
+  var body = new THREE.Mesh(
+    new THREE.CylinderGeometry(R0, R0, len, 96, 1, false),
+    new THREE.MeshPhongMaterial({ color: 0x3a7ab8, transparent: true, opacity: 0.40,
+                                  side: THREE.DoubleSide, depthWrite: false }));
+  body.rotation.x = Math.PI / 2;
+  body.position.z = zMid;
+  workpieceGroup.add(body);
+  // lines along the part, so its turning is visible
+  var lv = [];
+  for (var k = 0; k < 16; k++) {
+    var a = k / 16 * Math.PI * 2;
+    lv.push(R0 * Math.cos(a), R0 * Math.sin(a), zMid - len / 2, R0 * Math.cos(a), R0 * Math.sin(a), zMid + len / 2);
+  }
+  var lg = new THREE.BufferGeometry();
+  lg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(lv), 3));
+  workpieceGroup.add(new THREE.LineSegments(lg, new THREE.LineBasicMaterial({ color: 0x60aaee, transparent: true, opacity: 0.6 })));
+
+  var g1v = [], g0v = [], g1map = [], g0map = [];
+  for (var i = 1; i < pts.length; i++) {
+    var p0 = pts[i - 1], p1 = pts[i];
+    if (p1.type === 'G1') { g1v.push(p0.x3, p0.y3, p0.z3, p1.x3, p1.y3, p1.z3); g1map.push(i); }
+    else { g0v.push(p0.x3, p0.y3, p0.z3, p1.x3, p1.y3, p1.z3); g0map.push(i); }
+  }
+  g1Counts = new Int32Array(pts.length);
+  g0Counts = new Int32Array(pts.length);
+  var c1 = 0, c0 = 0, i1 = 0, i0 = 0;
+  for (var j = 0; j < pts.length; j++) {
+    while (i1 < g1map.length && g1map[i1] <= j) { c1++; i1++; }
+    while (i0 < g0map.length && g0map[i0] <= j) { c0++; i0++; }
+    g1Counts[j] = c1; g0Counts[j] = c0;
+  }
+  if (g1v.length) {
+    var geo1 = new THREE.BufferGeometry();
+    geo1.setAttribute('position', new THREE.BufferAttribute(new Float32Array(g1v), 3));
+    geo1.setDrawRange(0, 0);
+    g1LineObj = new THREE.LineSegments(geo1, new THREE.LineBasicMaterial({ color: 0x00c8d4 }));
+    workpieceGroup.add(g1LineObj);
+  }
+  if (g0v.length) {
+    var geo0 = new THREE.BufferGeometry();
+    geo0.setAttribute('position', new THREE.BufferAttribute(new Float32Array(g0v), 3));
+    geo0.setDrawRange(0, 0);
+    g0LineObj = new THREE.LineSegments(geo0, new THREE.LineBasicMaterial({ color: 0xff6b35, transparent: true, opacity: 0.72 }));
+    workpieceGroup.add(g0LineObj);
+  }
+  segTimeCum = new Float64Array(pts.length);
+  for (var m = 1; m < pts.length; m++) segTimeCum[m] = segTimeCum[m - 1] + pts[m].segDurNom;
+
+  // the chuck axis and the tool (tip at the origin of its group, body along +Z, laid along X)
+  var axv = new Float32Array([0, 0, zMid - len, 0, 0, zMid + len]);
+  var axGeo = new THREE.BufferGeometry();
+  axGeo.setAttribute('position', new THREE.BufferAttribute(axv, 3));
+  reg(new THREE.LineSegments(axGeo, new THREE.LineBasicMaterial({ color: 0x3a3a3a, transparent: true, opacity: 0.55 })));
+  toolGroup = reg(new THREE.Group());
+  var ts = Math.max(R0 * 0.08, 0.7), toolRad = ts * 0.40, toolLen = ts * 6.5, fluteLen = ts * 1.8;
+  var shank = new THREE.Mesh(new THREE.CylinderGeometry(toolRad, toolRad, toolLen, 16),
+                             new THREE.MeshPhongMaterial({ color: 0xaaaaaa, shininess: 70 }));
+  shank.rotation.x = Math.PI / 2; shank.position.z = toolLen / 2;
+  toolGroup.add(shank);
+  var flutes = new THREE.Mesh(new THREE.CylinderGeometry(toolRad * 1.08, toolRad * 0.68, fluteLen, 6),
+                              new THREE.MeshPhongMaterial({ color: 0xffd700, emissive: 0x221100, shininess: 160 }));
+  flutes.rotation.x = Math.PI / 2; flutes.position.z = fluteLen / 2;
+  toolGroup.add(flutes);
+  toolGroup.add(new THREE.PointLight(0xffcc44, 0.55, maxR * 2));
+
+  // camera from the side, chuck axis across the screen, the router coming from above
+  var camDist = Math.max(len, R0 * 4, 60) * 1.4;
+  camera.up.set(1, 0, 0);
+  camera.position.set(camDist * 0.35, -camDist, zMid);
+  controls.target.set(0, 0, zMid);
+  camera.near = camDist * 0.001;
+  camera.far = camDist * 45;
   camera.updateProjectionMatrix();
   controls.update();
 }
@@ -363,6 +459,8 @@ function updateScene() {
     }
   }
 
+  // 2.15.0: Wrap - the router is radial (its body outward from the tip, along X)
+  var lie = simWrap ? Math.PI / 2 : 0;
   if (viewMode === 'rotary') {
     // ROTARY MILL MODE
     // Workpiece rotates around Z (spindle axis).
@@ -372,13 +470,13 @@ function updateScene() {
     toolGroup.position.y = 0;           // hard guard - Y must always be 0
     // 2.7.0: tilting router (XZC + B): the tool leans in the X-Z plane about
     // its tip; + = tip toward the chuck axis (the top of the tool outward).
-    toolGroup.rotation.set(0, tilt * Math.PI / 180, 0);
+    toolGroup.rotation.set(0, tilt * Math.PI / 180 + lie, 0);
   } else {
     // STATIC 3D MODE - workpiece fixed, tool traces Cartesian shape
     workpieceGroup.rotation.set(0, 0, 0);
     toolGroup.position.set(x3, y3, z3);
     // lean in the radial plane first, then turn to the point's angle
-    toolGroup.rotation.set(0, tilt * Math.PI / 180, Math.atan2(y3, x3), 'ZYX');
+    toolGroup.rotation.set(0, tilt * Math.PI / 180 + lie, Math.atan2(y3, x3), 'ZYX');
   }
 
   // Telemetry overlay

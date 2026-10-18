@@ -25,6 +25,8 @@ converted so that the chuck turns the part while a spindle on the cross-slide ma
 - Shows the result in a **3D simulator**, with material removal and rapid-collision warnings.
 - Adds a short report at the top of every file: how many turns the chuck makes, and where the machine will have
   to slow down near the centre.
+- **Wrap** (new): with the router turned to look at the part, it machines the **outside of a cylinder** from an
+  ordinary 3-axis program of its surface unrolled flat — see [Technical notes](docs/TECHNICAL.md).
 
 ## Quick start
 

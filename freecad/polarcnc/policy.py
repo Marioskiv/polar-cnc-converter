@@ -72,7 +72,9 @@ DEFAULTS = {
 
 
 def is_polar(job):
-    return job is not None and machine.has_settings(job)
+    """A Job made for the FACE (Polar Face, the chuck, greying out). A Wrap Job is drawn flat
+    (unrolled), so every operation and pattern suits it and the chuck is not in its frame."""
+    return job is not None and machine.has_settings(job) and not machine.is_wrap(job)
 
 
 # ---- the current Job, the way CAM itself picks one for a new operation ----------------------

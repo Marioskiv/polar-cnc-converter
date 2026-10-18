@@ -56,6 +56,14 @@ chr=$(cat "$OUT/ch/result.txt" 2>/dev/null || echo "RESULT: no result (see $OUT/
 echo "chuck: $chr"
 [ "$chr" = "RESULT: PASS" ] || result="$result; chuck $chr"
 
+# a Wrap Job (router radial, the outside of a cylinder drawn unrolled)
+HOME="$OUT/home" PC_OUT="$OUT/wrap" PC_REPO="$REPO" xvfb-run -a -s "-screen 0 1600x1000x24" \
+    "$FREECAD" "$REPO/tests/freecad/wrap_test.py" > "$OUT/freecad-wrap.log" 2>&1
+cat "$OUT/wrap/log.txt" 2>/dev/null
+wr=$(cat "$OUT/wrap/result.txt" 2>/dev/null || echo "RESULT: no result (see $OUT/freecad-wrap.log)")
+echo "wrap: $wr"
+[ "$wr" = "RESULT: PASS" ] || result="$result; wrap $wr"
+
 same="no"
 if [ -f "$OUT/run/cartesian.ngc" ] && [ -f "$OUT/run/polar.ngc" ]; then
     node "$REPO/tests/freecad/compare.js" "$OUT/run" && same="yes"

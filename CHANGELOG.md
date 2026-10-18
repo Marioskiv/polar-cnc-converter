@@ -3,6 +3,13 @@
 ## Unreleased — FreeCAD addon (in testing)
 
 ### Added
+- **Wrap: the outside of a cylinder** (layout *Wrap (router radial)*, web page and FreeCAD). The router is turned to
+  look at the part; the machine axes stay as they are (X radius, Z along the part, C round it). The CAM program is
+  the cylinder's surface **unrolled flat**: X along the part, Y round it (mm of arc at the *wrap radius*), Z 0 on the
+  surface. Each straight move becomes one X/Z/C block (the map is linear, so it is exact); arcs are split within the
+  chord tolerance; G93 times use the true path of the tool tip at its real radius. Simulator: the cylinder with the
+  router radial. FreeCAD: Job → *Polar Layout* = Wrap and *Polar Wrap Radius*. `tests/wrap.test.js` replays the
+  output in joint space; `tests/freecad/wrap_test.py` runs a Wrap Job through Post Process and the simulator.
 - **FreeCAD addon** (`freecad/`, `package.xml`): polar face machining from the FreeCAD CAM workbench. A
   post-processor `polar_linuxcnc` turns a normal CAM Job into polar G-code; the command *Polar machine settings*
   adds the Job's machine settings (X Axis Max, cutting side, optional profile). It runs the converter in `src/core`

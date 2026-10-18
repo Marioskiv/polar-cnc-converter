@@ -192,13 +192,24 @@
         <div class="cvt-card">
           <div class="cvt-subhead">&#128208; Machine layout</div>
           <div class="cvt-grid">
-            <div class="cvt-field" title="XZC: the router is fixed (parallel to Z). XZC + tilt: the router tilts in the X-Z plane (toward / away from the chuck axis). With a BALL-END tool the converter leans it while cutting, keeping the ball centre on the CAM path, as far as the X travel and the tilt travel allow.">
+            <div class="cvt-field" title="XZC: the router is fixed (parallel to Z). Wrap: the router turned to look at the outside of the part (radial), the program is its surface unrolled. XZC + tilt: the router tilts in the X-Z plane (toward / away from the chuck axis). With a BALL-END tool the converter leans it while cutting, keeping the ball centre on the CAM path, as far as the X travel and the tilt travel allow.">
               <label class="cvt-lbl">Layout</label>
               <select id="selLayout" class="cvt-inp">
                 <option value="xzc" selected>XZC (fixed router)</option>
                 <option value="xzcb">XZC + tilt</option>
+                <option value="wrap">Wrap (router radial)</option>
               </select>
             </div>
+          </div>
+          <!-- ADDED 2.15.0: the router turned to look at the cylinder; the program is the surface unrolled. -->
+          <div id="wrapFields" style="display:none;margin-top:6px;">
+            <div class="cvt-grid">
+              <div class="cvt-field" title="The radius the unrolled program is drawn at: CAM Y is the arc length round the part at this radius, CAM Z 0 is the surface at this radius. Usually the stock radius. No default.">
+                <label class="cvt-lbl">Wrap radius <span class="cvt-unit">mm</span></label>
+                <input type="number" id="inpWrapRadius" class="cvt-inp" value="" placeholder="stock radius" step="0.01">
+              </div>
+            </div>
+            <div style="margin-top:4px;font-size:12px;opacity:.8;">Draw the surface unrolled: CAM X along the part (machine Z), CAM Y round it (arc length at the wrap radius, machine C), CAM Z the height above the surface (machine X = radius + Z). Router nose on the chuck axis height; tool length in the X column of the tool table.</div>
           </div>
           <div id="tiltFields" style="display:none;margin-top:6px;">
             <div class="cvt-grid">
@@ -291,6 +302,7 @@
 <script src="src/core/gcode-input.js?v=2.14.1" charset="utf-8"></script>
 <script src="src/core/layout-xzc.js?v=2.14.1" charset="utf-8"></script>
 <script src="src/core/layout-xzcb.js?v=2.14.1" charset="utf-8"></script>
+<script src="src/core/layout-wrap.js?v=2.14.1" charset="utf-8"></script>
 <script src="src/core/converter.js?v=2.14.1" charset="utf-8"></script>
 <script src="src/core/polar-parser.js?v=2.14.1" charset="utf-8"></script>
 <script src="src/core/material.js?v=2.14.1" charset="utf-8"></script>

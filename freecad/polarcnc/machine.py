@@ -14,6 +14,8 @@ import json
 GROUP = "Polar CNC"
 ONE_SIDE = "One side of the centre"
 BOTH_SIDES = "Both sides"
+FACE = "Face (router parallel to Z)"
+WRAP = "Wrap (router radial, outside of a cylinder)"
 
 # name, type, tooltip
 PROPERTIES = (
@@ -24,6 +26,12 @@ PROPERTIES = (
      "Both sides only: how far past the centre the cutter may go (your negative X travel)."),
     ("PolarXMax", "App::PropertyLength",
      "Largest X (radius) your machine can reach: its X soft limit. Required."),
+    ("PolarLayout", "App::PropertyEnumeration",
+     "Face: the router looks at the face of the part (parallel to Z). Wrap: the router is turned to "
+     "look at the outside of a cylinder; the Job is then the cylinder's surface UNROLLED flat: "
+     "X along the part, Y round it (mm of arc at the wrap radius), Z 0 on the surface."),
+    ("PolarWrapRadius", "App::PropertyLength",
+     "Wrap only: the radius the unrolled Job is drawn at (usually the stock radius). Required."),
     ("PolarProfile", "App::PropertyFile",
      "Optional machine profile (.polar-profile.json, saved from the web page): rotary letter, "
      "directions, X as diameter, chord tolerance, centre mode."),
@@ -39,8 +47,17 @@ def add_settings(job):
     for name, typ, tip in PROPERTIES:
         if not hasattr(job, name):
             job.addProperty(typ, name, GROUP, tip)
+    side = job.PolarCuttingSide if job.PolarCuttingSide in (ONE_SIDE, BOTH_SIDES) else ONE_SIDE
     job.PolarCuttingSide = [ONE_SIDE, BOTH_SIDES]
+    job.PolarCuttingSide = side
+    layout = getattr(job, "PolarLayout", "") or FACE
+    job.PolarLayout = [FACE, WRAP]
+    job.PolarLayout = layout if layout in (FACE, WRAP) else FACE
     job.PolarProfile = job.PolarProfile or ""
+
+
+def is_wrap(job):
+    return getattr(job, "PolarLayout", FACE) == WRAP
 
 
 def options(job):
@@ -61,4 +78,13 @@ def options(job):
                          "(Job -> Polar CNC -> Polar X Max).")
     opts["xMax"] = job.PolarXMax.Value
     opts["xMin"] = 0 if job.PolarCuttingSide == ONE_SIDE else -job.PolarPastCentre.Value
+    if is_wrap(job):
+        r = getattr(job, "PolarWrapRadius", None)
+        if r is None or r.Value <= 0:
+            raise ValueError("Wrap radius is not set: enter the radius the unrolled Job is drawn "
+                             "at (Job -> Polar CNC -> Polar Wrap Radius).")
+        opts["layout"] = "wrap"
+        opts["wrapRadius"] = r.Value
+    else:
+        opts["layout"] = opts.get("layout") if opts.get("layout") in ("xzc", "xzcb") else "xzc"
     return opts
