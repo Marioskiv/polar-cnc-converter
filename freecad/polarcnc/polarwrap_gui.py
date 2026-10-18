@@ -102,10 +102,8 @@ class TaskPanelOpPage(PathOpGui.TaskPanelPage):
         self.grid.setValue(obj.GridStep.Value)
 
     def getSignalsForUpdate(self, obj):
-        return [self.strategy.currentIndexChanged, self.direction.currentIndexChanged,
-                self.style.currentIndexChanged,
-                self.step.valueChanged, self.rstep.valueChanged, self.down.valueChanged,
-                self.allow.valueChanged, self.leave.valueChanged, self.grid.valueChanged]
+        # no remake on every change of a field (mapping the part can take seconds): on OK/Apply
+        return []
 
 
 class ViewProvider(polarface_gui.ViewProvider):

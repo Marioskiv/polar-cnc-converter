@@ -46,7 +46,8 @@ happens only when the G-code is written.
 ## Help inside FreeCAD (Greek or English)
 
 - **Hover** over a button of the *Polar CNC* toolbar: a card shows what it does, a short animation recorded in
-  FreeCAD, the numbered steps (the same numbers as in the animation) and what to watch out for.
+  FreeCAD, the numbered steps (the step playing in the animation is lit) and what to watch out for. The card is
+  30 % of the screen wide (400–540 px); the animations are 1248 × 750, so they stay sharp on any screen.
 - In the **Polar Face** and **Polar Wrap** panels every field has a **?** button with its explanation.
 - When something is refused (Post Process, the simulator, a missing tool), an **error card** says what happened,
   **why**, and **what to do**, with the original message below it (button *Copy* for asking for help).
@@ -54,7 +55,9 @@ happens only when the G-code is written.
   (*Polar CNC help language*) chooses Greek, English, automatic, or no popups (the plain tooltips again).
 
 The texts are in `freecad/help/help.json`; the animations are made by `tools/help_gifs/record.py` (in a real
-FreeCAD, with the addon's own chuck, Polar Face, Polar Wrap and simulator) and `tools/help_gifs/compose.py`.
+FreeCAD at 150 % scale, with the addon's own chuck, Polar Face, Polar Wrap and simulator) and
+`tools/help_gifs/compose.py` (one shared 256-colour palette, as WikiTips does). The pictures have no words, only the
+step numbers, so one animation serves every language.
 
 ## Wrap: the outside of the part (router radial)
 
@@ -134,9 +137,19 @@ hexagon and 58–60 % on a plate off the centre.
 
 ## The chuck, the 4-jaw chuck and the faceplate
 
-Select the Job and click **Chuck** (*Polar CNC* toolbar). A list opens: pick a catalogue chuck, or
-**Custom (my own sizes)** and type the sizes in the chuck's properties. Click **Chuck** again at any time to change
-it; the choice is also the chuck's **Preset** property.
+**One click:** click the face of the part (or of the stock) that goes **into** the chuck, then **Chuck**.
+
+1. The Job's copy of the part (and a stock of its own) is turned so that face looks down, put on the chuck axis
+   (the centre of round stock, else the middle of its outline) and moved so the **stock top is Z0**.
+2. The chuck that holds this stock is chosen from **your chucks** (the SAN OU K11-125 3-jaw for round stock that
+   fits it, the K72-125 4-jaw with independent jaws for square or odd shapes; a catalogue chuck if neither holds it),
+   and the **grip** is the stock under the part (up to the jaw height), so the cutter never has to go there.
+3. A small window shows what was found and lets you change the chuck or the grip. OK makes the chuck; Cancel (or
+   Ctrl+Z afterwards) puts everything back as it was.
+
+With no face clicked, **Chuck** says what to click, or lets you choose a catalogue chuck by hand (type, then size);
+an existing chuck is changed the same way. Your chucks are the preference `Mod/PolarCNC/MyChucks` (one preset name
+per line).
 
 | Preset | What |
 |---|---|
@@ -191,6 +204,21 @@ does the same:
 | **Offered** | **Polar Face** (below), Profile, Pocket (**Offset** by default), Drilling, Helix, Engrave |
 | **Offered, with a warning** | Adaptive (many direction changes of the chuck, large files: pockets away from the centre), V-carve (Z moves together with many direction changes), Slot, Deburr, Thread milling (fine away from the centre) |
 | **Greyed out** | FreeCAD's Facing (it covers the stock's bounding rectangle: on round stock 40 % of its path is in the air — use Polar Face), 3D Pocket, 3D Surface, Waterline, Planar / Rotary Surface (3D), Probe (probing is not converted) |
+
+**No special tools are needed for pockets and holes**: the usual CAM operations work in a polar Job and are
+turned into polar G-code when it is written. What to use:
+
+| To make | Use | Notes |
+|---|---|---|
+| A pocket | **Pocket Shape**, pattern **Offset** (the default in a polar Job) | ZigZag works but is warned against: the chuck reverses on every line |
+| A round hole | **Drilling** (any size of drill; the cycle is turned into X, C and Z moves) or **Helix** (bigger than the cutter) | a hole on the axis is ideal: only Z moves |
+| A contour | **Profile** | |
+| The face of the stock | **Polar Face** (not FreeCAD's Facing) | it also clears all the stock round the part, or a band round it |
+| The outside of a bar, router radial | **Polar Wrap** (Wrap Job) | |
+
+Only three things are the addon's own: **Polar Face** (FreeCAD's Facing works on the stock's rectangle, half of it in
+the air on round stock), **Polar Wrap** (FreeCAD has no radial router) and the **chuck** (not a tool: what holds the
+part, so that every operation is checked against it). Everything was run end to end in `tests/freecad/ops_test.py`.
 
 - The defaults are the Job's own *Operation defaults* (SetupSheet), set by *Polar machine settings*; they apply
   to operations made after that. Operations that were already there are checked once and reported.

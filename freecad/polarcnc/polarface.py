@@ -177,6 +177,18 @@ class Raster:
         stock = self._fill(stock_face)
         self.part = self._fill(keep_face) if keep_face is not None else numpy.zeros(len(self.P), bool)
         self.uncut = stock & ~self.part
+        # the grid points sorted by their distance from the axis: a ride round a circle looks
+        # only at the ring of points it can reach
+        rho = numpy.hypot(self.P[:, 0], self.P[:, 1])
+        self._order = numpy.argsort(rho, kind="stable")
+        self._rho = rho[self._order]
+
+    def _ring(self, mask, r, reach):
+        """The points of `mask` whose distance from the axis is within `reach` of r."""
+        lo = numpy.searchsorted(self._rho, r - reach, side="left")
+        hi = numpy.searchsorted(self._rho, r + reach, side="right")
+        idx = self._order[lo:hi]
+        return self.P[idx[mask[idx]]]
 
     def _fill(self, face):
         """Grid points inside a face (even-odd scanlines over its outline)."""
@@ -197,9 +209,55 @@ class Raster:
                 inside[j] |= (self.xs >= a) & (self.xs <= b)
         return inside.ravel()
 
-    def dist(self, mv):
-        """Distance of every grid point from the path of a move."""
-        P = self.P
+    # ---- local work: only the grid points near a move are looked at (the whole grid has
+    # hundreds of thousands of points; one move touches a few hundred) ----
+    def _window(self, x0, y0, x1, y1):
+        """Flat indices of the grid points in a box."""
+        g, nx, ny = self.g, len(self.xs), len(self.ys)
+        i0 = max(int(math.floor((x0 - self.xs[0]) / g)), 0)
+        i1 = min(int(math.ceil((x1 - self.xs[0]) / g)) + 1, nx)
+        j0 = max(int(math.floor((y0 - self.ys[0]) / g)), 0)
+        j1 = min(int(math.ceil((y1 - self.ys[0]) / g)) + 1, ny)
+        if i0 >= i1 or j0 >= j1:
+            return numpy.zeros(0, int)
+        jj, ii = numpy.meshgrid(numpy.arange(j0, j1), numpy.arange(i0, i1), indexing="ij")
+        return (jj * nx + ii).ravel()
+
+    def _box(self, mv):
+        """Bounding box of a move's path (an arc is sampled finely enough, with its sag)."""
+        if mv[0] in ("cut", "air"):
+            _, r, a, b, cw = mv
+            sweep = ((a - b) if cw else (b - a)) % (2 * math.pi)
+            n = max(int(math.ceil(sweep / 0.1)), 1)
+            ang = numpy.linspace(a, a - sweep if cw else a + sweep, n + 1)
+            xs, ys = r * numpy.cos(ang), r * numpy.sin(ang)
+            sag = r * (1 - math.cos(sweep / n / 2))
+            return xs.min() - sag, ys.min() - sag, xs.max() + sag, ys.max() + sag
+        p, q = mv[1], mv[2]
+        return min(p.x, q.x), min(p.y, q.y), max(p.x, q.x), max(p.y, q.y)
+
+    def near(self, mv, reach):
+        """(indices, distances) of the grid points within `reach` of a move's path."""
+        x0, y0, x1, y1 = self._box(mv)
+        idx = self._window(x0 - reach, y0 - reach, x1 + reach, y1 + reach)
+        if not len(idx):
+            return idx, numpy.zeros(0)
+        d = self._dist(mv, self.P[idx])
+        keep = d < reach
+        return idx[keep], d[keep]
+
+    def any_within(self, mask, x, y, reach):
+        """Is any grid point of `mask` closer than `reach` to (x, y)?"""
+        idx = self._window(x - reach, y - reach, x + reach, y + reach)
+        idx = idx[mask[idx]]
+        if not len(idx):
+            return False
+        d2 = ((self.P[idx] - (x, y)) ** 2).sum(axis=1)
+        return bool((d2 < reach * reach).any())
+
+    @staticmethod
+    def _dist(mv, P):
+        """Distance of the points P from the path of a move."""
         if mv[0] in ("cut", "air"):
             _, r, a, b, cw = mv
             sweep = ((a - b) if cw else (b - a)) % (2 * math.pi)
@@ -219,7 +277,8 @@ class Raster:
         return numpy.hypot(P[:, 0] - (p.x + t * dx), P[:, 1] - (p.y + t * dy))
 
     def cut(self, mv):
-        self.uncut &= ~(self.dist(mv) <= self.r - self.g)
+        idx, d = self.near(mv, self.r - self.g)
+        self.uncut[idx] = False
 
     def blocked(self, moves, p_from, direction):
         """True if these moves would sweep uncut stock or the part. Material the cutter already
@@ -227,11 +286,10 @@ class Raster:
         if not moves:
             return False
         reach = self.r + self.g                     # grid tolerance: err on the safe side
-        hit = numpy.zeros(len(self.P), bool)
-        for mv in moves:
-            hit |= self.dist(mv) < reach
-        hit &= self.uncut | self.part
-        if not hit.any():
+        solid = self.uncut | self.part
+        hit = [idx[solid[idx]] for idx, _d in (self.near(mv, reach) for mv in moves)]
+        hit = numpy.unique(numpy.concatenate(hit)) if hit else numpy.zeros(0, int)
+        if not len(hit):
             return False
         rel = self.P[hit] - (p_from.x, p_from.y)
         touching = numpy.hypot(rel[:, 0], rel[:, 1]) < reach      # same tolerance as above
@@ -271,12 +329,14 @@ class Raster:
             return []
         n = max(int(r * sweep / (self.g * 0.5)), 2)
         ang = numpy.linspace(a, a - sweep if cw else a + sweep, n + 1)
-        if self._reached(self.P[self.part], r, a, sweep, cw, n, self.r - self.g).any():
+        part = self._ring(self.part, r, self.r + 2 * self.g)
+        if self._reached(part, r, a, sweep, cw, n, self.r - self.g).any():
             return None
-        near = self._reached(self.P[self.part], r, a, sweep, cw, n, self.r + 2 * self.g)
+        near = self._reached(part, r, a, sweep, cw, n, self.r + 2 * self.g)
         if near.any() and self.enters(("air", r, a, a - sweep if cw else a + sweep, cw)):
             return None
-        touch = self._reached(self.P[self.uncut | self.part], r, a, sweep, cw, n, self.r + self.g)
+        solid = self._ring(self.uncut | self.part, r, self.r + self.g)
+        touch = self._reached(solid, r, a, sweep, cw, n, self.r + self.g)
         runs, i = [], 0
         while i < n:
             j = i
@@ -297,33 +357,40 @@ class Raster:
         return moves
 
     def hits_part(self, moves):
-        hit = numpy.zeros(len(self.P), bool)
+        close = []
         for mv in moves:
-            d = self.dist(mv)
-            if (self.part & (d < self.r - self.g)).any():
+            idx, d = self.near(mv, self.r + 2 * self.g)
+            on = self.part[idx]
+            if not on.any():
+                continue
+            if (d[on] < self.r - self.g).any():
                 return True
-            if (self.part & (d < self.r + 2 * self.g)).any() and self.enters(mv):
-                return True             # near: the exact check decides
-        return False
+            close.append(mv)
+        return self.enters(close)       # near: the exact check decides, all of them at once
 
-    def enters(self, mv):
-        """Exactly: does the cutter centre on this move come nearer than the cutter radius to
-        what must not be touched (the part, the jaws and clamps with their clearance)?"""
+    def enters(self, moves):
+        """Exactly: does the cutter centre on any of these moves come nearer than the cutter
+        radius to what must not be touched (the part, the jaws and clamps with their clearance)?
+        One boolean for all of them (one per move was the slow part of Polar Face)."""
         if self.forbid is None:
             return False
-        if mv[0] in ("cut", "air"):
-            _, r, a, b, cw = mv
-            sweep = ((a - b) if cw else (b - a)) % (2 * math.pi)
-            if sweep < 1e-9 or r < 1e-9:
-                return False
-            lo = b if cw else a
-            edge = Part.makeCircle(r, App.Vector(0, 0, 0), App.Vector(0, 0, 1),
-                                   math.degrees(lo), math.degrees(lo + sweep))
-        else:
-            if (mv[2] - mv[1]).Length < 1e-9:
-                return False
-            edge = Part.makeLine(mv[1], mv[2])
-        common = edge.common(self.forbid)
+        if isinstance(moves, tuple):
+            moves = [moves]
+        edges = []
+        for mv in moves:
+            if mv[0] in ("cut", "air"):
+                _, r, a, b, cw = mv
+                sweep = ((a - b) if cw else (b - a)) % (2 * math.pi)
+                if sweep < 1e-9 or r < 1e-9:
+                    continue
+                lo = b if cw else a
+                edges.append(Part.makeCircle(r, App.Vector(0, 0, 0), App.Vector(0, 0, 1),
+                                             math.degrees(lo), math.degrees(lo + sweep)))
+            elif (mv[2] - mv[1]).Length > 1e-9:
+                edges.append(Part.makeLine(mv[1], mv[2]))
+        if not edges:
+            return False
+        common = Part.makeCompound(edges).common(self.forbid)
         return any(e.Length > EXACT_TOL for e in common.Edges)
 
 
@@ -340,11 +407,13 @@ class Plan:
         self.start = None
 
 
-def plan_depth(stock_face, keep_face, radius, step, leave=0.0, cw=True, speeds=None, held=None):
+def plan_depth(stock_face, keep_face, radius, step, leave=0.0, cw=True, speeds=None, held=None,
+               tick=None):
     """Rings for one depth. stock_face: the stock section; keep_face: the part (or None);
     held: the jaws and clamps, already grown by their clearance (not by `leave`);
     radius: cutter radius; step: distance between rings; speeds: (cutting feed, plunge feed,
-    rapid, air feed factor, lift height) to choose between going on round and lifting."""
+    rapid, air feed factor, lift height) to choose between going on round and lifting.
+    tick: called once per ring (the progress bar; it may raise to stop)."""
     feed, vfeed, rapid, air_k, lift_h = speeds or (10.0, 3.3, 50.0, 3.0, 3.0)
     region = stock_face.makeOffset2D(radius * EDGE_REACH - EPS, join=0) if EDGE_REACH > 0 else stock_face
     keep = None
@@ -390,13 +459,12 @@ def plan_depth(stock_face, keep_face, radius, step, leave=0.0, cw=True, speeds=N
         a little back along the same circle, then on round to the start; straight down at the
         start if there is no such place."""
         back = 0.0
-        reach2 = (radius + GRID) ** 2
-        free_pts = mat.P[mat.uncut | mat.part]
+        solid = mat.uncut | mat.part
         while back < math.pi / 2:
             back += min(radius / max(r, radius), 0.2)
             a_in = a + back if cw else a - back
             p = _pt(r, a_in)
-            if not len(free_pts) or (((free_pts - (p.x, p.y)) ** 2).sum(axis=1) >= reach2).all():
+            if not mat.any_within(solid, p.x, p.y, radius + GRID):
                 moves = mat.ride(r, a_in, a, cw, MIN_AIR)
                 if moves is not None:
                     return [("lift", p)] + moves
@@ -437,6 +505,8 @@ def plan_depth(stock_face, keep_face, radius, step, leave=0.0, cw=True, speeds=N
 
     pos = None              # (r, angle) of the cutter, None = up
     for r in radii:
+        if tick is not None:
+            tick()
         arcs = []
         for e in Part.makeCircle(r).common(region).Edges:
             if e.Length >= MIN_ARC:
@@ -490,11 +560,9 @@ def rest_beside_part(mat, keep, radius):
     reach = radius + GRID
     for wire in grow(keep, radius + EPS).Wires:
         pts = wire.discretize(Distance=GRID)
-        left = mat.P[mat.uncut]
-        if not len(left):
+        if not mat.uncut.any():
             break
-        on = numpy.array([(((left - (p.x, p.y)) ** 2).sum(axis=1) < reach * reach).any()
-                          for p in pts])
+        on = numpy.array([mat.any_within(mat.uncut, p.x, p.y, reach) for p in pts])
         on = on | numpy.roll(on, 1) | numpy.roll(on, -1)        # one point either side
         i, n = 0, len(pts)
         while i < n:
@@ -619,6 +687,40 @@ def commands(plan, z, safe, feed, vfeed, air, z_top=None, ramp=0.0):
     if not up:
         out.append(Path.Command("G0", {"Z": safe}))
     return out
+
+
+# ---- progress ------------------------------------------------------------------------------
+class Stopped(Exception):
+    """The person pressed Esc while the path was being made."""
+
+
+class Progress:
+    """FreeCAD's progress bar in the status bar while a long path is made: the window keeps
+    drawing, and Esc stops the work (FreeCAD raises in next(); we turn it into Stopped)."""
+
+    def __init__(self, what):
+        self.bar = None
+        try:
+            self.bar = App.Base.ProgressIndicator()
+            self.bar.start("%s: making the path (Esc stops)" % what, 0)
+        except Exception:
+            self.bar = None
+
+    def tick(self):
+        if self.bar is None:
+            return
+        try:
+            self.bar.next(True)
+        except Exception:
+            raise Stopped()
+
+    def stop(self):
+        if self.bar is not None:
+            try:
+                self.bar.stop()
+            except Exception:
+                pass
+            self.bar = None
 
 
 # ---- the CAM operation -----------------------------------------------------------------------
@@ -766,8 +868,21 @@ class ObjectPolarFace(PathOp.ObjectOp):
             band = grow(outline, width + max(obj.StockToLeave.Value, 0))
         cmds = self.commandlist
         cmds.append(Path.Command("G0", {"Z": clearance}))
-        z_top = obj.StartDepth.Value
         ramp = math.radians(max(min(obj.RampAngle.Value, 89.0), 0.0))
+        progress = Progress("Polar Face")
+        try:
+            self._depths(obj, depths, stock, part, chuck, keepout, band, radius, step, cw, safe,
+                         feed, vfeed, air, ramp, cmds, progress.tick)
+        except Stopped:
+            del cmds[:]
+            Path.Log.warning("Polar Face: stopped (Esc). No path was made; press Recompute to "
+                             "make it again.")
+        finally:
+            progress.stop()
+
+    def _depths(self, obj, depths, stock, part, chuck, keepout, band, radius, step, cw, safe,
+                feed, vfeed, air, ramp, cmds, tick):
+        z_top = obj.StartDepth.Value
         for z in depths:
             above, z_top = z_top, z
             sec = stock_section(stock, z)
@@ -788,7 +903,7 @@ class ObjectPolarFace(PathOp.ObjectOp):
                 if not rest.isNull() and rest.Area > 1e-6:
                     rest = _flat(rest)
                     held = rest if held is None else held.fuse(rest).removeSplitter()
-            plan = plan_depth(sec, keep, radius, step, obj.StockToLeave.Value, cw, speeds, held)
+            plan = plan_depth(sec, keep, radius, step, obj.StockToLeave.Value, cw, speeds, held, tick)
             cmds.extend(commands(plan, z, safe, feed, vfeed, air, above, ramp))
 
 

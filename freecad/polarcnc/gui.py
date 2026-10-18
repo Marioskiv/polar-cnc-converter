@@ -154,30 +154,102 @@ class PolarWrapCommand:
 
 
 class ChuckCommand:
-    """The Job's chuck or faceplate: made the first time, selected (to edit) after that."""
+    """The part in the chuck: click the face that goes into the chuck, then this button. The
+    part is turned and centred, and the chuck that holds the stock is chosen. With no face
+    picked, an existing chuck is edited, or the chuck is chosen by hand."""
 
     def GetResources(self):
         return {"Pixmap": os.path.join(os.path.dirname(HERE), "Resources", "PolarChuck.svg"),
                 "MenuText": "Chuck",
-                "ToolTip": "The chuck or faceplate that holds the stock of the polar Job: 3-jaw, "
-                           "4-jaw (independent or self-centring), or a faceplate with clamps. "
-                           "Choose a catalogue size (SAN OU K72-125, K12-125, …) or your own; the jaws close on the real stock. "
-                           "Polar Face keeps clear of it and the simulator shows it."}
+                "ToolTip": "Click the face of the part that goes into the chuck, then press Chuck: "
+                           "the part is turned so that face looks down, put on the chuck axis "
+                           "with Z0 on the stock top, and the chuck that holds it is chosen "
+                           "(SAN OU K11-125 3-jaw or K72-125 4-jaw, or any catalogue chuck)."}
 
     def IsActive(self):
         try:
-            job = policy.current_job()      # face or wrap Job
-            return job is not None and machine.has_settings(job)
+            return policy.current_job() is not None
         except Exception:
             return False
 
     def Activated(self):
-        from . import chuck
+        from . import dialogs
         job = policy.current_job()
+        if job is None:
+            return
+        if not machine.has_settings(job):         # the chuck belongs to a polar Job
+            Gui.Selection.addSelection(job) if not Gui.Selection.getSelection() else None
+            Gui.runCommand("PolarCNC_MachineSettings")
+            if not machine.has_settings(job):
+                return
+        owner, face = self._picked(job)
+        if face is not None:
+            return self._from_face(job, owner, face)
+        obj = getattr(job, "PolarChuck", None)
+        if obj is None:
+            dlg = dialogs.PickFaceDialog(Gui.getMainWindow())
+            dialogs.run(dlg)
+            if not dlg.by_hand:
+                return
+        self._by_hand(job)
+
+    @staticmethod
+    def _picked(job):
+        """(Job object, face) of the face picked in the 3D view, or (None, None)."""
+        from . import setup
+        for sel in Gui.Selection.getSelectionEx():
+            owner = setup.pick_owner(job, sel.Object)
+            if owner is None:
+                continue
+            for name in sel.SubElementNames:
+                if name.startswith("Face"):
+                    try:
+                        face = owner.Shape.getElement(name)    # the Job's copy, where it is now
+                    except Exception:
+                        continue
+                    if face.ShapeType == "Face":
+                        return owner, face
+        return None, None
+
+    def _from_face(self, job, owner, face):
+        from . import chuck, dialogs, setup
+        doc = App.ActiveDocument
+        doc.openTransaction("Polar chuck from a face")
+        try:
+            setup.orient(job, owner, face)
+            preset, grip, notes = setup.suggest(job)
+            dlg = dialogs.ChuckSetupDialog(chuck.PRESETS, setup.my_chucks(), preset, grip, notes,
+                                           Gui.getMainWindow())
+            if not dialogs.run(dlg):
+                doc.abortTransaction()
+                doc.recompute()
+                return
+            new = getattr(job, "PolarChuck", None) is None
+            obj = setup.apply_chuck(job, dlg.preset(), dlg.grip())
+            if new:
+                _style(obj)
+                if machine.is_wrap(job):      # in the machine frame, not the unrolled one
+                    obj.ViewObject.Visibility = False
+        except Exception:
+            doc.abortTransaction()
+            raise
+        doc.commitTransaction()
+        doc.recompute()
+        Gui.Selection.clearSelection()
+        Gui.Selection.addSelection(obj)
+        try:
+            Gui.ActiveDocument.ActiveView.viewIsometric()
+            Gui.SendMsgToActiveView("ViewFit")
+        except Exception:
+            pass
+        for note in list(notes) + list(obj.Notes):
+            App.Console.PrintMessage("Polar CNC chuck: %s\n" % note)
+
+    def _by_hand(self, job):
+        from . import chuck, dialogs
         obj = getattr(job, "PolarChuck", None)
         names = list(chuck.PRESETS)
         current = obj.Preset if obj is not None else names[1]
-        from . import dialogs
         dlg = dialogs.ChuckDialog(chuck.PRESETS, chuck.CUSTOM, current if current in names else names[1],
                                   Gui.getMainWindow())
         ok = dialogs.run(dlg)

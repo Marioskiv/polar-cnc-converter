@@ -39,11 +39,16 @@ def contents():
         check(GREEK.search(entry["el"]["d"]) and not GREEK.search(entry["en"]["d"]),
               "%s: the Greek text is Greek, the English is not" % name)
         if entry.get("i"):
-            for lang in ("el", "en"):
-                path = os.path.join(REPO, "freecad", "help", "img", lang, entry["i"])
-                check(os.path.isfile(path), "%s animation %s/%s exists" % (name, lang, entry["i"]))
+            path = os.path.join(REPO, "freecad", "help", "img", entry["i"])
+            check(os.path.isfile(path) and os.path.isfile(path[:-4] + ".json"),
+                  "%s animation %s and its steps exist" % (name, entry["i"]))
     for key, entry in d["fields"].items():
         check(entry.get("el", {}).get("d") and entry.get("en", {}).get("d"), "field %s in both" % key)
+        if entry.get("i"):
+            path = os.path.join(REPO, "freecad", "help", "img", entry["i"])
+            check(os.path.isfile(path), "field %s animation %s exists" % (key, entry["i"]))
+            n = len(entry["en"].get("steps") or [])
+            check(n == len(entry["el"].get("steps") or []), "field %s: as many steps in both" % key)
     for err in d["errors"]:
         re.compile(err["re"])
         check(all(err.get(l, {}).get(k) for l in ("el", "en") for k in ("t", "why", "do")),
@@ -148,6 +153,24 @@ def run():
         pump(100)
         check(help._POPUP is None, "? again hides it")
     box.deleteLater()
+
+    # a field with an animation: its picture is sharp at the popup size and the steps light in turn
+    q = help.help_button("PolarFace:Clearing")
+    q.show()
+    pump(100)
+    pop = help.show_popup(q, entry=help.field("PolarFace:Clearing"), key="PolarFace:Clearing")
+    lit = set()
+    for _ in range(60):
+        pump(150)
+        on = [k for k, row in enumerate(pop.findChildren(QtGui.QWidget, "step"), 1) if row.property("on") == "true"]
+        lit.update(on)
+    check(pop.movie is not None and lit == {1, 2, 3}, "field animation: steps 1, 2 and 3 lit in turn (%s)" % sorted(lit))
+    pic = pop.findChild(QtGui.QLabel, "animation")
+    check(pic is not None and pic.pixmap() is not None and not pic.pixmap().isNull(), "field animation drawn")
+    check(help.WIDTH_MIN <= pop.width() <= help.WIDTH_MAX, "popup %d px wide" % pop.width())
+    grab(pop, "field_clearing_el.png")
+    help.hide_popup()
+    q.deleteLater()
 
     # error cards
     cases = [("the program runs into the chuck.\nA rapid move runs into the jaw 2 at X12 Z3", "τσοκ"),

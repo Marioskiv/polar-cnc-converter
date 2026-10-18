@@ -182,3 +182,65 @@ def run(dialog):
     """Shows a dialog modally; True when OK was pressed."""
     result = dialog.exec_() if hasattr(dialog, "exec_") else dialog.exec()
     return result == QtGui.QDialog.Accepted
+
+
+class ChuckSetupDialog(QtGui.QDialog):
+    """After the face was picked: what was found, the chuck chosen and the grip, to check."""
+
+    def __init__(self, presets, mine, preset, grip, notes, parent=None):
+        super().__init__(parent)
+        self.setObjectName("PolarChuckSetup")
+        self.setWindowTitle(text("chuck"))
+        lay = QtGui.QVBoxLayout(self)
+        found = QtGui.QLabel("\n".join(notes))
+        found.setObjectName("found")
+        found.setWordWrap(True)
+        found.setStyleSheet("color: #334e68;")
+        lay.addWidget(found)
+        form = QtGui.QFormLayout()
+        lay.addLayout(form)
+        self.preset_box = QtGui.QComboBox()
+        names = list(mine) + [n for n, v in presets.items() if v is not None and n not in mine]
+        self.preset_box.addItems(names)
+        if len(mine) < len(names):
+            self.preset_box.insertSeparator(len(mine))
+        self.preset_box.setCurrentIndex(max(self.preset_box.findText(preset), 0))
+        help.add_row(form, "Chuck:Pick", "Chuck", self.preset_box)
+        self.grip_box = _length(0, 200, grip)
+        help.add_row(form, "Chuck:Grip", "Grip length", self.grip_box)
+        buttons = QtGui.QDialogButtonBox(QtGui.QDialogButtonBox.Ok | QtGui.QDialogButtonBox.Cancel)
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        lay.addWidget(buttons)
+        self.setMinimumWidth(480)
+
+    def preset(self):
+        return self.preset_box.currentText()
+
+    def grip(self):
+        return self.grip_box.value()
+
+
+class PickFaceDialog(QtGui.QDialog):
+    """No face picked: say what to do, or let the chuck be chosen by hand."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setObjectName("PolarPickFace")
+        self.setWindowTitle(text("chuck"))
+        self.by_hand = False
+        lay = QtGui.QVBoxLayout(self)
+        msg = QtGui.QLabel(text("pick_face"))
+        msg.setObjectName("message")
+        msg.setWordWrap(True)
+        lay.addWidget(msg)
+        buttons = QtGui.QDialogButtonBox(QtGui.QDialogButtonBox.Ok)
+        hand = buttons.addButton(text("by_hand"), QtGui.QDialogButtonBox.ActionRole)
+        hand.clicked.connect(self._hand)
+        buttons.accepted.connect(self.accept)
+        lay.addWidget(buttons)
+        self.setMinimumWidth(460)
+
+    def _hand(self):
+        self.by_hand = True
+        self.accept()

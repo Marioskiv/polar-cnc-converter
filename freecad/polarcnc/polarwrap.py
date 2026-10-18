@@ -84,6 +84,18 @@ class ObjectPolarWrap(PathOp.ObjectOp):
         obj.ChuckClearance = 2.0
 
     def opExecute(self, obj):
+        from .polarface import Progress, Stopped
+        progress = Progress("Polar Wrap")
+        try:
+            self._execute(obj, progress.tick)
+        except Stopped:
+            del self.commandlist[:]
+            Path.Log.warning("Polar Wrap: stopped (Esc). No path was made; press Recompute to "
+                             "make it again.")
+        finally:
+            progress.stop()
+
+    def _execute(self, obj, tick):
         job = PathUtils.findParentJob(obj)
         r_stock = machine.wrap_radius(job) if job is not None else 0.0
         if r_stock <= 0:
@@ -130,6 +142,7 @@ class ObjectPolarWrap(PathOp.ObjectOp):
         if cache and cache[0] == key:
             H = cache[1]
         else:
+            tick()
             H = wrapcut.radius_map(shapes, meshes, zs, na, r_stock)
             self._map_cache = (key, H)
         empty = [float(zs[i]) for i in range(1, len(zs) - 1) if float(H[i].max()) <= 0]
@@ -156,8 +169,8 @@ class ObjectPolarWrap(PathOp.ObjectOp):
                            "Diameter %.2f): check the diameter." % (float(H.max()), 2 * r_stock))
             return
         leave = obj.StockToLeave.Value
-        Xf = wrapcut.tip_map(H, zs, na, radius, ball, leave)
-        Xr = wrapcut.tip_map(H, zs, na, radius, ball, leave + obj.FinishAllowance.Value)
+        Xf = wrapcut.tip_map(H, zs, na, radius, ball, leave, tick)
+        Xr = wrapcut.tip_map(H, zs, na, radius, ball, leave + obj.FinishAllowance.Value, tick)
 
         # along the part: from the free end (high Z) toward the chuck, stopping clear of the jaws
         z_from, z_to = obj.FromZ.Value, obj.ToZ.Value

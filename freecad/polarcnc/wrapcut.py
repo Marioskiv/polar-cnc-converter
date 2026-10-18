@@ -54,11 +54,19 @@ def radius_map(shapes, meshes, zs, na, r_ref):
     # one slice at every cell edge (a hair off the round value, which may be a flat face), each
     # shared by the two rows it bounds
     edges = [z - 0.5 * step + 1e-4 for z in zs] + [zs[-1] + 0.5 * step - 1e-4]
-    cuts = []
-    for z in edges:
-        P = [_section_points(s, None, z, ds) for s in shapes] + \
-            [_section_points(None, m, z, ds) for m in meshes]
-        cuts.append(numpy.vstack([p for p in P if len(p)] or [numpy.zeros((0, 2))]))
+    # solids are cut as a fine mesh, all slices in one call: one exact slice of a solid per
+    # height took 0.1 s (480 of them on a 120 mm part). A mesh lies inside the curved faces it
+    # follows by at most MESH_DEFLECTION, which is added below, so the map stays on the safe side.
+    pad = 0.0
+    if shapes:
+        meshes = list(meshes) + [_mesh_of(s) for s in shapes]
+        pad = MESH_DEFLECTION
+    cuts = [[] for _ in edges]
+    for m in meshes:
+        for k, pts in enumerate(_mesh_sections(m, edges, ds)):
+            if len(pts):
+                cuts[k].append(pts)
+    cuts = [numpy.vstack(c) if c else numpy.zeros((0, 2)) for c in cuts]
     H = numpy.zeros((len(zs), na))
     for i, z in enumerate(zs):
         P = [cuts[i], cuts[i + 1]]
@@ -78,11 +86,51 @@ def radius_map(shapes, meshes, zs, na, r_ref):
             good = idx[~empty]
             row[empty] = numpy.interp(idx[empty], numpy.r_[good - na, good, good + na],
                                       numpy.r_[row[good], row[good], row[good]])
+        if pad:
+            # the facets of a mesh leave a few microns of ripple round a round part: what is
+            # within that of the row's largest radius takes that radius (the safe side), so the
+            # round parts of a row are one smooth helix and not thousands of tiny steps
+            on = row > 0
+            top = float(row.max())
+            row[on & (row >= top - 2 * pad)] = top      # raising a radius is always safe
+            row[on] += pad
         H[i] = row
     return H
 
 
-def tip_map(H, zs, na, radius, ball=False, leave=0.0):
+MESH_DEFLECTION = 0.002     # mm: how far the mesh of a solid may lie inside its curved faces
+
+
+def _mesh_of(shape):
+    import MeshPart
+    return MeshPart.meshFromShape(Shape=shape, LinearDeflection=MESH_DEFLECTION,
+                                  AngularDeflection=0.05, Relative=False)
+
+
+def _mesh_sections(mesh, zs, ds):
+    """The outline points of a mesh at every height in zs (one call for all), each slice
+    densified to ds, as a list of (n, 2) arrays."""
+    import FreeCAD as App
+    out = []
+    planes = [(App.Vector(0, 0, z), App.Vector(0, 0, 1)) for z in zs]
+    for polys in mesh.crossSections(planes, 1e-3):
+        pts = []
+        for poly in polys:
+            pl = numpy.array([(p.x, p.y) for p in poly])
+            if len(pl) < 2:
+                pts.extend(pl.tolist())
+                continue
+            a, b = pl[:-1], pl[1:]
+            n = numpy.maximum((numpy.hypot(*(b - a).T) / ds).astype(int), 1)
+            t = numpy.concatenate([numpy.arange(k) / k for k in n])
+            seg = numpy.repeat(numpy.arange(len(n)), n)
+            pts.extend((a[seg] + (b[seg] - a[seg]) * t[:, None]).tolist())
+            pts.append(pl[-1].tolist())
+        out.append(numpy.array(pts) if pts else numpy.zeros((0, 2)))
+    return out
+
+
+def tip_map(H, zs, na, radius, ball=False, leave=0.0, tick=None):
     """X[i, j]: the smallest radius the tool tip may have at (zs[i], angle j) without the cutter
     (radius `radius`, flat or ball end, pointing at the axis) touching the part grown by
     `leave`. The cutter's disk lies across the ray: a part point at radius rho, dTheta off the
@@ -100,6 +148,8 @@ def tip_map(H, zs, na, radius, ball=False, leave=0.0):
     padded = numpy.zeros((nz + 2 * kz, na))
     padded[kz:kz + nz] = Hl
     for oz in range(-kz, kz + 1):
+        if tick is not None:
+            tick()
         # a row stands for the cell half a step round it: measure from its near edge
         dz = max(abs(oz) * dz_step - 0.5 * dz_step, 0.0)
         if dz > radius:

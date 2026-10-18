@@ -30,22 +30,22 @@
    "i": "chuck.gif",
    "en": {
     "t": "Chuck",
-    "d": "Puts your chuck (3-jaw, 4-jaw or a faceplate) under the part. The jaws close on the real stock, Polar Face keeps clear of them and Post Process refuses a program that would hit them.",
+    "d": "One click sets the part up in the chuck: the face you clicked goes into the chuck, the part is put on the chuck axis with Z0 on the stock top, and the chuck that holds this stock is chosen (your K11-125 or K72-125). Polar Face keeps clear of the jaws and Post Process refuses a program that would hit them.",
     "steps": [
-     "Select the Job.",
-     "Press Chuck and pick your chuck from the list (or Custom).",
-     "In the chuck's properties set Grip length: how deep the jaws hold the stock."
+     "Click the face of the part that goes INTO the chuck.",
+     "Press Chuck.",
+     "Check the chuck and the grip that were chosen, press OK."
     ],
     "w": "Round stock can sit in the jaws at any angle, so the jaws are kept clear as a ring all the way round.",
     "r": "The jaws hold the real stock; the checks keep the cutter away from them."
    },
    "el": {
     "t": "Τσοκ",
-    "d": "Βάζει το τσοκ σου (3άρι, 4άρι ή πλατό) κάτω από το κομμάτι. Οι σιαγόνες κλείνουν στο πραγματικό stock, το Polar Face κρατάει απόσταση από αυτές και το Post Process δεν γράφει πρόγραμμα που θα τις χτυπούσε.",
+    "d": "Με ένα κλικ στήνει το κομμάτι στο τσοκ: η πλευρά που πάτησες μπαίνει στο τσοκ, το κομμάτι μπαίνει στον άξονα με το Z0 στην κορυφή του stock, και διαλέγεται το τσοκ που το πιάνει (το K11-125 ή το K72-125 σου). Το Polar Face κρατάει απόσταση από τις σιαγόνες και το Post Process δεν γράφει πρόγραμμα που θα τις χτυπούσε.",
     "steps": [
-     "Διάλεξε το Job.",
-     "Πάτα Τσοκ και διάλεξε το τσοκ σου από τη λίστα (ή Custom).",
-     "Στις ιδιότητες του τσοκ βάλε το Grip length: πόσο βαθιά πιάνουν οι σιαγόνες το stock."
+     "Κάνε κλικ στην πλευρά του κομματιού που ΜΠΑΙΝΕΙ στο τσοκ.",
+     "Πάτα Τσοκ.",
+     "Δες το τσοκ και το πιάσιμο που διάλεξε και πάτα OK."
     ],
     "w": "Μια στρογγυλή μπάρα μπορεί να μπει στις σιαγόνες σε οποιαδήποτε γωνία: γι' αυτό οι σιαγόνες ελέγχονται σαν δαχτυλίδι γύρω-γύρω.",
     "r": "Οι σιαγόνες κρατούν το πραγματικό stock· οι έλεγχοι κρατούν το κοπτικό μακριά τους."
@@ -221,22 +221,44 @@
   "PolarWrap:Strategy": {
    "en": {
     "t": "Strategy",
-    "d": "Roughing layers from the bar down, then finishing on the part; or only one of them."
+    "d": "Roughing layers from the bar down, then finishing on the part; or only one of them.",
+    "steps": [
+     "Roughing: layers from the bar down to the part.",
+     "Finishing as a helix round the part.",
+     "Finishing as lines along the part."
+    ]
    },
    "el": {
     "t": "Στρατηγική",
-    "d": "Στρώσεις ξεχονδρίσματος από τη μπάρα προς τα μέσα, μετά φινίρισμα πάνω στο κομμάτι· ή μόνο το ένα από τα δύο."
-   }
+    "d": "Στρώσεις ξεχονδρίσματος από τη μπάρα προς τα μέσα, μετά φινίρισμα πάνω στο κομμάτι· ή μόνο το ένα από τα δύο.",
+    "steps": [
+     "Ξεχόνδρισμα: στρώσεις από τη μπάρα ως το κομμάτι.",
+     "Φινίρισμα σε έλικα γύρω-γύρω.",
+     "Φινίρισμα σε γραμμές κατά μήκος."
+    ]
+   },
+   "i": "wrap_strategy.gif"
   },
   "PolarWrap:FinishStyle": {
    "en": {
     "t": "Finishing",
-    "d": "Helix round the part: one continuous cut, the best surface on round shapes. Lines along the part: better for steps, grooves and flats along the axis."
+    "d": "Helix round the part: one continuous cut, the best surface on round shapes. Lines along the part: better for steps, grooves and flats along the axis.",
+    "steps": [
+     "Roughing: layers from the bar down to the part.",
+     "Finishing as a helix round the part.",
+     "Finishing as lines along the part."
+    ]
    },
    "el": {
     "t": "Φινίρισμα",
-    "d": "Έλικα γύρω-γύρω: μία συνεχής κοπή, η καλύτερη επιφάνεια σε στρογγυλά σχήματα. Γραμμές κατά μήκος: καλύτερο για σκαλοπάτια, σφήνες και επίπεδα κατά μήκος του άξονα."
-   }
+    "d": "Έλικα γύρω-γύρω: μία συνεχής κοπή, η καλύτερη επιφάνεια σε στρογγυλά σχήματα. Γραμμές κατά μήκος: καλύτερο για σκαλοπάτια, σφήνες και επίπεδα κατά μήκος του άξονα.",
+    "steps": [
+     "Ξεχόνδρισμα: στρώσεις από τη μπάρα ως το κομμάτι.",
+     "Φινίρισμα σε έλικα γύρω-γύρω.",
+     "Φινίρισμα σε γραμμές κατά μήκος."
+    ]
+   },
+   "i": "wrap_strategy.gif"
   },
   "PolarWrap:StepOver": {
    "en": {
@@ -391,12 +413,23 @@
   "PolarFace:Clearing": {
    "en": {
     "t": "What to cut",
-    "d": "Face only: the top, down to the part top. All the stock: everything outside the part is cut away down to the final depth (a square bar becomes the round part; round stock is turned down to the part). Only round the part: a band round the part, the rest of the stock stays. The final depth goes to the part bottom, but stops above the jaws (on a faceplate: above the plate)."
+    "d": "Face only: the top, down to the part top. All the stock: everything outside the part is cut away down to the final depth (a square bar becomes the round part; round stock is turned down to the part). Only round the part: a band round the part, the rest of the stock stays. The final depth goes to the part bottom, but stops above the jaws (on a faceplate: above the plate).",
+    "steps": [
+     "Face only: the top, down to the part top.",
+     "All the stock round the part: everything outside it goes.",
+     "Only round the part: a band round it, the rest stays."
+    ]
    },
    "el": {
     "t": "Τι κόβει",
-    "d": "Μόνο φάτσα: η κορυφή, ως την κορυφή του κομματιού. Όλο το υλικό: ό,τι είναι έξω από το κομμάτι φεύγει ως το τελικό βάθος (μια τετράγωνη μπάρα γίνεται το στρογγυλό κομμάτι· μια στρογγυλή μπάρα κατεβαίνει στη διάμετρο του κομματιού). Μόνο γύρω από το κομμάτι: μια λωρίδα γύρω του, το υπόλοιπο υλικό μένει. Το τελικό βάθος πάει ως τον πάτο του κομματιού, αλλά σταματάει πάνω από τις σιαγόνες (σε πλατό: πάνω από το πλατό)."
-   }
+    "d": "Μόνο φάτσα: η κορυφή, ως την κορυφή του κομματιού. Όλο το υλικό: ό,τι είναι έξω από το κομμάτι φεύγει ως το τελικό βάθος (μια τετράγωνη μπάρα γίνεται το στρογγυλό κομμάτι· μια στρογγυλή μπάρα κατεβαίνει στη διάμετρο του κομματιού). Μόνο γύρω από το κομμάτι: μια λωρίδα γύρω του, το υπόλοιπο υλικό μένει. Το τελικό βάθος πάει ως τον πάτο του κομματιού, αλλά σταματάει πάνω από τις σιαγόνες (σε πλατό: πάνω από το πλατό).",
+    "steps": [
+     "Μόνο φάτσα: η κορυφή, ως την κορυφή του κομματιού.",
+     "Όλο το υλικό γύρω από το κομμάτι: φεύγει ό,τι είναι έξω από αυτό.",
+     "Μόνο γύρω από το κομμάτι: μια λωρίδα γύρω του, το υπόλοιπο μένει."
+    ]
+   },
+   "i": "pf_clearing.gif"
   },
   "PolarFace:BandWidth": {
    "en": {
@@ -411,11 +444,40 @@
   "PolarFace:RampAngle": {
    "en": {
     "t": "Ramp angle",
-    "d": "Where the cutter must go down into material, it does not plunge: it ramps down along the circle it is going to cut (the chuck turns while Z goes down), back and forth on a short cut, then back to the start at depth. 2-5° suits most end mills; 0 = straight down (needs a centre-cutting end mill)."
+    "d": "Where the cutter must go down into material, it does not plunge: it ramps down along the circle it is going to cut (the chuck turns while Z goes down), back and forth on a short cut, then back to the start at depth. 2-5° suits most end mills; 0 = straight down (needs a centre-cutting end mill).",
+    "steps": [
+     "Down along the circle it is going to cut (the chuck turns while Z goes down).",
+     "Back to the start at depth; then it cuts on."
+    ]
    },
    "el": {
     "t": "Γωνία ράμπας",
-    "d": "Όπου το κοπτικό πρέπει να μπει μέσα σε υλικό, δεν βυθίζεται κάθετα: κατεβαίνει σε ράμπα πάνω στον κύκλο που θα κόψει (το τσοκ γυρίζει ενώ το Z κατεβαίνει), μπρος-πίσω αν η κοπή είναι μικρή, και μετά γυρίζει στην αρχή στο βάθος. 2-5° κάνει για τις περισσότερες φρέζες· 0 = κάθετα (θέλει φρέζα που κόβει στο κέντρο)."
+    "d": "Όπου το κοπτικό πρέπει να μπει μέσα σε υλικό, δεν βυθίζεται κάθετα: κατεβαίνει σε ράμπα πάνω στον κύκλο που θα κόψει (το τσοκ γυρίζει ενώ το Z κατεβαίνει), μπρος-πίσω αν η κοπή είναι μικρή, και μετά γυρίζει στην αρχή στο βάθος. 2-5° κάνει για τις περισσότερες φρέζες· 0 = κάθετα (θέλει φρέζα που κόβει στο κέντρο).",
+    "steps": [
+     "Κατεβαίνει πάνω στον κύκλο που θα κόψει (το τσοκ γυρίζει ενώ το Z κατεβαίνει).",
+     "Γυρίζει στην αρχή στο βάθος· μετά συνεχίζει την κοπή."
+    ]
+   },
+   "i": "pf_ramp.gif"
+  },
+  "Chuck:Pick": {
+   "en": {
+    "t": "Chuck",
+    "d": "Your chucks first (K11-125 3-jaw, K72-125 4-jaw independent), then the catalogue. Round stock goes to the 3-jaw when it fits, square or odd shapes to the 4-jaw."
+   },
+   "el": {
+    "t": "Τσοκ",
+    "d": "Πρώτα τα δικά σου τσοκ (K11-125 3άρι, K72-125 4άρι ανεξάρτητο), μετά ο κατάλογος. Το στρογγυλό υλικό πάει στο 3άρι όταν χωράει, το τετράγωνο ή ακανόνιστο στο 4άρι."
+   }
+  },
+  "Chuck:Grip": {
+   "en": {
+    "t": "Grip length",
+    "d": "How much of the stock the jaws hold, from its bottom. By default the stock under the part (up to the jaw height): the cutter never has to go there."
+   },
+   "el": {
+    "t": "Βάθος πιασίματος",
+    "d": "Πόσο από το stock πιάνουν οι σιαγόνες, από κάτω. Από μόνο του: το υλικό κάτω από το κομμάτι (ως το ύψος των σιαγόνων), ώστε το κοπτικό να μη χρειάζεται να πάει εκεί."
    }
   }
  },
@@ -671,7 +733,9 @@
     "4-jaw (self-centring)": "4-jaw (self-centring)",
     "4-jaw (independent jaws)": "4-jaw (independent jaws)",
     "Faceplate with clamps": "Faceplate with clamps"
-   }
+   },
+   "pick_face": "Click the face of the part (or of the stock) that goes INTO the chuck, then press Chuck again.\n\nThe part is then turned so that face looks down, put on the chuck axis with Z0 on the stock top, and the chuck that holds this stock is chosen for you.",
+   "by_hand": "Choose the chuck by hand"
   },
   "el": {
    "settings": "Polar CNC — ρυθμίσεις μηχανήματος",
@@ -691,7 +755,9 @@
     "4-jaw (self-centring)": "4άρι (αυτοκεντριζόμενο)",
     "4-jaw (independent jaws)": "4άρι (ανεξάρτητες σιαγόνες)",
     "Faceplate with clamps": "Πλατό με σφιγκτήρες"
-   }
+   },
+   "pick_face": "Κάνε κλικ στην πλευρά του κομματιού (ή του stock) που ΜΠΑΙΝΕΙ ΣΤΟ ΤΣΟΚ και ξαναπάτα Τσοκ.\n\nΤο κομμάτι τότε γυρίζει ώστε αυτή η πλευρά να κοιτάει κάτω, μπαίνει στον άξονα του τσοκ με το Z0 στην κορυφή του stock, και διαλέγεται μόνο του το τσοκ που το πιάνει.",
+   "by_hand": "Διάλεξε τσοκ με το χέρι"
   }
  }
 }

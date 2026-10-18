@@ -251,9 +251,14 @@ def go():
         def pick(name):
             def answer():
                 dlg = QtGui.QApplication.activeModalWidget()
-                if dlg is not None:
-                    dlg.setTextValue(name)
-                    dlg.accept()
+                if dlg is None:
+                    return
+                if dlg.objectName() == "PolarPickFace":      # no face picked: choose by hand
+                    dlg._hand()
+                    QtCore.QTimer.singleShot(400, answer)
+                    return
+                dlg.setTextValue(name)
+                dlg.accept()
             QtCore.QTimer.singleShot(400, answer)
 
         Gui.Selection.clearSelection()

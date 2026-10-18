@@ -21,7 +21,6 @@ PARAM = "User parameter:BaseApp/Preferences/Mod/PolarCNC"
 LANGUAGES = ("auto", "el", "en", "off")
 TOOLBAR = "Polar CNC"
 DELAY_MS = 500           # hover time before the popup shows
-TEXT_W = 480             # width of the popup's animation and text
 
 _DATA = None
 _FILTER = None
@@ -91,16 +90,27 @@ def note(name, default):
     return (data().get("notes", {}).get(name) or {}).get(language()) or default
 
 
-def animation(name):
-    """Path of a command's animation, in the help language if there is one, else any."""
-    file = (data()["commands"].get(name) or {}).get("i")
+def animation(name=None, key=None):
+    """Path of the animation of a toolbar command (name) or a field (key), or None. One picture
+    for every language (the words are in the popup); older per-language ones still found."""
+    entry = (data()["commands"].get(name) if name else data()["fields"].get(key)) or {}
+    file = entry.get("i")
     if not file:
         return None
-    for lang in (language(), "en", "el"):
-        path = os.path.join(HELP_DIR, "img", lang, file)
+    for sub in ("", language(), "en", "el"):
+        path = os.path.join(HELP_DIR, "img", sub, file)
         if os.path.isfile(path):
             return path
     return None
+
+
+def timeline(path):
+    """The step each frame of an animation shows (from <name>.json beside it), or []."""
+    try:
+        with open(os.path.splitext(path)[0] + ".json", encoding="utf-8") as f:
+            return list(json.load(f).get("steps") or [])
+    except Exception:
+        return []
 
 
 def explain(message):
@@ -120,7 +130,10 @@ QLabel#title { font-size: 14px; font-weight: bold; color: #102a43; }
 QLabel#warn { color: #8a4b00; background: #fff4d6; border-radius: 4px; padding: 4px; }
 QLabel#badge { background: #f0a020; color: #1f2933; border-radius: 9px; font-weight: bold;
                min-width: 18px; max-width: 18px; min-height: 18px; max-height: 18px; }
+QWidget#step { border-radius: 4px; }
+QWidget#step[on="true"] { background: #ffe8b3; }
 """
+WIDTH_MIN, WIDTH_MAX = 400, 540     # the popup: 30 % of the screen width, within these
 
 
 def _qt():
@@ -128,25 +141,96 @@ def _qt():
     return QtCore, QtGui
 
 
-def _step_rows(QtGui, lay, steps):
+def popup_width(widget=None):
+    """30 % of the screen the popup shows on, between WIDTH_MIN and WIDTH_MAX."""
+    try:
+        QtCore, QtGui = _qt()
+        screen = None
+        if widget is not None:
+            screen = QtGui.QGuiApplication.screenAt(widget.mapToGlobal(QtCore.QPoint(0, 0)))
+        screen = screen or QtGui.QGuiApplication.primaryScreen()
+        return int(min(max(screen.availableGeometry().width() * 0.3, WIDTH_MIN), WIDTH_MAX))
+    except Exception:
+        return WIDTH_MIN
+
+
+def _step_rows(QtGui, lay, steps, text_w):
+    rows = []
     for n, text in enumerate(steps, 1):
-        row = QtGui.QHBoxLayout()
+        box = QtGui.QWidget()
+        box.setObjectName("step")
+        box.setAttribute(_qt()[0].Qt.WA_StyledBackground, True)
+        row = QtGui.QHBoxLayout(box)
+        row.setContentsMargins(2, 2, 2, 2)
         badge = QtGui.QLabel(str(n))
         badge.setObjectName("badge")
         badge.setAlignment(_qt()[0].Qt.AlignCenter)
         row.addWidget(badge, 0, _qt()[0].Qt.AlignTop)
         lab = QtGui.QLabel(text)
         lab.setWordWrap(True)
-        lab.setFixedWidth(TEXT_W - 28)    # a fixed width gives wrapped text its true height
+        lab.setFixedWidth(text_w - 34)    # a fixed width gives wrapped text its true height
         row.addWidget(lab, 1)
-        lay.addLayout(row)
+        lay.addWidget(box)
+        rows.append(box)
+    return rows
 
 
-def build_popup(name=None, entry=None, parent=None):
-    """The popup frame for a toolbar command (name) or a field (entry): title, animation, text,
-    numbered steps (the same numbers as the badges in the animation) and a warning."""
+class _Player:
+    """Plays an animation into a label, each frame scaled smoothly to the label's size in the
+    screen's real pixels (sharp on 100-300 % screens, unlike QMovie's own scaling), and lights
+    the step row that the frame shows."""
+
+    def __init__(self, path, label, size, rows, steps):
+        QtCore, QtGui = _qt()
+        self.label, self.size, self.rows, self.steps = label, size, rows, steps
+        self.movie = QtGui.QMovie(path)
+        try:
+            self.movie.setCacheMode(QtGui.QMovie.CacheAll)
+        except Exception:
+            pass
+        self.lit = None
+        self.movie.frameChanged.connect(self._frame)
+
+    def _frame(self, number):
+        try:
+            QtCore, QtGui = _qt()
+            pm = self.movie.currentPixmap()
+            dpr = max(1.0, self.label.devicePixelRatioF())
+            pm = pm.scaled(int(self.size.width() * dpr), int(self.size.height() * dpr),
+                           QtCore.Qt.KeepAspectRatio, QtCore.Qt.SmoothTransformation)
+            pm.setDevicePixelRatio(dpr)
+            self.label.setPixmap(pm)
+            step = self.steps[number] if 0 <= number < len(self.steps) else None
+            if step != self.lit:
+                for k, row in enumerate(self.rows, 1):
+                    row.setProperty("on", "true" if k == step else "false")
+                    row.style().unpolish(row)
+                    row.style().polish(row)
+                self.lit = step
+        except Exception:
+            pass
+
+    def start(self):
+        self.movie.start()
+
+    def stop(self):
+        self.movie.stop()
+
+    def state(self):
+        return self.movie.state()
+
+    def isValid(self):
+        return self.movie.isValid()
+
+
+def build_popup(name=None, entry=None, parent=None, key=None, width=None):
+    """The popup frame for a toolbar command (name) or a field (entry, key): title, animation,
+    text, numbered steps (the same numbers as the badges in the animation, the one playing lit)
+    and a warning."""
     QtCore, QtGui = _qt()
     entry = entry if entry is not None else command(name)
+    width = width or WIDTH_MIN
+    text_w = width - 24
     frame = QtGui.QFrame(parent, QtCore.Qt.ToolTip | QtCore.Qt.FramelessWindowHint)
     frame.setObjectName("PolarHelp")
     frame.setStyleSheet(_CSS)
@@ -156,36 +240,34 @@ def build_popup(name=None, entry=None, parent=None):
     title = QtGui.QLabel(entry.get("t", name or ""))
     title.setObjectName("title")
     lay.addWidget(title)
-    path = animation(name) if name else None
-    frame.movie = None
+    path = animation(name, key)
+    pic = None
     if path:
-        movie = QtGui.QMovie(path)
-        if movie.isValid():
-            size = QtGui.QImageReader(path).size()
-            if size.isValid() and size.width() > TEXT_W:   # recorded larger, shown TEXT_W wide
-                size = size * (float(TEXT_W) / size.width())
-                movie.setScaledSize(size)
+        size = QtGui.QImageReader(path).size()
+        if size.isValid() and size.width() > 0:
+            size = QtCore.QSize(text_w, int(round(size.height() * text_w / float(size.width()))))
             pic = QtGui.QLabel()
-            if size.isValid():
-                pic.setFixedSize(size)       # its room before the first frame is read
+            pic.setFixedSize(size)       # its room before the first frame is read
             pic.setObjectName("animation")
-            pic.setMovie(movie)
             lay.addWidget(pic)
-            frame.movie = movie
     text = QtGui.QLabel(entry.get("d", ""))
     text.setWordWrap(True)
-    text.setFixedWidth(TEXT_W)
+    text.setFixedWidth(text_w)
     text.setObjectName("text")
     lay.addWidget(text)
-    if entry.get("steps"):
-        _step_rows(QtGui, lay, entry["steps"])
+    rows = _step_rows(QtGui, lay, entry["steps"], text_w) if entry.get("steps") else []
     if entry.get("w"):
         warn = QtGui.QLabel("⚠ " + entry["w"])
         warn.setObjectName("warn")
         warn.setWordWrap(True)
-        warn.setFixedWidth(TEXT_W)
+        warn.setFixedWidth(text_w)
         lay.addWidget(warn)
-    frame.setFixedWidth(TEXT_W + 24)
+    frame.setFixedWidth(width)
+    frame.movie = None
+    if pic is not None:
+        player = _Player(path, pic, pic.size(), rows, timeline(path))
+        if player.isValid():
+            frame.movie = player
     return frame
 
 
@@ -202,12 +284,12 @@ def hide_popup():
         _POPUP = None
 
 
-def show_popup(widget, name=None, entry=None):
+def show_popup(widget, name=None, entry=None, key=None):
     """Show the popup next to a widget, inside the screen. Returns the frame."""
     global _POPUP
     QtCore, QtGui = _qt()
     hide_popup()
-    frame = build_popup(name, entry)
+    frame = build_popup(name, entry, key=key, width=popup_width(widget))
     frame.adjustSize()
     pos = widget.mapToGlobal(QtCore.QPoint(0, widget.height() + 4))
     try:
@@ -317,7 +399,7 @@ def help_button(key):
             if _POPUP is not None and _POPUP.isVisible():
                 hide_popup()
             else:
-                show_popup(button, entry=field(key))
+                show_popup(button, entry=field(key), key=key)
         except Exception as e:
             App.Console.PrintLog("Polar CNC help: %s\n" % e)
     button.clicked.connect(clicked)
