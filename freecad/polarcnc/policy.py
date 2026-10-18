@@ -164,6 +164,12 @@ def problems(obj):
     """What is not right for polar about this operation (empty if fine or not in a polar Job)."""
     import PathScripts.PathUtils as PathUtils
     job = PathUtils.findParentJob(obj)
+    if job is not None and machine.has_settings(job) and machine.is_wrap(job):
+        if hasattr(obj, "ToolController") and \
+                type(getattr(obj, "Proxy", None)).__name__ != "ObjectPolarWrap":
+            return ["A Wrap Job is machined with Polar Wrap (the router is radial); this operation "
+                    "works on a flat face and Post Process will refuse it."]
+        return []
     if not is_polar(job):
         return []
     out = []

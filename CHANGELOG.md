@@ -10,6 +10,12 @@
   chord tolerance; G93 times use the true path of the tool tip at its real radius. Simulator: the cylinder with the
   router radial. FreeCAD: Job → *Polar Layout* = Wrap and *Polar Wrap Radius*. `tests/wrap.test.js` replays the
   output in joint space; `tests/freecad/wrap_test.py` runs a Wrap Job through Post Process and the simulator.
+  **FreeCAD: Polar Wrap** — no flat drawing: the real 3D part (solid or STL, axis on Z) and the stock diameter.
+  It maps the part's radius round the axis (slices; solid and STL agree within 0.02 mm), finds how far a flat or
+  ball end mill may go in without cutting the part (radial drop-cutter, conservative between grid points), and
+  cuts helices round it: roughing layers from the stock down, then a finishing helix; it stops clear of the jaws.
+  Post Process unrolls its path for the converter. Tests: `tests/freecad/wrapcut_geometry_test.py` (no cutter
+  point inside the solid, groove and flat reached), `tests/freecad/wrap_test.py` (the whole Job).
   The chuck works in Wrap too: it holds the cylinder from the chuck end (X min of the unrolled stock), is shown in
   the simulator, and Post Process refuses a wrapped program whose radial router runs into the body or the jaws.
 - **FreeCAD addon** (`freecad/`, `package.xml`): polar face machining from the FreeCAD CAM workbench. A

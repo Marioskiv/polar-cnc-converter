@@ -80,6 +80,12 @@ def export(objectslist, filename, argstring):
 
     # the milling program, without its editor (it is not what goes to the machine)
     cartesian = program.cartesian(objectslist, argstring)
+    if machine.is_wrap(job):          # the real part's paths, unrolled for the wrap layout
+        try:
+            program.wrap_operations_only(objectslist)
+            cartesian = program.unroll(cartesian, opts["wrapRadius"])
+        except ValueError as e:
+            return _refuse(str(e))
     try:
         polar = bridge.convert(cartesian, opts)
     except bridge.ConverterError as e:

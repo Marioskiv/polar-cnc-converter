@@ -56,7 +56,15 @@ chr=$(cat "$OUT/ch/result.txt" 2>/dev/null || echo "RESULT: no result (see $OUT/
 echo "chuck: $chr"
 [ "$chr" = "RESULT: PASS" ] || result="$result; chuck $chr"
 
-# a Wrap Job (router radial, the outside of a cylinder drawn unrolled)
+# Polar Wrap geometry without the GUI (solid and STL, the cutter never in the part)
+HOME="$OUT/home" PC_OUT="$OUT/wrapgeo" PC_REPO="$REPO" "$CMD" "$REPO/tests/freecad/wrapcut_geometry_test.py" \
+    > "$OUT/freecad-wrapgeo.log" 2>&1
+cat "$OUT/wrapgeo/log.txt" 2>/dev/null
+wg=$(cat "$OUT/wrapgeo/result.txt" 2>/dev/null || echo "RESULT: no result (see $OUT/freecad-wrapgeo.log)")
+echo "wrap geometry: $wg"
+[ "$wg" = "RESULT: PASS" ] || result="$result; wrap geometry $wg"
+
+# a Wrap Job (router radial): the real 3D part, Polar Wrap, chuck, Post Process, simulator
 HOME="$OUT/home" PC_OUT="$OUT/wrap" PC_REPO="$REPO" xvfb-run -a -s "-screen 0 1600x1000x24" \
     "$FREECAD" "$REPO/tests/freecad/wrap_test.py" > "$OUT/freecad-wrap.log" 2>&1
 cat "$OUT/wrap/log.txt" 2>/dev/null

@@ -28,10 +28,10 @@ PROPERTIES = (
      "Largest X (radius) your machine can reach: its X soft limit. Required."),
     ("PolarLayout", "App::PropertyEnumeration",
      "Face: the router looks at the face of the part (parallel to Z). Wrap: the router is turned to "
-     "look at the outside of a cylinder; the Job is then the cylinder's surface UNROLLED flat: "
-     "X along the part, Y round it (mm of arc at the wrap radius), Z 0 on the surface."),
-    ("PolarWrapRadius", "App::PropertyLength",
-     "Wrap only: the radius the unrolled Job is drawn at (usually the stock radius). Required."),
+     "look at the outside of the part (radial); the part is drawn as it is, its axis on Z through "
+     "X0 Y0, and the Polar Wrap operation machines it."),
+    ("PolarWrapDiameter", "App::PropertyLength",
+     "Wrap only: the diameter of the stock (the bar in the chuck). Required."),
     ("PolarProfile", "App::PropertyFile",
      "Optional machine profile (.polar-profile.json, saved from the web page): rotary letter, "
      "directions, X as diameter, chord tolerance, centre mode."),
@@ -60,6 +60,11 @@ def is_wrap(job):
     return getattr(job, "PolarLayout", FACE) == WRAP
 
 
+def wrap_radius(job):
+    d = getattr(job, "PolarWrapDiameter", None)
+    return d.Value / 2 if d is not None and d.Value > 0 else 0.0
+
+
 def options(job):
     """Converter options for this Job. Raises ValueError (in plain words) if something is missing."""
     if not has_settings(job):
@@ -79,12 +84,12 @@ def options(job):
     opts["xMax"] = job.PolarXMax.Value
     opts["xMin"] = 0 if job.PolarCuttingSide == ONE_SIDE else -job.PolarPastCentre.Value
     if is_wrap(job):
-        r = getattr(job, "PolarWrapRadius", None)
-        if r is None or r.Value <= 0:
-            raise ValueError("Wrap radius is not set: enter the radius the unrolled Job is drawn "
-                             "at (Job -> Polar CNC -> Polar Wrap Radius).")
+        d = getattr(job, "PolarWrapDiameter", None)
+        if d is None or d.Value <= 0:
+            raise ValueError("Wrap diameter is not set: enter the diameter of the stock "
+                             "(Job -> Polar CNC -> Polar Wrap Diameter).")
         opts["layout"] = "wrap"
-        opts["wrapRadius"] = r.Value
+        opts["wrapRadius"] = d.Value / 2
     else:
         opts["layout"] = opts.get("layout") if opts.get("layout") in ("xzc", "xzcb") else "xzc"
     return opts

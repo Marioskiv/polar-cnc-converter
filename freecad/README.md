@@ -42,20 +42,29 @@ FreeCAD.
 The operations stay normal CAM operations, so FreeCAD shows and simulates them as usual. The polar conversion
 happens only when the G-code is written.
 
-## Wrap: the outside of a cylinder
+## Wrap: the outside of the part (router radial)
 
-With the router turned to look at the part (the machine axes stay as they are), set the Job's **Polar Layout** to
-**Wrap** and **Polar Wrap Radius** to the radius you draw at (usually the stock radius). Draw the cylinder's surface
-**unrolled flat**: X along the part, Y round it (a width of 2π × radius is one full turn), Z 0 on the surface and
-negative into it. Use any operation (Profile, Pocket, Engrave, V-carve, Adaptive, 3D); nothing is greyed out, lines
-and zigzags are fine. Post Process wraps it (X = radius + Z, C = Y / radius, Z = X) and the simulator shows the
-cylinder with the router radial. Polar Face is for the face only.
+Turn the router so that it looks at the part (the machine axes stay as they are: X radius, Z along the part, C the
+chuck). **Nothing is drawn flat**: the part is used as it is.
 
-**The chuck in Wrap:** click **Chuck** as for the face. The part is the cylinder of the wrap radius along Z, from the
-unrolled stock's **X min (the chuck end)** to its X max; the jaws hold it *Grip length* deep from that end. The
-simulator shows the chuck turning with the part, and Post Process checks every move of the wrapped program — the
-router radial, from its tip outward — against the body and the jaws: a move that runs into them (often a rapid at
-"safe height", which near the chuck is not above the jaws) is refused with its line and place.
+1. Make the part (a solid, or import an STL) with its **axis on Z through X0 Y0**, its **lower end in the chuck**.
+2. Make the Job, click **Polar machine settings**, then in the Job's properties set **Polar Layout = Wrap** and
+   **Polar Wrap Diameter** = the diameter of the bar in the chuck.
+3. **Chuck** (optional, recommended): choose your chuck and the *Grip length*.
+4. **Polar Wrap** (Polar CNC toolbar): the part is unrolled automatically — its radius round the axis is mapped
+   on a fine grid (*Resolution*, 0.25 mm) — and the cutter runs **helices round it**, from the free end toward the
+   chuck: **roughing** layers from the stock diameter down (*Step down*, leaving *Finish allowance*), then a
+   **finishing** helix on the part (*Finish step over*; small with a ball end for a smooth surface). Flat and ball
+   end mills; the cutter never goes into the part (checked against the solid in the tests). It stops clear of the
+   jaws (*Chuck clearance* + the cutter radius).
+5. **Polar simulation** shows the part, the chuck and the router radial; **Post Process** writes the wrapped program
+   (G93, X = radius, C round, Z along) and refuses it if the router would run into the chuck (often a rapid next to
+   the jaws).
+
+In a Wrap Job only Polar Wrap operations are used (the other CAM operations work on a flat face; they are warned
+about and Post Process refuses them). Undercuts (a groove narrower than the cutter, a wall leaning over) are cut
+only as far as the cutter fits. The web page keeps its own Wrap input: a program of the surface drawn flat, from any
+CAM.
 
 ## Polar Face: facing any stock without cutting air
 

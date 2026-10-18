@@ -93,7 +93,7 @@ class SimulateCommand:
     def Activated(self):
         from . import simulator
         job = policy.current_job()
-        if policy.is_polar(job):
+        if job is not None and machine.has_settings(job):
             simulator.open_for(job)
 
 
@@ -117,6 +117,29 @@ class PolarFaceCommand:
         from . import polarface_gui
         polarface_gui.register()
         return polarface_gui.Command().Activated()
+
+
+class PolarWrapCommand:
+    """Polar Wrap (Wrap Jobs: the router radial, the outside of the real part)."""
+
+    def GetResources(self):
+        return {"Pixmap": os.path.join(os.path.dirname(HERE), "Resources", "PolarWrap.svg"),
+                "MenuText": "Polar Wrap",
+                "ToolTip": "Polar Wrap: machine the outside of the 3D part (solid or STL) with "
+                           "the router radial. It is unrolled automatically; enter only the "
+                           "stock diameter (Job -> Polar Wrap Diameter)."}
+
+    def IsActive(self):
+        try:
+            job = policy.current_job()
+            return job is not None and machine.is_wrap(job)
+        except Exception:
+            return False
+
+    def Activated(self):
+        from . import polarwrap_gui
+        polarwrap_gui.register()
+        return polarwrap_gui.Command().Activated()
 
 
 class ChuckCommand:
@@ -216,7 +239,7 @@ def _ensure_toolbar():
         grp.SetString("Name", "Polar CNC")
         grp.SetBool("Active", True)
     for cmd in ("PolarCNC_MachineSettings", "PolarCNC_Chuck", "PolarCNC_Clamp",
-                "PolarCNC_PolarFace", "PolarCNC_Simulate"):
+                "PolarCNC_PolarFace", "PolarCNC_PolarWrap", "PolarCNC_Simulate"):
         if not grp.GetString(cmd, ""):
             grp.SetString(cmd, "PolarCNC")
 
@@ -235,8 +258,9 @@ def _on_workbench(name):
     if name == "CAMWorkbench":
         try:
             policy.install_blocking()
-            from . import polarface_gui
+            from . import polarface_gui, polarwrap_gui
             polarface_gui.register()
+            polarwrap_gui.register()
         except Exception as e:
             App.Console.PrintError("Polar CNC: %s\n" % e)
 
@@ -246,6 +270,7 @@ def install():
     Gui.addCommand("PolarCNC_MachineSettings", MachineSettingsCommand())
     Gui.addCommand("PolarCNC_Simulate", SimulateCommand())
     Gui.addCommand("PolarCNC_PolarFace", PolarFaceCommand())
+    Gui.addCommand("PolarCNC_PolarWrap", PolarWrapCommand())
     Gui.addCommand("PolarCNC_Chuck", ChuckCommand())
     Gui.addCommand("PolarCNC_Clamp", ClampCommand())
     _ensure_toolbar()

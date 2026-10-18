@@ -124,12 +124,12 @@ class Scene:
         self.part.addChild(self.turn)
 
         stock = job.Stock.Shape if getattr(job, "Stock", None) else None
-        if self.wrap:       # the Job is drawn unrolled: show the cylinder it is wrapped on
-            stock, models = None, []
-            self._wrap_cylinder(opts["wrapRadius"])
+        if self.wrap:       # the bar of the wrap diameter, over the stock's length
+            sz = stock.BoundBox if stock and not stock.isNull() else None
+            self._wrap_cylinder(opts["wrapRadius"], sz.ZMin if sz else None, sz.ZMax if sz else None)
+            stock = None
         bb = stock.BoundBox if stock and not stock.isNull() else None
-        if not self.wrap:
-            models = [m.Shape for m in job.Model.Group if hasattr(m, "Shape") and not m.Shape.isNull()]
+        models = [m.Shape for m in job.Model.Group if hasattr(m, "Shape") and not m.Shape.isNull()]
         if bb is None and models:
             bb = models[0].BoundBox
             for s in models[1:]:
@@ -188,16 +188,19 @@ class Scene:
         self.root.addChild(self.tool)
         self.machine_view = True
 
-    def _wrap_cylinder(self, radius):
-        """The cylinder of the wrap radius along the program's Z range (part of the turning group)."""
+    def _wrap_cylinder(self, radius, z0=None, z1=None):
+        """The bar of the wrap radius from z0 to z1 (else the program's Z range), translucent,
+        in the turning group."""
         from pivy import coin
-        zs = [self.motion.z[i] for i in range(len(self.motion)) if not self.motion.rapid[i]] or [0.0, 1.0]
-        z0, z1 = min(zs), max(zs)
-        margin = max((z1 - z0) * 0.1, radius * 0.2, 2.0)
+        margin = 0.0
+        if z0 is None or z1 is None:
+            zs = [self.motion.z[i] for i in range(len(self.motion)) if not self.motion.rapid[i]] or [0.0, 1.0]
+            z0, z1 = min(zs), max(zs)
+            margin = max((z1 - z0) * 0.1, radius * 0.2, 2.0)
         sep = coin.SoSeparator()
         mat = coin.SoMaterial()
         mat.diffuseColor.setValue(0.85, 0.8, 0.6)
-        mat.transparency.setValue(0.6)
+        mat.transparency.setValue(0.8)
         sep.addChild(mat)
         cx = coin.SoComplexity()
         cx.value.setValue(0.9)
