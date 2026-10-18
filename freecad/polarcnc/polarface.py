@@ -261,8 +261,9 @@ class Plan:
         self.start = None
 
 
-def plan_depth(stock_face, keep_face, radius, step, leave=0.0, cw=True, speeds=None):
+def plan_depth(stock_face, keep_face, radius, step, leave=0.0, cw=True, speeds=None, held=None):
     """Rings for one depth. stock_face: the stock section; keep_face: the part (or None);
+    held: the jaws and clamps, already grown by their clearance (not by `leave`);
     radius: cutter radius; step: distance between rings; speeds: (cutting feed, plunge feed,
     rapid, air feed factor, lift height) to choose between going on round and lifting."""
     feed, vfeed, rapid, air_k, lift_h = speeds or (10.0, 3.3, 50.0, 3.0, 3.0)
@@ -270,6 +271,9 @@ def plan_depth(stock_face, keep_face, radius, step, leave=0.0, cw=True, speeds=N
     keep = None
     if keep_face is not None:
         keep = grow(keep_face, leave) if leave > 0 else keep_face
+    if held is not None:
+        keep = held if keep is None else keep.fuse(held).removeSplitter()
+    if keep is not None:
         region = region.cut(grow(keep, radius))
     plan = Plan()
     if region.isNull() or region.Area < 1e-6:
@@ -471,6 +475,8 @@ PROPERTIES = (
      "of the Job's chuck (Polar CNC → Chuck)."),
     ("App::PropertyFloat", "AirFeedFactor", "Where the cutter reaches nothing on its way round "
      "(a pure chuck turn), it goes this many times the cutting feed."),
+    ("App::PropertyLink", "PolarChuck", "The Job's chuck: linked so that the path is made again "
+     "when the chuck, its jaws or clamps change."),
 )
 
 
@@ -485,6 +491,13 @@ class ObjectPolarFace(PathOp.ObjectOp):
             if not hasattr(obj, name):
                 obj.addProperty(typ, name, "Polar Face", tip)
         obj.CutMode = ["Climb", "Conventional"]
+        obj.setEditorMode("PolarChuck", 1)
+
+    def opOnDocumentRestored(self, obj):
+        for typ, name, tip in PROPERTIES:          # files from before a property was added
+            if not hasattr(obj, name):
+                obj.addProperty(typ, name, "Polar Face", tip)
+        obj.setEditorMode("PolarChuck", 1)
 
     def opSetDefaultValues(self, obj, job):
         obj.StepOver = 40
@@ -492,6 +505,8 @@ class ObjectPolarFace(PathOp.ObjectOp):
         obj.CutMode = "Climb"
         obj.AirFeedFactor = 3.0
         obj.ChuckClearance = 2.0
+        if job is not None and getattr(job, "PolarChuck", None) is not None:
+            obj.PolarChuck = job.PolarChuck
 
     def opExecute(self, obj):
         radius = self.radius
@@ -503,6 +518,7 @@ class ObjectPolarFace(PathOp.ObjectOp):
         part = Part.makeCompound([m.Shape for m in self.model if hasattr(m, "Shape")])
         job = PathUtils.findParentJob(obj)
         chuck = getattr(job, "PolarChuck", None) if job is not None else None
+        chuck = getattr(obj, "PolarChuck", None) or chuck
         if chuck is not None and chuck.Shape.isNull():
             chuck = None
         cw = obj.CutMode == "Climb"
@@ -523,12 +539,12 @@ class ObjectPolarFace(PathOp.ObjectOp):
             rapid = self.horizRapid if self.horizRapid else 50.0       # 3000 mm/min if not set
             speeds = (feed, vfeed or feed, rapid, max(obj.AirFeedFactor, 1.0), max(safe - z, 0.5))
             keep = part_keep(part, z)
+            held = None
             if chuck is not None:                  # jaws and clamps: kept clear like the part
                 held = part_keep(chuck.Shape, z)
                 if held is not None:
                     held = grow(held, max(obj.ChuckClearance.Value, 0) + EPS)
-                    keep = held if keep is None else keep.fuse(held).removeSplitter()
-            plan = plan_depth(sec, keep, radius, step, obj.StockToLeave.Value, cw, speeds)
+            plan = plan_depth(sec, keep, radius, step, obj.StockToLeave.Value, cw, speeds, held)
             cmds.extend(commands(plan, z, safe, feed, vfeed, air))
 
 

@@ -150,13 +150,18 @@ class ChuckCommand:
             if obj is None:
                 return
         else:
-            App.ActiveDocument.openTransaction("Polar chuck")
-            if obj is None:
-                obj = chuck.make_chuck(job, name if name != chuck.CUSTOM else names[1])
-                _style(obj)
-            obj.Preset = name                  # Custom keeps the sizes, ready to be changed
-            App.ActiveDocument.recompute()
-            App.ActiveDocument.commitTransaction()
+            doc = App.ActiveDocument
+            doc.openTransaction("Polar chuck")
+            try:
+                if obj is None:
+                    obj = chuck.make_chuck(job, name if name != chuck.CUSTOM else names[1])
+                    _style(obj)
+                obj.Preset = name              # Custom keeps the sizes, ready to be changed
+                doc.recompute()
+            except Exception:
+                doc.abortTransaction()
+                raise
+            doc.commitTransaction()
         Gui.Selection.clearSelection()
         Gui.Selection.addSelection(obj)
         for note in obj.Notes:
@@ -179,9 +184,14 @@ class ClampCommand:
     def Activated(self):
         from . import chuck
         job = policy.current_job()
-        App.ActiveDocument.openTransaction("Polar clamp")
-        obj = chuck.add_clamp(job.PolarChuck)
-        App.ActiveDocument.commitTransaction()
+        doc = App.ActiveDocument
+        doc.openTransaction("Polar clamp")
+        try:
+            obj = chuck.add_clamp(job.PolarChuck)
+        except Exception:
+            doc.abortTransaction()
+            raise
+        doc.commitTransaction()
         _style(obj, (0.75, 0.2, 0.2))
         Gui.Selection.clearSelection()
         Gui.Selection.addSelection(obj)

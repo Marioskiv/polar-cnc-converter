@@ -235,8 +235,27 @@ class Observer:
         self._later(obj)
 
     def slotChangedObject(self, obj, prop):
-        if prop in self.WATCH or prop == "Group":
-            self._later(obj)
+        try:
+            if prop in self.WATCH or prop == "Group":
+                self._later(obj)
+            if prop == "Shape" and obj.TypeId == "Part::FeaturePython":
+                self._chuck_changed(obj)
+            elif prop == "Stock" and getattr(obj, "PolarChuck", None) is not None and \
+                    obj.PolarChuck.Stock != obj.Stock:
+                obj.PolarChuck.Stock = obj.Stock        # the chuck follows a new Job stock
+        except Exception:
+            pass
+
+    def _chuck_changed(self, obj):
+        """A chuck or clamp changed: check the Job's operations again (cut below the jaws?)."""
+        from . import chuck
+        if isinstance(getattr(obj, "Proxy", None), chuck.Clamp):
+            obj = next((o for o in obj.InList if obj in getattr(o, "Clamps", [])), None)
+        if obj is None or not isinstance(getattr(obj, "Proxy", None), chuck.Chuck):
+            return
+        job = chuck.job_of(obj)
+        for op in getattr(getattr(job, "Operations", None), "Group", []):
+            self._later(op)
 
 
 _observer = []

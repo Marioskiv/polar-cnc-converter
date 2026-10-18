@@ -32,7 +32,8 @@ TYPES = [THREE_JAW, FOUR_JAW_SC, FOUR_JAW, FACEPLATE]
 SELF_CENTRING = (THREE_JAW, FOUR_JAW_SC)
 
 CUSTOM = "Custom (my own sizes)"
-OLD_NAMES = {"Custom": CUSTOM}         # presets saved under an older name
+OLD_NAMES = {"Custom": CUSTOM,         # presets saved under an older name
+             "4-jaw SAN OU K12-125 (Ø125)": "4-jaw SAN OU K12-125 self-centring (Ø125)"}
 
 # catalogue sizes: (type, A diameter, B body, H jaw length, J jaw width, K jaw height)
 PRESETS = {
@@ -67,7 +68,9 @@ PRESETS = {
 
 GROUP = "Chuck"
 PROPS = (
-    ("App::PropertyLink", "Job", "The CAM Job whose stock this chuck holds."),
+    # the stock, not the Job: the Job links the chuck (PolarChuck) and its operations link it
+    # too, so a link back to the Job would make a dependency cycle
+    ("App::PropertyLink", "Stock", "The stock this chuck holds (the Job's stock)."),
     ("App::PropertyEnumeration", "Preset", "A catalogue size; choosing one fills in the sizes below "
      "(they can still be changed: the preset then reads Custom)."),
     ("App::PropertyEnumeration", "ChuckType", "3-jaw or 4-jaw self-centring (all jaws move together), "
@@ -100,14 +103,24 @@ class Chuck:
         self._presetting = False
 
     def onDocumentRestored(self, obj):
-        self._presetting = False
         self._presetting = True             # files saved before a type or preset was added
         try:
+            if "Job" in obj.PropertiesList:     # an early version linked the Job (a cycle)
+                job = obj.Job
+                obj.removeProperty("Job")
+                if "Stock" not in obj.PropertiesList:
+                    obj.addProperty("App::PropertyLink", "Stock", GROUP, PROPS[0][2])
+                obj.Stock = getattr(job, "Stock", None)
             kind, preset = obj.ChuckType, obj.Preset
             obj.ChuckType, obj.Preset = TYPES, list(PRESETS)
             obj.ChuckType = kind
             preset = OLD_NAMES.get(preset, preset)
-            obj.Preset = preset if preset in PRESETS else CUSTOM
+            sizes = PRESETS.get(preset)
+            now = (obj.ChuckType, obj.Diameter.Value, obj.BodyThickness.Value,
+                   obj.JawLength.Value, obj.JawWidth.Value, obj.JawHeight.Value)
+            if sizes is None or _differs(sizes, now):   # e.g. a preset whose sizes were corrected
+                preset = CUSTOM
+            obj.Preset = preset
         finally:
             self._presetting = False
 
@@ -128,8 +141,7 @@ class Chuck:
             preset = PRESETS.get(obj.Preset)
             now = (obj.ChuckType, obj.Diameter.Value, obj.BodyThickness.Value, obj.JawLength.Value,
                    obj.JawWidth.Value, obj.JawHeight.Value)
-            if preset and any((p != n if isinstance(p, str) else abs(p - n) > 1e-6)
-                              for p, n in zip(preset, now)):
+            if preset and _differs(preset, now):
                 self._presetting = True
                 obj.Preset = CUSTOM
                 self._presetting = False
@@ -146,11 +158,38 @@ class Chuck:
         return None
 
 
+def _differs(preset, now):
+    return any((p != n if isinstance(p, str) else abs(p - n) > 1e-6) for p, n in zip(preset, now))
+
+
+def job_of(obj):
+    """The Job whose PolarChuck this chuck is (found through the links to it), or None."""
+    for o in obj.InList:
+        if getattr(o, "PolarChuck", None) == obj:
+            return o
+    return None
+
+
 def stock_of(obj):
-    job = obj.Job
-    if job is None or getattr(job, "Stock", None) is None or job.Stock.Shape.isNull():
+    job = job_of(obj)
+    stock = getattr(job, "Stock", None) if job is not None else None
+    if stock is None:
+        stock = obj.Stock
+    if stock is None or stock.Shape.isNull():
         return None
-    return job.Stock.Shape
+    return stock.Shape
+
+
+def face_z(obj, stock=None):
+    """Height of the chuck face / faceplate (the jaws and clamps stand on it)."""
+    stock = stock if stock is not None else stock_of(obj)
+    if stock is None:
+        return 0.0
+    sb = stock.BoundBox
+    if obj.ChuckType == FACEPLATE:
+        return sb.ZMin
+    grip = min(obj.GripLength.Value, sb.ZLength)
+    return sb.ZMin + min(grip - obj.JawHeight.Value, 0.0)
 
 
 def contact_radius(section, angle):
@@ -193,13 +232,12 @@ def build_parts(obj):
     kind = obj.ChuckType
     grip = min(obj.GripLength.Value, sb.ZLength)
     jaw_h = obj.JawHeight.Value
-    face_z = sb.ZMin if kind == FACEPLATE else sb.ZMin + grip - jaw_h
+    fz = face_z(obj, stock)
     if kind != FACEPLATE and grip > jaw_h + 1e-9:
         notes.append("Grip length %.1f is more than the jaw height %.1f: the jaws hold only %.1f."
                      % (grip, jaw_h, jaw_h))
-        face_z = sb.ZMin
     parts = [Part.makeCylinder(obj.Diameter.Value / 2, obj.BodyThickness.Value,
-                               App.Vector(0, 0, face_z - obj.BodyThickness.Value))]
+                               App.Vector(0, 0, fz - obj.BodyThickness.Value))]
     if kind != FACEPLATE:
         n = 3 if kind == THREE_JAW else 4
         z_grip = sb.ZMin + max(grip, 0.5) * 0.5
@@ -216,7 +254,7 @@ def build_parts(obj):
             if r + obj.JawLength.Value > obj.Diameter.Value / 2 + obj.JawLength.Value * 0.5:
                 notes.append("Jaw %d would stand %.0f mm out of the chuck: the stock is too big for "
                              "this chuck." % (k + 1, r + obj.JawLength.Value - obj.Diameter.Value / 2))
-            parts.append(_jaw(r, obj.JawLength.Value, obj.JawWidth.Value, face_z, jaw_h, a))
+            parts.append(_jaw(r, obj.JawLength.Value, obj.JawWidth.Value, fz, jaw_h, a))
         if kind in SELF_CENTRING and radii and max(radii) - min(radii) > 0.05:
             notes.append("A self-centring chuck cannot hold this stock as it is placed: the jaws "
                          "would meet it at %s mm. Centre the stock on X0 Y0, turn the jaws "
@@ -225,7 +263,9 @@ def build_parts(obj):
         if radii and not notes:
             notes.append("Jaws closed on the stock at %s mm." % ", ".join("%.2f" % r for r in radii))
     for c in obj.Clamps:
-        if hasattr(c, "Shape") and not c.Shape.isNull():
+        if isinstance(getattr(c, "Proxy", None), Clamp):      # built here, on this chuck's face
+            parts.append(clamp_shape(c, fz))
+        elif hasattr(c, "Shape") and not c.Shape.isNull():
             parts.append(c.Shape)
     return parts, notes
 
@@ -271,7 +311,6 @@ def head_warning(chuck, path):
 
 # ---- clamps for a faceplate (or anywhere): a block you place by radius and angle -------------
 CLAMP_PROPS = (
-    ("App::PropertyLink", "Chuck", "The chuck or faceplate it stands on."),
     ("App::PropertyLength", "Radius", "Distance of its inner end from the chuck axis."),
     ("App::PropertyAngle", "Angle", "Direction from the chuck axis."),
     ("App::PropertyLength", "Length", "Radial length."),
@@ -289,17 +328,15 @@ class Clamp:
             if not hasattr(obj, name):
                 obj.addProperty(typ, name, "Clamp", tip)
 
+    def onDocumentRestored(self, obj):
+        if "Chuck" in obj.PropertiesList:      # an early version linked the chuck (a cycle)
+            obj.removeProperty("Chuck")
+
     def execute(self, obj):
-        chuck = obj.Chuck
-        z0 = 0.0
-        if chuck is not None:
-            stock = stock_of(chuck)
-            if stock is not None:
-                z0 = stock.BoundBox.ZMin if chuck.ChuckType == FACEPLATE else \
-                    stock.BoundBox.ZMin + min(chuck.GripLength.Value, stock.BoundBox.ZLength) - \
-                    chuck.JawHeight.Value
-        obj.Shape = _jaw(obj.Radius.Value, obj.Length.Value, obj.Width.Value, z0,
-                         obj.Height.Value, math.radians(obj.Angle.Value))
+        # the chuck lists its clamps (and builds them itself); the clamp only finds its chuck
+        # for its own shape, so that there is no link back
+        chuck = next((o for o in obj.InList if obj in getattr(o, "Clamps", [])), None)
+        obj.Shape = clamp_shape(obj, face_z(chuck) if chuck is not None else 0.0)
 
     def dumps(self):
         return None
@@ -308,18 +345,26 @@ class Clamp:
         return None
 
 
+def clamp_shape(clamp, z0):
+    return _jaw(clamp.Radius.Value, clamp.Length.Value, clamp.Width.Value, z0,
+                clamp.Height.Value, math.radians(clamp.Angle.Value))
+
+
 def make_chuck(job, preset="4-jaw SAN OU K72-125 independent (Ø125)"):
     doc = job.Document
     obj = doc.addObject("Part::FeaturePython", "PolarChuck")
     Chuck(obj)
     obj.Label = "Chuck"
-    obj.Job = job
+    obj.Stock = job.Stock
     obj.Preset = preset
     obj.GripLength = 10
     if not hasattr(job, "PolarChuck"):
         job.addProperty("App::PropertyLink", "PolarChuck", "Polar CNC",
                         "The chuck or faceplate that holds the stock (Polar CNC).")
     job.PolarChuck = obj
+    for op in getattr(job.Operations, "Group", []):      # Polar Face ops follow the chuck
+        if "PolarChuck" in op.PropertiesList:
+            op.PolarChuck = obj
     obj.recompute()
     return obj
 
@@ -333,7 +378,6 @@ def add_clamp(chuck, angle=None, length=30, width=20, height=20):
     obj = doc.addObject("Part::FeaturePython", "PolarClamp")
     Clamp(obj)
     obj.Label = "Clamp%d" % (n + 1)
-    obj.Chuck = chuck
     obj.Angle, obj.Length, obj.Width, obj.Height = angle, length, width, height
     stock = stock_of(chuck)
     obj.Overlap = 5

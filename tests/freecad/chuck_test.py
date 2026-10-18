@@ -122,6 +122,18 @@ def go():
         gap = min_clearance(op, c, jaw_top)
         check(gap >= op.ChuckClearance.Value - 0.05, "A: Polar Face keeps %.2f mm from the jaws (needs %.1f)"
               % (gap, op.ChuckClearance.Value))
+        # the path follows the chuck: jaws turned 45 deg -> the path is made again round them
+        def arcs(o):
+            return [(round(x.Parameters.get("X", 0), 2), round(x.Parameters.get("Y", 0), 2))
+                    for x in o.Path.Commands if x.Name in ("G2", "G3")]
+        before = arcs(op)
+        c.FirstJawAngle = 45
+        doc.recompute()
+        gap = min_clearance(op, c, c.Shape.BoundBox.ZMax)
+        check(op.PolarChuck == c and arcs(op) != before and gap >= op.ChuckClearance.Value - 0.05,
+              "A: jaws turned -> Polar Face made again by itself, keeps %.2f mm" % gap)
+        c.FirstJawAngle = 0
+        doc.recompute()
         warn = [m for m in policy.problems(op) if "below the top of the jaws" in m]
         check(len(warn) == 1 and "4.00 mm below" in warn[0], "A: warns about the collet nut: %s" % warn)
         import Path
@@ -234,6 +246,13 @@ def go():
         gap = min_clearance(op, c, c.Shape.BoundBox.ZMax)
         check(gap >= op.ChuckClearance.Value - 0.05, "D: keeps %.2f mm from the clamps" % gap)
         check(len([x for x in op.Path.Commands if x.Name in ("G2", "G3")]) > 10, "D: still faces the plate")
+        try:
+            for o in (job, c, clamps[0], op):
+                o.OutListRecursive
+            cyc = False
+        except Exception:
+            cyc = True
+        check(not cyc, "D: no dependency cycle between Job, chuck, clamps and operations")
         warn = [m for m in policy.problems(op) if "below the top of the clamps" in m]
         check(len(warn) == 1, "D: warns that the cut is below the clamp tops: %s" % warn)
         panel = simulator.open_for(job)
