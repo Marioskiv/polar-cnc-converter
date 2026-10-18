@@ -51,21 +51,30 @@ def wrap_operations_only(objs):
 def unroll(text, r0):
     """Polar Wrap paths are written round the real part (tip at x, y, z); the converter's wrap
     layout takes them unrolled: X = z along the part, Y = angle (unwound) x r0, Z = radius - r0.
-    Each G0/G1 gets all three; other lines are kept. G2/G3 are refused (Polar Wrap writes none)."""
+    Every motion line (also with an N number, or with no G word under --modal) gets all three;
+    other lines are kept. Refused: arcs (Polar Wrap writes none) and inches (G20)."""
     import math
     import re
     out = []
     pos = [None, None, None]
     theta = None
+    motion = None
     word = re.compile(r"([XYZ])\s*([-+]?\d*\.?\d+)", re.I)
+    gword = re.compile(r"G\s*0*(\d+(?:\.\d+)?)", re.I)
     for line in text.splitlines():
         code = line.split("(")[0].split(";")[0].upper()
-        m = re.match(r"\s*(G0?[0-3])(?![0-9.])", code)
-        if not m or not word.search(code):
-            out.append(line)
+        code = re.sub(r"^\s*N\d+\s*", "", code)
+        gs = [g for g in gword.findall(code)]
+        if "20" in gs:
+            raise ValueError("Wrap needs the program in mm: remove --inches from the post arguments.")
+        for g in gs:
+            if g in ("0", "1", "2", "3"):
+                motion = "G" + g
+        if not word.search(code) or motion is None or \
+                (not any(g in ("0", "1", "2", "3") for g in gs) and gs):
+            out.append(line)            # no motion (or a G that is not a move, e.g. G43 H1 Z..)
             continue
-        g = "G%d" % int(m.group(1)[1:])
-        if g in ("G2", "G3"):
+        if motion in ("G2", "G3"):
             raise ValueError("arcs in a Wrap program: %s" % line.strip())
         for k, v in word.findall(code):
             pos["XYZ".index(k.upper())] = float(v)
@@ -75,8 +84,9 @@ def unroll(text, r0):
         r = math.hypot(x, y)
         raw = math.atan2(y, x)
         theta = raw if theta is None else theta + ((raw - theta + math.pi) % (2 * math.pi) - math.pi)
-        rest = word.sub("", code[m.end():]).strip()
-        out.append("%s X%.4f Y%.4f Z%.4f%s" % (g, z, theta * r0, r - r0, (" " + rest) if rest else ""))
+        rest = gword.sub("", word.sub("", code)).strip()
+        out.append("%s X%.4f Y%.4f Z%.4f%s" % (motion, z, theta * r0, r - r0,
+                                               (" " + rest) if rest else ""))
     return "\n".join(out)
 
 

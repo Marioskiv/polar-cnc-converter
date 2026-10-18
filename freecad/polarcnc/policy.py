@@ -255,6 +255,9 @@ class Observer:
             elif prop == "Stock" and getattr(obj, "PolarChuck", None) is not None and \
                     obj.PolarChuck.Stock != obj.Stock:
                 obj.PolarChuck.Stock = obj.Stock        # the chuck follows a new Job stock
+            elif prop in ("PolarLayout", "PolarWrapDiameter") and \
+                    getattr(obj, "PolarChuck", None) is not None:
+                obj.PolarChuck.touch()                  # the bar it holds has changed
         except Exception:
             pass
 

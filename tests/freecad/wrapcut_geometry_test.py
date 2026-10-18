@@ -85,17 +85,35 @@ try:
 
     Xr = wc.tip_map(H, zs, na, 2.5, False, 0.3)
     Xf = wc.tip_map(H, zs, na, 2.5, False, 0.0)
-    passes = wc.helix_passes(Xr, Xf, zs, na, 22.0, 58.0, 12.0, 2.5, 0.75, 1.0, 0.5)
-    layers = [p[:, 2].min() for p in passes[:-1]]
+    passes = wc.helix_passes(Xr, Xf, zs, na, 22.0, 58.0, 12.0, 2.5, 0.75, 1.0, 0.5, radius=2.5)
+    layers = sorted(set(round(float(p[:, 2].min()), 6) for p in passes[:-1]), reverse=True)
     check(len(passes) >= 5, "%d passes: roughing layers and one finishing" % len(passes))
-    check(abs(layers[0] - 21.0) < 1e-6 and all(abs(a - b - 1.0) < 1e-6 or b <= Xr.min() + 0.05
-                                                for a, b in zip(layers, layers[1:])),
-          "roughing layers 1 mm apart from the stock R22: %s" % ["%.2f" % v for v in layers])
+    # below the bar (layers under R20) only the groove and the flat are cut: short pieces
+    deep = [p for p in passes[:-1] if p[:, 2].min() < 19.9]
+    span = max((p[:, 0].max() - p[:, 0].min()) for p in deep) if deep else 0
+    check(deep and span < 25, "layers under the bar cut only where the groove and the flat are "
+          "(longest piece %.1f mm along the part, not 46)" % span)
+    air = sum(int((p[:, 3] == 0).sum()) for p in passes[:-1])
+    check(air > 0, "roughing marks %d samples as air (faster feed)" % air)
+    check(all(any(abs(v - L) < 1e-6 for v in layers) for L in (21.0, 20.0, 19.0, 18.0))
+          and min(layers) >= float(Xr.min()) - 1e-6,
+          "roughing layers 1 mm apart from the stock R22, never below the part: %s"
+          % ["%.2f" % v for v in layers])
     fin = passes[-1]
     on_bar = fin[(fin[:, 0] > 13) & (fin[:, 0] < 27)]
     check(len(on_bar) and numpy.abs(on_bar[:, 2] - 20).max() < 1e-3, "finishing helix on the bar at 20")
     check(abs(fin[:, 0].max() - 58) < 1e-9 and abs(fin[:, 0].min() - 12) < 1e-9,
           "from the free end (58) toward the chuck (12)")
+    check(abs(abs(fin[:, 1].max() - fin[:, 1].min()) - 2 * math.pi * (1 + 46 / 0.75 + 1)) < 0.05,
+          "the finishing helix has a full turn at each end")
+    lp = wc.helix_passes(Xr, Xf, zs, na, 22.0, 58.0, 12.0, 2.5, 0.75, 1.0, 0.5, roughing=False,
+                         radius=2.5, finish_lines=True)[0]
+    on_flat = lp[(lp[:, 0] > 44) & (lp[:, 0] < 50) & (numpy.abs(numpy.mod(lp[:, 1] + math.pi, 2 * math.pi) - math.pi) < 0.02)]
+    check(len(on_flat) and on_flat[:, 2].min() < 16.1, "lines along the part reach the flat (%.3f)"
+          % (on_flat[:, 2].min() if len(on_flat) else -1))
+    turned = lp[:, 1].max() - lp[:, 1].min()
+    check(abs(turned - 2 * math.pi) < 1e-6 and set(numpy.round(lp[:, 0], 6)) >= {58.0, 12.0},
+          "lines along the part, all the way round (%.3f rad) and from end to end" % turned)
 except Exception:
     log.write(traceback.format_exc())
     fails.append("exception")

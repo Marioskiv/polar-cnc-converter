@@ -50,11 +50,18 @@ def radius_map(shapes, meshes, zs, na, r_ref):
     grazes a wall) take their neighbours' value."""
     bin_w = TWO_PI / na
     ds = max(r_ref / 3.0 * bin_w * 0.5, 0.005)
-    half = 0.49 * (zs[1] - zs[0]) if len(zs) > 1 else 0.0
+    step = zs[1] - zs[0] if len(zs) > 1 else 1.0
+    # one slice at every cell edge (a hair off the round value, which may be a flat face), each
+    # shared by the two rows it bounds
+    edges = [z - 0.5 * step + 1e-4 for z in zs] + [zs[-1] + 0.5 * step - 1e-4]
+    cuts = []
+    for z in edges:
+        P = [_section_points(s, None, z, ds) for s in shapes] + \
+            [_section_points(None, m, z, ds) for m in meshes]
+        cuts.append(numpy.vstack([p for p in P if len(p)] or [numpy.zeros((0, 2))]))
     H = numpy.zeros((len(zs), na))
     for i, z in enumerate(zs):
-        P = [_section_points(s, None, zz, ds) for s in shapes for zz in (z - half, z + half)] + \
-            [_section_points(None, m, zz, ds) for m in meshes for zz in (z - half, z + half)]
+        P = [cuts[i], cuts[i + 1]]
         P = numpy.vstack([p for p in P if len(p)] or [numpy.zeros((0, 2))])
         if not len(P):
             continue
@@ -132,41 +139,106 @@ def sample(X, zs, na, z, theta):
 
 def helix(z_from, z_to, pitch, ds, r_ref, theta0=0.0, ccw=True):
     """(z, theta) of a helix from z_from to z_to, `pitch` mm along Z per turn, a point every
-    ds mm of arc at r_ref. theta is unwound (it keeps growing)."""
+    ds mm of arc at r_ref. theta is unwound (it keeps growing). A full turn at each end (as
+    Fusion's Rotary Spiral does), so the ends are cut all the way round, not left as a ramp."""
+    sign = 1 if ccw else -1
+    per_turn = int(math.ceil(TWO_PI * r_ref / ds))
+    ring = sign * TWO_PI * numpy.arange(0, per_turn) / per_turn
     turns = abs(z_to - z_from) / pitch
     n = max(int(math.ceil(turns * TWO_PI * r_ref / ds)), 2)
     t = numpy.linspace(0.0, 1.0, n + 1)
     z = z_from + (z_to - z_from) * t
-    th = theta0 + (1 if ccw else -1) * turns * TWO_PI * t
-    # one more full turn at the end, so the last line round the part is cut all the way
-    extra = int(math.ceil(TWO_PI * r_ref / ds))
-    th_e = th[-1] + (1 if ccw else -1) * TWO_PI * numpy.arange(1, extra + 1) / extra
-    return numpy.r_[z, numpy.full(extra, z[-1])], numpy.r_[th, th_e]
+    th = theta0 + sign * TWO_PI + sign * turns * TWO_PI * t
+    th_e = th[-1] + sign * TWO_PI * numpy.arange(1, per_turn + 1) / per_turn
+    return (numpy.r_[numpy.full(per_turn, z_from), z, numpy.full(per_turn, z[-1])],
+            numpy.r_[theta0 + ring, th, th_e])
+
+
+def lines(z_from, z_to, step_angle, ds, theta0=0.0, ccw=True):
+    """(z, theta) of lines along the part (zigzag), one every step_angle round it, linked at
+    the ends by a short move round the part: for steps, grooves and flats along the axis,
+    which a helix crosses at a slant (Fusion and SprutCAM offer it for that)."""
+    sign = 1 if ccw else -1
+    n_lines = max(int(math.ceil(TWO_PI / step_angle)), 3)
+    da = TWO_PI / n_lines
+    nz = max(int(math.ceil(abs(z_to - z_from) / ds)), 2)
+    zl = numpy.linspace(z_from, z_to, nz + 1)
+    zs_, ths = [], []
+    for k in range(n_lines + 1):                    # the last line closes on the first
+        a = theta0 + sign * da * k
+        zz = zl if k % 2 == 0 else zl[::-1]
+        zs_.append(zz)
+        ths.append(numpy.full(len(zz), a))
+    return numpy.concatenate(zs_), numpy.concatenate(ths)
+
+
+def _pieces(cut, per_turn, keep):
+    """Index ranges [a, b) of a pass worth cutting: the samples that cut, joined where they are
+    less than a turn apart, each with `keep` samples before and after."""
+    idx = numpy.nonzero(cut)[0]
+    if not len(idx):
+        return []
+    out = []
+    a = prev = idx[0]
+    for k in idx[1:]:
+        if k - prev > per_turn:
+            out.append((max(a - keep, 0), min(prev + keep + 1, len(cut))))
+            a = k
+        prev = k
+    out.append((max(a - keep, 0), min(prev + keep + 1, len(cut))))
+    return out
 
 
 def helix_passes(X_rough, X_finish, zs, na, r_stock, z_from, z_to, pitch_rough, pitch_finish,
-                 step_down, ds, roughing=True, finishing=True, ccw=True):
-    """The passes, each a list of (z, theta, r) of the tool tip (theta unwound): roughing layers
-    from the stock radius down by step_down (each layer rides up over the part where it is
-    higher: r = max(layer, X_rough)); layers that cut nothing are left out; then the finishing
-    helix on X_finish."""
+                 step_down, ds, roughing=True, finishing=True, ccw=True, radius=0.0,
+                 finish_lines=False):
+    """The passes, each an array of (z, theta, r, cutting) of the tool tip (theta unwound).
+    Roughing: layers from the stock radius down by step_down, each riding up over the part
+    where it is higher (r = max(layer, X_rough)); a layer is cut only along the stretches of its
+    helix where it removes material (pieces less than a turn apart are joined), and inside them
+    every sample is marked cutting or not (air: faster feed) with a cutter's width of margin.
+    The layers turn the chuck one way and back the other, so C does not pile up hundreds of
+    turns over the program (LinuxCNC's C soft limits). Then the finishing pass on X_finish, all
+    of it cutting, the way `ccw` says."""
     passes = []
     theta = 0.0
+    per_turn = max(int(math.ceil(TWO_PI * r_stock / ds)), 1)
+    margin = max(int(math.ceil((2 * radius + 1.0) / ds)), 2)
     if roughing:
-        level = None                       # what the previous layer left: starts at the stock
+        level = r_stock                    # what the previous layer left (the stock at first)
+        n_layer = 0
         layer = r_stock
         floor = float(X_rough.min())
         while layer > floor + 1e-6:
             layer = max(layer - step_down, floor)
-            z, th = helix(z_from, z_to, pitch_rough, ds, r_stock, theta, ccw)
-            r = numpy.maximum(sample(X_rough, zs, na, z, th), layer)
-            before = numpy.full_like(r, r_stock) if level is None else \
-                numpy.maximum(sample(X_rough, zs, na, z, th), level)
-            if (r < before - 1e-3).any():
-                passes.append(numpy.c_[z, th, r])
+            z, th = helix(z_from, z_to, pitch_rough, ds, r_stock, theta, ccw if n_layer % 2 == 0 else not ccw)
+            part = sample(X_rough, zs, na, z, th)
+            r = numpy.maximum(part, layer)
+            cut = r < numpy.maximum(part, level) - 1e-3
+            if cut.any():
+                # a cutter's width either side of every cutting sample counts as cutting
+                near = numpy.convolve(cut.astype(float), numpy.ones(2 * margin + 1), "same") > 0
+                for a, b in _pieces(cut, per_turn, margin):
+                    passes.append(numpy.c_[z[a:b], th[a:b], r[a:b], near[a:b]])
                 theta = th[-1]
+                n_layer += 1
             level = layer
     if finishing:
-        z, th = helix(z_from, z_to, pitch_finish, ds, r_stock, theta, ccw)
-        passes.append(numpy.c_[z, th, sample(X_finish, zs, na, z, th)])
+        if finish_lines:      # the step round the part at the largest radius it is cut at
+            r_top = max(float(X_finish.max()), radius, 1.0)
+            z, th = lines(z_from, z_to, pitch_finish / r_top, ds, theta, ccw)
+            # the link at each end goes round the part: sample it, it may ride over the part
+            zz, tt = [z[0]], [th[0]]
+            for k in range(1, len(z)):
+                if abs(th[k] - th[k - 1]) > 1e-12:
+                    m = max(int(math.ceil(abs(th[k] - th[k - 1]) * r_top / ds)), 1)
+                    for j in range(1, m):
+                        zz.append(z[k])
+                        tt.append(th[k - 1] + (th[k] - th[k - 1]) * j / m)
+                zz.append(z[k])
+                tt.append(th[k])
+            z, th = numpy.array(zz), numpy.array(tt)
+        else:
+            z, th = helix(z_from, z_to, pitch_finish, ds, r_stock, theta, ccw)
+        passes.append(numpy.c_[z, th, sample(X_finish, zs, na, z, th), numpy.ones(len(z))])
     return passes

@@ -20,8 +20,27 @@ ARCS_CW = ("G2", "G02")
 ARCS_CCW = ("G3", "G03")
 
 
+_obs_cache = {}
+
+
 def obstacles(chuck):
-    """[(name, top Z, outline as an (n, 2) array)] of the chuck body, jaws and clamps."""
+    """[(name, top Z, outline as an (n, 2) array)] of the chuck body, jaws and clamps (kept
+    while the chuck's shape stays the same: asked for on every operation recompute)."""
+    try:
+        key = (chuck.Document.Name, chuck.Name, chuck.Shape.hashCode(), str(chuck.Shape.BoundBox),
+               round(chuck.Shape.Volume, 6))
+    except Exception:
+        key = None
+    if key is not None and key in _obs_cache:
+        return _obs_cache[key]
+    out = _obstacles(chuck)
+    if key is not None:
+        _obs_cache.clear()
+        _obs_cache[key] = out
+    return out
+
+
+def _obstacles(chuck):
     import FreeCAD as App
     import TechDraw
     from . import chuck as chuckmod

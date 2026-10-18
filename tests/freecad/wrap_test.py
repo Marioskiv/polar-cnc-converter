@@ -129,6 +129,33 @@ def go():
                   "it stops clear of the jaws: Z down to %.2f (jaws %.2f + 2 + cutter radius)" % (min(zs), jaw_top))
             check("G93" in text and "G8" in text, "G93 and G8 (X radius)")
 
+            turns = float(re.search(r"= ([\d.]+) turns", text).group(1))
+            check(turns < 100, "roughing layers turn the chuck back and forth: C spans %.1f turns" % turns)
+            # the post's own options must not change what is cut (N numbers, modal output)
+            job.PostProcessorArgs = "--no-show-editor --line-numbers --modal"
+            res2 = PostProcessorFactory.get_post_processor(job, "polar_linuxcnc").export()
+            text2 = res2[0][1] if res2 else ""
+            job.PostProcessorArgs = "--no-show-editor"
+            pick = lambda t: [l for l in (t or "").splitlines() if l.startswith(("G0 ", "G1 "))]
+            check(pick(text2) == pick(text), "--line-numbers --modal: the same moves (%d)" % len(pick(text2)))
+            job.PostProcessorArgs = "--no-show-editor --inches"
+            boxes[:] = []
+            res3 = PostProcessorFactory.get_post_processor(job, "polar_linuxcnc").export()
+            check(res3 and res3[0][1] is None and boxes and "mm" in boxes[-1], "--inches refused: %r" % boxes[-1:])
+            job.PostProcessorArgs = "--no-show-editor"
+
+        # finishing alone may not take the whole depth; a part bigger than the stock is refused
+        op.Strategy = "Finishing"
+        op.recompute()
+        check(len(op.Path.Commands) < 5, "finishing alone over 6 mm of stock -> no path (%d)" % len(op.Path.Commands))
+        op.Strategy = "Roughing + finishing"
+        job.PolarWrapDiameter = 38
+        op.recompute()
+        check(len(op.Path.Commands) < 5, "stock D38 smaller than the part D40 -> no path")
+        job.PolarWrapDiameter = 44
+        op.recompute()
+        doc.recompute()
+
         panel = simulator.open_for(job)
         pump(300)
         check(panel is not None and panel.scene.wrap, "simulator opened in wrap mode")

@@ -112,12 +112,23 @@
       camFeed = ev.feed;
       var to = { u: ev.to.x, v: ev.to.y, w: ev.to.z };
       if (ev.kind === 'G0') {
-        // only what the line states (the input knows nothing else yet at the program start)
-        var words = [];
-        if ('Z' in w) words.push(wx(to.w));
-        if ('X' in w) words.push(wz(to.u));
-        if ('Y' in w) words.push(wc(to.v));
-        if (words.length) out.push('G0 ' + words.join(' '));
+        // only what the line states (the input knows nothing else yet at the program start).
+        // A rapid that changes the radius AND moves along or round the part is split, so the
+        // tool never sweeps across the part: going out, X first; going in, X last. (A radius not
+        // known yet counts as "going out" when the target is outside the wrap radius.)
+        var along = [];
+        if ('X' in w) along.push(wz(to.u));
+        if ('Y' in w) along.push(wc(to.v));
+        if ('Z' in w && along.length && Math.abs(to.w - (last.w === null ? NaN : last.w)) > 1e-9) {
+          var outward = last.w === null ? to.w >= 0 : to.w > last.w;
+          if (outward) { out.push('G0 ' + wx(to.w)); out.push('G0 ' + along.join(' ')); }
+          else { out.push('G0 ' + along.join(' ')); out.push('G0 ' + wx(to.w)); }
+        } else {
+          var words = [];
+          if ('Z' in w) words.push(wx(to.w));
+          Array.prototype.push.apply(words, along);
+          if (words.length) out.push('G0 ' + words.join(' '));
+        }
         if ('X' in w) last.u = to.u;
         if ('Y' in w) last.v = to.v;
         if ('Z' in w) last.w = to.w;
@@ -148,6 +159,10 @@
                  + ((cHi - cLo) / 360).toFixed(2) + ' turns )');
         if (Math.max(Math.abs(cLo), Math.abs(cHi)) > 99999)
           rep.push('( !! ' + ROT + ' goes past 99999 deg - raise [AXIS_' + ROT + '] MIN_LIMIT/MAX_LIMIT first )');
+        // 2.15.0 (review): the tool offsets of an UNROLLED program are right only at R0
+        rep.push('( Note: in an unrolled program the CAM offsets the cutter at the wrap radius; below it a )');
+        rep.push('( radial cutter covers more: walls along the part come out wider. Keep depths small, )');
+        rep.push('( or use the FreeCAD Polar Wrap operation, which works on the real part. )');
       }
       layoutXZC.insertReport(out, rep);
     }

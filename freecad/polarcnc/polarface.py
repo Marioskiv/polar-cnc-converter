@@ -497,6 +497,8 @@ class ObjectPolarFace(PathOp.ObjectOp):
         for typ, name, tip in PROPERTIES:          # files from before a property was added
             if not hasattr(obj, name):
                 obj.addProperty(typ, name, "Polar Face", tip)
+                if name == "ChuckClearance":
+                    obj.ChuckClearance = 2.0
         obj.setEditorMode("PolarChuck", 1)
 
     def opSetDefaultValues(self, obj, job):

@@ -54,9 +54,15 @@ chuck). **Nothing is drawn flat**: the part is used as it is.
 4. **Polar Wrap** (Polar CNC toolbar): the part is unrolled automatically — its radius round the axis is mapped
    on a fine grid (*Resolution*, 0.25 mm) — and the cutter runs **helices round it**, from the free end toward the
    chuck: **roughing** layers from the stock diameter down (*Step down*, leaving *Finish allowance*), then a
-   **finishing** helix on the part (*Finish step over*; small with a ball end for a smooth surface). Flat and ball
+   **finishing** pass on the part (*Finish step over*; small with a ball end for a smooth surface). Flat and ball
    end mills; the cutter never goes into the part (checked against the solid in the tests). It stops clear of the
-   jaws (*Chuck clearance* + the cutter radius).
+   jaws (*Chuck clearance* + the cutter radius) and runs past the free end by the cutter radius.
+   - Roughing cuts each layer only where it removes material; over the part where it touches nothing it goes
+     faster (*Air feed*); the layers turn the chuck one way and back, so C does not pile up turns.
+   - Finishing: **Helix round the part** (one continuous cut, a full turn at each end; the best surface on round
+     shapes) or **Lines along the part** (better for steps, grooves and flats along the axis).
+   - Refused, with a message: finishing alone deeper than *Finish allowance* + *Step down*; a part bigger than
+     the stock diameter; inches (`--inches`).
 5. **Polar simulation** shows the part, the chuck and the router radial; **Post Process** writes the wrapped program
    (G93, X = radius, C round, Z along) and refuses it if the router would run into the chuck (often a rapid next to
    the jaws).

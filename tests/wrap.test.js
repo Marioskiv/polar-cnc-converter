@@ -152,6 +152,16 @@ for (const R0 of [10, 30]) {
   const L = 29 * (240 * Math.PI / 180);
   ok(Math.abs(1 / f - L / 600) < 1e-6, 'groove: block time = true arc length at r 29 / feed');
 }
+// a rapid that changes the radius and moves round/along the part is split: out first, in last
+{
+  const out = convert('G21 G90\nG0 X0 Y0 Z5\nG1 Z-1 F300\nG1 X10 F500\nG0 X40 Y20 Z5\nG0 X50 Y30 Z-0.5\nM30',
+                      { layout: 'wrap', wrapRadius: 20, xMax: 200 });
+  const g0 = out.split('\n').filter(l => /^G0\s/.test(l));
+  const iOut = g0.findIndex(l => /^G0 X25\.0000$/.test(l));
+  ok(iOut >= 0 && /^G0 Z40\.0000 C/.test(g0[iOut + 1]), 'going out: X first, then Z/C: ' + g0.join(' | '));
+  const iIn = g0.findIndex(l => /^G0 Z50\.0000 C/.test(l));
+  ok(iIn >= 0 && /^G0 X19\.5000$/.test(g0[iIn + 1]), 'going in: Z/C first, then X');
+}
 // refusals: no wrap radius; Z below the chuck axis
 assert.throws(() => convert(CASES['slot along the part'], { layout: 'wrap', xMax: 200 }), /Wrap radius is not set/);
 checks++;

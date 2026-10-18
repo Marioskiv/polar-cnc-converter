@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased — FreeCAD addon (in testing)
+## 2.15.0 — FreeCAD addon (Polar CNC for the CAM workbench, in testing) and Wrap
 
 ### Added
 - **Wrap: the outside of a cylinder** (layout *Wrap (router radial)*, web page and FreeCAD). The router is turned to

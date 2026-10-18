@@ -50,6 +50,10 @@ class TaskPanelOpPage(PathOpGui.TaskPanelPage):
             box.setSuffix(" %")
             box.setToolTip(_tip(prop))
             return box
+        self.style = QtGui.QComboBox()
+        self.style.addItems(polarwrap.FINISH_STYLES)
+        self.style.setToolTip(_tip("FinishStyle"))
+        lay.addRow("Finishing", self.style)
         self.step = percent("StepOver")
         lay.addRow("Finish step over", self.step)
         self.rstep = percent("RoughStepOver")
@@ -77,6 +81,8 @@ class TaskPanelOpPage(PathOpGui.TaskPanelPage):
     def getFields(self, obj):
         if obj.Strategy != self.strategy.currentText():
             obj.Strategy = self.strategy.currentText()
+        if obj.FinishStyle != self.style.currentText():
+            obj.FinishStyle = self.style.currentText()
         if obj.Direction != self.direction.currentText():
             obj.Direction = self.direction.currentText()
         for prop, box in (("StepOver", self.step), ("RoughStepOver", self.rstep)):
@@ -90,6 +96,7 @@ class TaskPanelOpPage(PathOpGui.TaskPanelPage):
     def setFields(self, obj):
         self.strategy.setCurrentIndex(max(self.strategy.findText(obj.Strategy), 0))
         self.direction.setCurrentIndex(max(self.direction.findText(obj.Direction), 0))
+        self.style.setCurrentIndex(max(self.style.findText(obj.FinishStyle), 0))
         self.step.setValue(obj.StepOver)
         self.rstep.setValue(obj.RoughStepOver)
         self.down.setValue(obj.StepDown.Value)
@@ -99,6 +106,7 @@ class TaskPanelOpPage(PathOpGui.TaskPanelPage):
 
     def getSignalsForUpdate(self, obj):
         return [self.strategy.currentIndexChanged, self.direction.currentIndexChanged,
+                self.style.currentIndexChanged,
                 self.step.valueChanged, self.rstep.valueChanged, self.down.valueChanged,
                 self.allow.valueChanged, self.leave.valueChanged, self.grid.valueChanged]
 
