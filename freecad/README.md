@@ -114,8 +114,8 @@ web page, then read back the way LinuxCNC moves the joints.
   operation is changed for you.
 - **Not recommended for polar** (a warning in the Report view and the status bar, never a dialog): patterns that
   cross the face line by line (ZigZag, Line, Grid, ZigZag Offset; Face Bidirectional / Directional), with the
-  ring-shaped pattern to use instead when this FreeCAD offers one; FreeCAD's Face (it covers the stock's bounding
-  rectangle: on round stock about 40 % of its path is in the air, and its lines are slow near the centre); Adaptive,
+  ring-shaped pattern to use instead (Pocket Offset, Face Spiral, Surface Circular); FreeCAD's Face (it covers the
+  stock's bounding rectangle: on round stock about 40 % of the cleared area is air); Adaptive,
   V-carve, Slot, Deburr, Thread milling, 3D Surface, Waterline; a cut below the jaw tops (the collet nut is not
   checked); and, with *Polar C Max Velocity* set, how much slower the C axis makes the operation.
 - A polar Job whose post-processor is not `polar_linuxcnc` is warned about: Post Process would write X Y Z, not X C Z.
@@ -185,7 +185,7 @@ used; the addon only warns (see *Checked when made*):
 
 | To make | Use | Notes |
 |---|---|---|
-| The face of the stock | **Face** (FreeCAD) or a **Pocket** (Offset) on the top face | Face covers the stock's rectangle and runs in lines: warned about; a Pocket Offset follows the real stock in rings |
+| The face of the stock | **Face** (FreeCAD), pattern **Spiral**, or a **Pocket** (Offset) on the top face | Face covers the stock's rectangle (air on round stock): warned about; ZigZag / Bidirectional / Directional cross the face in lines; a Pocket Offset follows the real stock in rings |
 | A pocket | **Pocket Shape**, pattern **Offset** (the default in a polar Job) | ZigZag works but is warned against: the chuck reverses on every line |
 | A round hole | **Drilling** (any size of drill; the cycle is turned into X, C and Z moves) or **Helix** (bigger than the cutter) | a hole on the axis is ideal: only Z moves |
 | A contour | **Profile** | for teeth or slots use a cutter that fits them |
@@ -195,6 +195,7 @@ Only two things are the addon's own: **Polar Wrap** (FreeCAD has no radial route
 what holds the part, so that every operation is checked against it). Everything was run end to end in
 `tests/freecad/ops_test.py` and `tests/freecad/cut_check_test.py`.
 
-- The defaults are the Job's own *Operation defaults* (SetupSheet), set by *Machining type* (Pocket Offset; Face
-  Spiral where this FreeCAD has it); they apply to operations made after that.
+- The defaults are the Job's own *Operation defaults* (SetupSheet), set by *Machining type* (Pocket Offset, Face
+  Spiral, Surface Circular round X0 Y0); they apply to operations made after that. An older list of choices kept
+  in a Job's defaults is brought up to date first.
 - A Wrap Job greys out every operation but Polar Wrap (Post Process would refuse them).

@@ -74,6 +74,16 @@ def op_policy(doc, job):
     oad = Adaptive.Create("Adaptive", parentJob=other)
     pump(200)
     check(not obs._said.get((doc.Name, oad.Name)), "no warnings in an ordinary Job")
+    # a Job whose operation defaults hold an older choice list (Face without Spiral, as in
+    # Marios's file: "'Spiral' is not part of the enumeration ... MillFacingClearingPattern")
+    ss = other.SetupSheet
+    if not hasattr(ss, "MillFacingClearingPattern"):
+        ss.addProperty("App::PropertyEnumeration", "MillFacingClearingPattern", "Op MillFacing")
+    ss.MillFacingClearingPattern = ["ZigZag", "Bidirectional", "Directional"]
+    ops = policy.apply_defaults(other)
+    check(ss.MillFacingClearingPattern == "Spiral" and "MillFacing" in ops,
+          "older choice list in the Job's defaults: brought up to date, Face default Spiral (%s, %s)"
+          % (ss.MillFacingClearingPattern, ops))
     # XYZ and XZC never mixed up: a polar Job with an ordinary post is warned about
     plain = next((p for p in ("linuxcnc", "linuxcnc_legacy") if p in job.getEnumerationsOfProperty("PostProcessor")), None)
     if plain:

@@ -73,19 +73,20 @@ WARN_OPS = {
         "Thread milling: κάθε μικρή έλικα εκτός κέντρου κάνει το τσοκ να πηγαινοέρχεται· χαμηλή "
         "πρόωση, τρύπες μακριά από το κέντρο."),
     "Path.Op.MillFacing": (
-        "Facing covers the bounding rectangle of the stock, not the stock itself: on round stock "
-        "much of it cuts air (40 % of the path, measured). Its passes are straight lines across "
-        "the face, so it is slower than on an XY mill, most of all near the centre. A Pocket "
-        "(pattern Offset) on the top face follows the real stock.",
-        "Το Face καλύπτει το ορθογώνιο γύρω από το υλικό, όχι το ίδιο το υλικό: σε στρογγυλό "
-        "υλικό μεγάλο μέρος κόβει αέρα (40 % της διαδρομής, μετρημένο). Τα περάσματά του είναι "
-        "ευθείες γραμμές πάνω στη φάτσα, άρα πιο αργό από φρέζα XY, πιο πολύ κοντά στο κέντρο. "
-        "Ένα Pocket (μοτίβο Offset) στην πάνω επιφάνεια ακολουθεί το πραγματικό υλικό."),
+        "Face covers the bounding rectangle of the stock, not the stock itself: on round stock "
+        "much of it cuts air (about 40 % of the cleared area, measured). Pattern Spiral suits polar "
+        "best (rectangular loops inward); ZigZag, Bidirectional and Directional cross the face in "
+        "lines. A Pocket (pattern Offset) on the top face follows the real stock.",
+        "Το Face καλύπτει το ορθογώνιο γύρω από το υλικό, όχι το ίδιο το υλικό: σε στρογγυλό υλικό "
+        "μεγάλο μέρος κόβει αέρα (περίπου 40 % της επιφάνειας, μετρημένο). Το μοτίβο Spiral "
+        "ταιριάζει καλύτερα στο πολικό (ορθογώνιοι κύκλοι προς τα μέσα)· τα ZigZag, Bidirectional "
+        "και Directional διασχίζουν τη φάτσα σε γραμμές. Ένα Pocket (μοτίβο Offset) στην πάνω "
+        "επιφάνεια ακολουθεί το πραγματικό υλικό."),
     "Path.Op.MillFace": (
-        "Face (MillFace): its passes are straight lines across the face, slower than on an XY "
-        "mill, most of all near the centre. Pattern Offset or Spiral if you have it.",
-        "Face (MillFace): τα περάσματά του είναι ευθείες πάνω στη φάτσα, πιο αργό από φρέζα XY, "
-        "πιο πολύ κοντά στο κέντρο. Μοτίβο Offset ή Spiral αν υπάρχει."),
+        "Face (the older MillFace): pattern Offset suits polar; ZigZag, Line and Grid cross the "
+        "face in lines, slow near the centre.",
+        "Face (το παλαιότερο MillFace): το μοτίβο Offset ταιριάζει στο πολικό· τα ZigZag, Line και "
+        "Grid διασχίζουν τη φάτσα σε γραμμές, αργά κοντά στο κέντρο."),
     "Path.Op.Surface": (
         "3D Surface works through the polar conversion, but a 3D path has very many short moves: "
         "a big file, slow near the centre. Pattern Circular, centred on X0 Y0, suits polar best.",
@@ -225,19 +226,37 @@ def uninstall_blocking():
 
 
 # ---- defaults ------------------------------------------------------------------------------
+def _refresh_choices(sheet, registered, op, prop):
+    """The Job's operation defaults keep a choice list from when the entry was first made (an
+    older FreeCAD, or a Job template): e.g. MillFacingClearingPattern without "Spiral", though
+    the Face operation itself offers it. Bring the list up to what the operation offers now."""
+    import Path.Base.SetupSheet as SetupSheet
+    name = SetupSheet.OpPropertyName(op, prop)
+    if not hasattr(sheet, name) or "Enumeration" not in sheet.getTypeIdOfProperty(name):
+        return
+    offered = list(registered[op].prototype(op).getProperty(prop).getEnumValues() or [])
+    have = list(sheet.getEnumerationsOfProperty(name) or [])
+    if offered and offered != have:
+        current = getattr(sheet, name)
+        setattr(sheet, name, offered)
+        if current in offered:
+            setattr(sheet, name, current)
+
+
 def apply_defaults(job):
     """Polar defaults for NEW operations of this Job (the Job's own "Operation defaults")."""
     import Path.Base.SetupSheet as SetupSheet
     registered = getattr(SetupSheet, "_RegisteredOps", {})
     attrs = {op: props for op, props in DEFAULTS.items() if op in registered}
     done = []
-    for op, props in attrs.items():     # one by one: a value this FreeCAD does not offer (MillFacing
-        for prop, value in props.items():   # has no "Spiral" in some versions) skips only itself
+    for op, props in attrs.items():     # one by one: one that cannot be set skips only itself
+        for prop, value in props.items():
             try:
+                _refresh_choices(job.SetupSheet, registered, op, prop)
                 job.SetupSheet.Proxy.setFromTemplate({op: {prop: value}})
                 done.append(op)
-            except Exception:
-                pass
+            except Exception as e:
+                App.Console.PrintLog("Polar CNC: default %s %s = %s not set: %s\n" % (op, prop, value, e))
     if "Surface" in registered:     # if 3D Surface is ever used: rings round the chuck axis
         ss = job.SetupSheet
         job.SetupSheet.Proxy.setFromTemplate({"Surface": {"CutPattern": "Circular",
