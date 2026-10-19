@@ -427,14 +427,38 @@ def _round_disc(region):
     return r
 
 
-def spiral_moves(r_max, step, cw):
+def with_flat_levels(depths, part, start, final):
+    """The depths, plus the height of every flat (horizontal) face of the part between the start
+    and the final depth: equal steps down past the part top would leave a skin on it."""
+    levels = set()
+    for f in part.Faces:
+        if f.Surface.__class__.__name__ == "Plane" and f.BoundBox.ZLength < 1e-6:
+            levels.add(round(f.BoundBox.ZMin, 6))
+    out = list(depths)
+    for z in levels:
+        if final + 1e-6 < z < start - 1e-6 and all(abs(z - d) > 1e-6 for d in out):
+            out.append(z)
+    return sorted(out, reverse=True)
+
+
+def spiral_moves(r_max, step, cw, radius=None):
     """One spiral from the edge of a round stock in to the centre, `step` closer to the axis per
     turn (on the polar machine: X falling steadily while the chuck turns, one smooth move with
-    no step-in marks). Starts in the air beside the stock and goes in to the spiral."""
+    no step-in marks). Starts in the air beside the stock and goes in to the spiral. A step
+    wider than the cutter radius would leave a lip on the rim: one full turn on the edge first."""
     a = 0.0
     p_out = _pt(r_max + step + 1.0, a)
     moves = [("lift", p_out), ("line", p_out, _pt(r_max, a))]
     r, prev = r_max, _pt(r_max, a)
+    if radius is not None and step > radius:
+        turned = 0.0
+        while turned < 2 * math.pi - 1e-12:
+            da = min(0.2, 2 * math.pi - turned)
+            turned += da
+            a = a - da if cw else a + da
+            p = _pt(r, a)
+            moves.append(("line", prev, p))
+            prev = p
     while r > 1e-6:
         da = min(0.2, 2 * math.acos(max(1.0 - SPIRAL_SAG / max(r, SPIRAL_SAG), -1.0)))
         a = a - da if cw else a + da
@@ -472,7 +496,7 @@ def plan_depth(stock_face, keep_face, radius, step, leave=0.0, cw=True, speeds=N
     if spiral and keep is None:
         r_disc = _round_disc(region)
         if r_disc is not None and centre_in:
-            plan.moves = spiral_moves(r_disc, step, cw)
+            plan.moves = spiral_moves(r_disc, step, cw, radius)
             plan.start = plan.moves[0][1]
             plan.spiral = True
             return plan
@@ -547,6 +571,10 @@ def plan_depth(stock_face, keep_face, radius, step, leave=0.0, cw=True, speeds=N
         r -= step
     if not centre_in and r_min > radius * 0.5 and (not radii or radii[-1] - r_min > 1e-6):
         radii.append(r_min + EPS)
+    if centre_in and radii and radii[-1] > 1.9 * radius:
+        # a wide step: the cut into the centre reaches only a cutter radius round it, the last
+        # circle not quite down to there -> one more circle, a cutter radius out
+        radii.append(radius)
 
     pos = None              # (r, angle) of the cutter, None = up
     for r in radii:
@@ -572,7 +600,7 @@ def plan_depth(stock_face, keep_face, radius, step, leave=0.0, cw=True, speeds=N
                 emit(enter(r, start))
                 if plan.start is None:
                     plan.start = plan.moves[0][1]
-            elif full and pos[0] > r:
+            elif full and pos[0] > r and not mat.hits_part([("line", _pt(pos[0], pos[1]), _pt(r, start))]):
                 # inside the stock all round: step straight in, cutting (a stepover)
                 emit([("line", _pt(pos[0], pos[1]), _pt(r, start))])
             elif abs(pos[0] - r) > 1e-9 or travel(pos[1], start, cw) > 1e-9:
@@ -913,6 +941,8 @@ class ObjectPolarFace(PathOp.ObjectOp):
                 clearance = max(clearance, need)
         depths = PathUtils.depth_params(clearance, safe, obj.StartDepth.Value, obj.StepDown.Value,
                                         0.0, obj.FinalDepth.Value)
+        if obj.Clearing != FACE_ONLY:
+            depths = with_flat_levels(list(depths), part, obj.StartDepth.Value, obj.FinalDepth.Value)
         feed, vfeed = self.horizFeed, self.vertFeed
         air = feed * max(obj.AirFeedFactor, 1.0)
         band = None
@@ -922,6 +952,10 @@ class ObjectPolarFace(PathOp.ObjectOp):
                 Path.Log.error("Polar Face: 'Only round the part' needs a part.")
                 return
             width = obj.BandWidth.Value or BAND_AUTO * 2 * radius
+            if width < 2 * radius + 0.5:          # the cutter would not fit in the band
+                Path.Log.warning("Polar Face: Band Width %.2f mm is too narrow for the %.2f mm "
+                                 "cutter: %.2f mm is used." % (width, 2 * radius, BAND_AUTO * 2 * radius))
+                width = BAND_AUTO * 2 * radius
             band = grow(outline, width + max(obj.StockToLeave.Value, 0))
         cmds = self.commandlist
         cmds.append(Path.Command("G0", {"Z": clearance}))

@@ -1,0 +1,420 @@
+# Polar CNC — does the machine cut the right thing? (run by tests/freecad/run.sh, own start)
+#
+# An independent check of what comes out at the end: the polar program, read back the way
+# LinuxCNC moves the joints (X, C, Z), is followed point by point and the cutter's own body is
+# tested against the solid part and the chuck with FreeCAD's isInside: it may never be inside the
+# part (gouge) or a jaw. And it must not leave what it was asked to cut: Polar Face must reach the
+# part top everywhere over the part, Polar Wrap must come down to the bar all round.
+# Face: Polar Face (every clearing x every pattern, round and square stock, both chucks) and the
+# usual CAM operations (Profile, Pocket, Helix, Drilling) through the polar conversion.
+# Wrap: Polar Wrap on a bar with a groove and a flat.
+#
+# Copyright (c) 2026 Marioskiv
+# https://github.com/Marioskiv/polar-cnc-converter
+# SPDX-License-Identifier: MIT
+
+import math
+import os
+import sys
+import time
+import traceback
+
+import FreeCAD as App
+import FreeCADGui as Gui
+from PySide import QtCore
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from common import check, fails, finish, log, pump, catch_messages  # noqa: E402
+
+V = App.Vector
+SKIN = 0.02          # the cutter body is tested this far off its tip (a tip ON a floor is fine)
+MAX_SAMPLES = 2500   # cutting points tested per program (evenly spread over all of it)
+
+
+def moves(job):
+    """Joint points of the polar program as the machine runs it, each block followed in joint
+    space: [(r, c in rad, z, rapid)] every ~0.5 mm, plus the tool radius."""
+    from polarcnc import bridge, program
+    text, opts = program.polar(job)
+    d = bridge.parse(text, opts)
+    r, c, z, rapid = d["r"], d["c"], d["z"], d["rapid"]
+    pts = []
+    for i in range(1, len(r)):
+        a0, a1 = math.radians(c[i - 1]), math.radians(c[i])
+        L = math.hypot(r[i] - r[i - 1], z[i] - z[i - 1]) + abs(a1 - a0) * max(abs(r[i - 1]), abs(r[i]))
+        n = max(int(L / 0.5), 1)
+        for k in range(1, n + 1):
+            t = k / n
+            pts.append((r[i - 1] + (r[i] - r[i - 1]) * t, a0 + (a1 - a0) * t,
+                        z[i - 1] + (z[i] - z[i - 1]) * t, bool(rapid[i])))
+    tools = [x for x in d["toolD"] if x]
+    return pts, (tools[0] / 2.0 if tools else 0.0)
+
+
+def spread(pts, n=MAX_SAMPLES):
+    if len(pts) <= n:
+        return pts
+    step = len(pts) / float(n)
+    return [pts[int(k * step)] for k in range(n)]
+
+
+def first_inside(solids, probes):
+    """The first probe point inside one of the solids (only solids whose box the probes reach)."""
+    lo = [min(p[i] for p in probes) for i in range(3)]
+    hi = [max(p[i] for p in probes) for i in range(3)]
+    for s in solids:
+        bb = s.BoundBox
+        if (hi[0] < bb.XMin or lo[0] > bb.XMax or hi[1] < bb.YMin or lo[1] > bb.YMax
+                or hi[2] < bb.ZMin or lo[2] > bb.ZMax):
+            continue
+        for p in probes:
+            if s.isInside(p, 1e-4, False):
+                return p
+    return None
+
+
+def face_probes(x, y, z, R):
+    """The flat end mill standing at its tip (x, y, z): a few points of its body, just above
+    the tip and higher up, at the centre and near its rim."""
+    out = []
+    for h in (SKIN, 1.0, 6.0):
+        out.append(V(x, y, z + h))
+        for k in range(8):
+            a = k * math.pi / 4
+            for f in (0.5, 0.98):
+                out.append(V(x + f * R * math.cos(a), y + f * R * math.sin(a), z + h))
+    return out
+
+
+def wrap_probes(r, a, z, R):
+    """The router lying radially, tip at radius r: points of its body, from just outside the tip
+    outward, across its width (round the bar and along it)."""
+    d, t, k = V(math.cos(a), math.sin(a), 0), V(-math.sin(a), math.cos(a), 0), V(0, 0, 1)
+    out = []
+    for h in (SKIN, 1.0, 5.0):
+        base = d * (r + h) + V(0, 0, z)
+        out.append(base)
+        for j in range(8):
+            b = j * math.pi / 4
+            for f in (0.5, 0.98):
+                out.append(base + t * (f * R * math.cos(b)) + k * (f * R * math.sin(b)))
+    return out
+
+
+def gouges(label, pts, R, part, obstacles, wrap=False):
+    """Every cutting sample (and every rapid) against the part and the chuck."""
+    t = time.time()
+    cut = [p for p in pts if not p[3]]
+    rap = [p for p in pts if p[3]]
+    hit_part = hit_chuck = None
+    for r, a, z, _rapid in spread(cut):
+        x, y = r * math.cos(a), r * math.sin(a)
+        pr = wrap_probes(r, a, z, R) if wrap else face_probes(x, y, z, R)
+        if hit_part is None:
+            p = first_inside([part], pr)
+            if p is not None:
+                hit_part = (r, math.degrees(a), z, p)
+        if hit_chuck is None and obstacles:
+            p = first_inside(obstacles, pr)
+            if p is not None:
+                hit_chuck = (r, math.degrees(a), z, p)
+        if hit_part and (hit_chuck or not obstacles):
+            break
+    hit_rapid = None
+    for r, a, z, _rapid in spread(rap, 800):
+        x, y = r * math.cos(a), r * math.sin(a)
+        pr = wrap_probes(r, a, z, R) if wrap else face_probes(x, y, z, R)
+        p = first_inside([part] + list(obstacles), pr)
+        if p is not None:
+            hit_rapid = (r, math.degrees(a), z)
+            break
+    check(hit_part is None, "%s: the cutter never goes into the part%s" % (label, "" if hit_part is None else
+          " - IN at X %.3f C %.1f Z %.3f (point %s)" % hit_part))
+    if obstacles:
+        check(hit_chuck is None, "%s: the cutter never goes into the chuck%s" % (label, "" if hit_chuck is None
+              else " - IN at X %.3f C %.1f Z %.3f" % hit_chuck[:3]))
+    check(hit_rapid is None, "%s: no rapid through the part or the chuck%s" % (label, "" if hit_rapid is None
+          else " - at X %.3f C %.1f Z %.3f" % hit_rapid))
+    log.write("     (%d cutting, %d rapid points, %.1f s)\n" % (len(cut), len(rap), time.time() - t))
+
+
+def face_covered(label, pts, R, part, z_top):
+    """Polar Face: over the part, the top is cut down to the part top everywhere (a point counts
+    as cut when the cutter passed over it at the part top or lower)."""
+    bb = part.BoundBox
+    low = [(r * math.cos(a), r * math.sin(a)) for r, a, z, rapid in pts if not rapid and z <= z_top + 0.01]
+    if not low:
+        check(False, "%s: nothing cut at the part top" % label)
+        return
+    import numpy
+    P = numpy.array(low)
+    missed = []
+    n = 0
+    step = 1.5
+    x = bb.XMin + 0.5
+    while x < bb.XMax - 0.5:
+        y = bb.YMin + 0.5
+        while y < bb.YMax - 0.5:
+            if part.isInside(V(x, y, z_top - 0.05), 1e-4, True):
+                n += 1
+                d2 = ((P[:, 0] - x) ** 2 + (P[:, 1] - y) ** 2).min()
+                if d2 > (0.98 * R) ** 2:
+                    missed.append((round(x, 1), round(y, 1), round(math.sqrt(d2), 2)))
+            y += step
+        x += step
+    check(n > 20 and not missed, "%s: the whole part top is cut (%d points looked at%s)"
+          % (label, n, "" if not missed else ", NOT cut at %d, e.g. %s" % (len(missed), missed[:4])))
+
+
+def wrap_covered(label, pts, R, r_part, z_lo, z_hi, leave):
+    """Polar Wrap: on a plain stretch of the bar, the tip comes down to the bar all round."""
+    import numpy
+    cut = numpy.array([(r, a, z) for r, a, z, rapid in pts if not rapid])
+    worst = 0.0
+    where = None
+    z = z_lo
+    while z <= z_hi:
+        for k in range(36):
+            a = k * math.pi / 18
+            near = numpy.abs(cut[:, 2] - z) < 0.7 * R
+            da = numpy.abs((cut[:, 1] - a + math.pi) % (2 * math.pi) - math.pi) * r_part
+            sel = cut[near & (da < 0.7 * R)]
+            reach = sel[:, 0].min() if len(sel) else 1e9
+            if reach - r_part > worst:
+                worst, where = reach - r_part, (z, math.degrees(a))
+        z += 2.0
+    check(worst <= leave + 0.05, "%s: the bar is cut down to R%.1f all round (worst %.3f mm above%s)"
+          % (label, r_part, worst, "" if where is None else " at Z %.1f C %.0f" % where))
+
+
+def make_face_job(doc_name, shape, round_stock, preset):
+    import Part  # noqa: F401
+    from Path.Main import Job as PathJob
+    from Path.Main.Gui import Job as PathJobGui
+    from polarcnc import setup
+    doc = App.newDocument(doc_name)
+    part = doc.addObject("Part::Feature", "Part")
+    part.Shape = shape
+    doc.recompute()
+    job = PathJob.Create("Job", [part], None)
+    job.ViewObject.Proxy = PathJobGui.ViewProvider(job.ViewObject)
+    if round_stock:
+        from Path.Main import Stock as PathStock
+        old = job.Stock
+        job.Stock = PathStock.CreateCylinder(job, 28, 18)
+        doc.removeObject(old.Name)
+    else:
+        st = job.Stock
+        st.ExtXneg = st.ExtXpos = st.ExtYneg = st.ExtYpos = 3
+        st.ExtZneg, st.ExtZpos = 6, 2
+    tc = job.Tools.Group[0]
+    tc.HorizFeed, tc.VertFeed = "600 mm/min", "200 mm/min"
+    doc.recompute()
+    Gui.Selection.clearSelection()
+    Gui.Selection.addSelection(job)
+    Gui.runCommand("PolarCNC_MachineSettings")
+    job.PolarXMax = 125
+    job.PostProcessorArgs = "--no-show-editor"
+    doc.recompute()
+    held = setup.apply_chuck(job, preset, 5)
+    doc.recompute()
+    return doc, job, held
+
+
+def keepout(held):
+    if held is None:
+        return []
+    from polarcnc import chuck as chuckmod
+    return [s for s in chuckmod.keepout_parts(held) if not s.isNull()]
+
+
+def face_cases():
+    import Part
+    from polarcnc import polarface as pf, setup
+    cases = [
+        ("round part, round stock, 3-jaw", Part.makeCylinder(25, 15), True, setup.MY_CHUCKS[0]),
+        ("square part, square stock, 4-jaw", Part.makeBox(40, 30, 15, V(-20, -15, 0)), False, setup.MY_CHUCKS[1]),
+        ("long plate, faceplate and clamps", Part.makeBox(100, 50, 10, V(-50, -25, 0)), False, "Faceplate Ø250"),
+    ]
+    for name, shape, round_stock, preset in cases:
+        doc, job, held = make_face_job("Cut%d" % len(fails), shape, round_stock, preset)
+        part = job.Model.Group[0].Shape
+        z_top = part.BoundBox.ZMax
+        obs = keepout(held)
+        check(bool(obs), "%s: the chuck is there to check against (%d pieces)" % (name, len(obs)))
+        op = pf.Create("PolarFace", parentJob=job)
+        doc.recompute()
+        for clearing in (pf.FACE_ONLY, pf.WHOLE, pf.BAND):
+            for pattern in (pf.AUTO, pf.RINGS, pf.SPIRAL):
+                op.Clearing = clearing
+                op.Pattern = pattern
+                t = time.time()
+                doc.recompute()
+                label = "%s, %s, %s" % (name, clearing, pattern)
+                n = len(op.Path.Commands)
+                if n < 5:
+                    check(False, "%s: a path (%d commands)" % (label, n))
+                    continue
+                log.write("     %s: %d commands in %.1f s\n" % (label, n, time.time() - t))
+                try:
+                    pts, R = moves(job)
+                except Exception as e:
+                    check(False, "%s: converts to polar (%s)" % (label, e))
+                    continue
+                gouges(label, pts, R, part, obs)
+                face_covered(label, pts, R, part, z_top)
+        # settings at their edges: a wide step (the spiral must not leave a lip on the rim),
+        # a band narrower than the cutter
+        for label, props in (("StepOver 95%%", {"Clearing": pf.FACE_ONLY, "Pattern": pf.AUTO, "StepOver": 95}),
+                             ("band 2 mm", {"Clearing": pf.BAND, "Pattern": pf.AUTO, "StepOver": 40,
+                                            "BandWidth": 2.0})):
+            for k, v in props.items():
+                setattr(op, k, v)
+            doc.recompute()
+            label = "%s, %s" % (name, label.replace("%%", "%"))
+            pts, R = moves(job)
+            gouges(label, pts, R, part, obs)
+            face_covered(label, pts, R, part, z_top)
+            if "band" in label:
+                below = [p for p in pts if not p[3] and p[2] < z_top - 0.5]
+                check(len(below) > 20, "%s: a too narrow band is widened, round the part is cut (%d points)"
+                      % (label, len(below)))
+        op.BandWidth = 0
+        App.closeDocument(doc.Name)
+
+
+def usual_ops():
+    """Profile, Pocket, Helix, Drilling in a polar Job, through the polar conversion."""
+    import Part
+    from polarcnc import setup
+    shape = Part.makeCylinder(40, 12)
+    shape = shape.cut(Part.makeBox(20, 14, 5, V(8, -7, 7)))
+    shape = shape.cut(Part.makeCylinder(4, 12, V(-22, 10, 0)))
+    shape = shape.cut(Part.makeCylinder(3, 12, V(0, 0, 0)))
+    doc, job, held = make_face_job("CutOps", shape, False, setup.MY_CHUCKS[1])
+    model = job.Model.Group[0]
+    part = model.Shape
+    obs = keepout(held)
+
+    def face(test):
+        for k, f in enumerate(model.Shape.Faces, 1):
+            if test(f):
+                return "Face%d" % k
+        return None
+    floor = face(lambda f: abs(f.CenterOfMass.z - 7) < 1e-6 and f.Area < 300)
+    hole = face(lambda f: f.Surface.__class__.__name__ == "Cylinder" and abs(f.Surface.Radius - 4) < 1e-6)
+    hole_mid = face(lambda f: f.Surface.__class__.__name__ == "Cylinder" and abs(f.Surface.Radius - 3) < 1e-6)
+    made = []
+    for label, module, base, props in (
+            ("Profile", "Path.Op.Profile", [(model, ())], {}),
+            ("Pocket", "Path.Op.PocketShape", [(model, (floor,))], {"ClearingPattern": "Offset"}),
+            ("Helix", "Path.Op.Helix", [(model, (hole,))], {}),
+            ("Drill off the centre", "Path.Op.Drilling", [(model, (hole,))], {}),
+            ("Drill on the centre", "Path.Op.Drilling", [(model, (hole_mid,))], {})):
+        mod = __import__(module, fromlist=["Create"])
+        op = mod.Create(label.replace(" ", ""), parentJob=job)
+        op.Base = base
+        for k, v in props.items():
+            setattr(op, k, v)
+        made.append((label, op))
+    doc.recompute()
+    prof = made[0][1]
+    prof.setExpression("FinalDepth", None)
+    prof.FinalDepth = 1.0            # above the jaws that hold the 6 mm under the part
+    doc.recompute()
+    for label, op in made:
+        for _l, o in made:
+            o.Active = (o is op)
+        doc.recompute()
+        if len(op.Path.Commands) < 3:
+            check(False, "%s: a path" % label)
+            continue
+        try:
+            pts, R = moves(job)
+        except Exception as e:
+            check(False, "%s: converts to polar (%s)" % (label, e))
+            continue
+        if label.startswith("Drill"):
+            R = 0.0                  # a drill: only its axis (the hole is its own size)
+            pts_ok = [p for p in pts if not p[3]]
+            hole_r = 4 if "off" in label else 3
+            cx, cy = (-22, 10) if "off" in label else (0, 0)
+            off = max((math.hypot(r * math.cos(a) - cx, r * math.sin(a) - cy) for r, a, z, _ in pts_ok), default=99)
+            check(off < 1e-3, "%s: drills on the hole axis (off by %.4f mm)" % (label, off))
+            deep = min((z for _r, _a, z, _ in pts_ok), default=99)
+            check(deep < 1e-3 and hole_r, "%s: down to the hole bottom (Z %.3f)" % (label, deep))
+            continue
+        gouges(label, pts, R, part, obs)
+    App.closeDocument(doc.Name)
+
+
+def wrap_case():
+    import Part
+    from Path.Main import Job as PathJob
+    from Path.Main.Gui import Job as PathJobGui
+    from polarcnc import chuck as ch, machine, polarwrap
+    doc = App.newDocument("CutWrap")
+    bar = doc.addObject("Part::Feature", "Bar")
+    shape = Part.makeCylinder(20, 60)
+    shape = shape.cut(Part.makeCylinder(30, 7, V(0, 0, 30)).cut(Part.makeCylinder(17, 7, V(0, 0, 30))))
+    shape = shape.cut(Part.makeBox(10, 40, 10, V(16, -20, 42)))
+    bar.Shape = shape
+    doc.recompute()
+    job = PathJob.Create("Job", [bar], None)
+    job.ViewObject.Proxy = PathJobGui.ViewProvider(job.ViewObject)
+    tc = job.Tools.Group[0]
+    tc.HorizFeed, tc.VertFeed = "600 mm/min", "200 mm/min"
+    doc.recompute()
+    Gui.Selection.clearSelection()
+    Gui.Selection.addSelection(job)
+    Gui.runCommand("PolarCNC_MachineSettings")
+    job.PolarXMax = 125
+    job.PolarLayout = machine.WRAP
+    job.PolarWrapDiameter = 44
+    job.PolarWrapToolLengthInX = True
+    job.PostProcessorArgs = "--no-show-editor"
+    held = ch.make_chuck(job)
+    held.GripLength = 10
+    doc.recompute()
+    op = polarwrap.Create("PolarWrap", parentJob=job)
+    doc.recompute()
+    part = job.Model.Group[0].Shape
+    for strategy in ("Roughing + finishing",):
+        op.Strategy = strategy
+        doc.recompute()
+        label = "Wrap, %s" % strategy
+        pts, R = moves(job)
+        check(R > 0, "%s: tool radius %.2f" % (label, R))
+        gouges(label, pts, R, part, keepout(held), wrap=True)
+        leave = getattr(op, "StockToLeave", None)
+        leave = getattr(leave, "Value", leave) or 0.0
+        wrap_covered(label, pts, R, 20.0, 12.0, 27.0, leave)
+    # only From Z set by hand (To Z left at 0): it must still stop clear of the jaws
+    op.FromZ = 60
+    doc.recompute()
+    pts, R = moves(job)
+    gouges("Wrap, From Z by hand", pts, R, part, keepout(held), wrap=True)
+    App.closeDocument(doc.Name)
+
+
+def go():
+    boxes = []
+    try:
+        Gui.activateWorkbench("CAMWorkbench")
+        catch_messages(boxes)
+        for step in (face_cases, usual_ops, wrap_case):
+            try:
+                step()
+            except Exception:
+                fails.append("exception in %s" % step.__name__)
+                log.write(traceback.format_exc())
+            pump(100)
+    except Exception:
+        fails.append("exception")
+        log.write(traceback.format_exc())
+    if boxes:
+        log.write("messages: %s\n" % boxes)
+    finish()
+
+
+QtCore.QTimer.singleShot(2000, go)

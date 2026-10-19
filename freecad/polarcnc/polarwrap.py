@@ -176,9 +176,13 @@ class ObjectPolarWrap(PathOp.ObjectOp):
         z_from, z_to = obj.FromZ.Value, obj.ToZ.Value
         if abs(z_from - z_to) < 1e-9:
             z_from, z_to = zhi + radius, zlo      # past the free end by the cutter radius
-            chuck = getattr(job, "PolarChuck", None)
-            if chuck is not None and not chuck.Shape.isNull():
-                z_to = max(z_to, chuck.Shape.BoundBox.ZMax + obj.ChuckClearance.Value + radius)
+        chuck = getattr(job, "PolarChuck", None)   # set by hand too: never down into the jaws
+        if chuck is not None and not chuck.Shape.isNull():
+            clear = chuck.Shape.BoundBox.ZMax + obj.ChuckClearance.Value + radius
+            if z_to < clear - 1e-9 and abs(obj.FromZ.Value - obj.ToZ.Value) >= 1e-9:
+                Path.Log.warning("Polar Wrap: To Z %.2f is in the jaws: it stops at Z %.2f."
+                                 % (z_to, clear))
+            z_to = max(z_to, clear)
         if z_from <= z_to:
             Path.Log.error("Polar Wrap: nothing to machine between Z %.2f and %.2f (the chuck "
                            "holds the rest)." % (z_from, z_to))
