@@ -73,8 +73,9 @@ echo "wrap: $wr"
 [ "$wr" = "RESULT: PASS" ] || result="$result; wrap $wr"
 
 # the chuck from one click (the face that goes into the chuck), and every usual CAM operation in
-# a polar Job end to end (made, checked against the chuck, Post Process, simulator)
-for t in setup ops; do
+# a polar Job end to end (made, checked against the chuck, Post Process, simulator), and the cut
+# check: the final polar program followed point by point against the part and the chuck
+for t in setup ops cut_check; do
     HOME="$OUT/home" PC_OUT="$OUT/$t" PC_REPO="$REPO" xvfb-run -a -s "-screen 0 1600x1000x24" \
         "$FREECAD" "$REPO/tests/freecad/${t}_test.py" > "$OUT/freecad-$t.log" 2>&1
     grep -v "^ok" "$OUT/$t/log.txt" 2>/dev/null

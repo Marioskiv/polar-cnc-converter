@@ -1,5 +1,27 @@
 # Changelog
 
+## 2.19.1 — a cut check, and what it found
+
+### Fixed
+- **Polar Face, *All the stock* / *Only round the part*: a skin could stay on the part top.** The depths were equal
+  steps from the stock top down, and none had to land on the part top (e.g. 15.43 then 12.86 for a top at 15). Every
+  flat face of the part between the start and the final depth is now a depth of its own.
+- **Spiral with a step wider than the cutter radius** (Step Over over 50 %) left a lip on the rim: one full turn on
+  the edge first.
+- **Rings with a wide step** (over 95 %) could leave a thin ring of material round the centre: one more circle a
+  cutter radius out.
+- ***Only round the part* with a Band Width not wider than the cutter** cut nothing round the part, and said
+  nothing: the band is widened (1.5 cutter diameters) with a warning.
+- **Polar Wrap with From Z / To Z set by hand** could run down into the jaws (only the automatic range stopped above
+  them): it now always stops clear of the chuck, with a warning.
+- A step in to a full circle is checked against the part like every other step.
+
+### Added
+- **The cut check** (`tests/freecad/cut_check_test.py`): the final polar program, read back the way LinuxCNC moves
+  the joints, followed point by point with the cutter's body tested against the solid part and the chuck (never
+  inside), and what had to be cut checked as cut. Polar Face in every clearing × pattern on round stock (3-jaw),
+  square stock (4-jaw) and a long plate on a faceplate with clamps; Profile, Pocket, Helix, Drilling; Polar Wrap.
+
 ## 2.19.0 — machining type, Wrap on its own, spiral facing
 
 ### Changed

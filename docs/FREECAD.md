@@ -78,7 +78,8 @@ FREECAD=/path/to/bin/freecad sh tests/freecad/run.sh   # the addon, in a real Fr
 `simulator_test.py` (cutter position in both views, playback, everything hidden and restored, screenshots),
 `polarface_geometry_test.py` (FreeCADCmd), `polarface_test.py`, `chuck_test.py`, `wrapcut_geometry_test.py`,
 `wrap_test.py`, `setup_test.py` (the one-click chuck), `ops_test.py` (every usual operation in a polar Job, end
-to end) and `help_test.py` (popups on the toolbar, field help, error cards, both languages). Tests that
+to end), `cut_check_test.py` (the final polar program followed point by point: the cutter body never inside the
+part or the chuck, Polar Face reaches the part top everywhere, Polar Wrap comes down to the bar) and `help_test.py` (popups on the toolbar, field help, error cards, both languages). Tests that
 expect a refusal catch the error card (`common.catch_messages`) instead of letting it block.
 It makes a throw-away FreeCAD user folder with this repository linked as the PolarCNC
 addon, runs `polar_post_test.py` under `xvfb-run`, and then converts FreeCAD's own LinuxCNC output with the
@@ -113,4 +114,9 @@ Lessons carried over from other FreeCAD addon work (FreeCAD 26.3):
   `freecad/help/help.json`, en and el).
 - SAN OU K12-125 and 3-jaw 125 presets: jaw length / width (and the 3-jaw's jaw height) are scaled from catalogue
   drawings, not measured. K72-125 is measured.
-
+- From the 2.19.1 review, kept as they are (not wrong cuts): Polar Wrap roughing turns the chuck the other way on
+  every other layer (so C does not wind up; *Direction* holds for the even layers and the finish); *Finishing*
+  alone measures the depth over the whole part, also outside From Z / To Z; a ramp before a short cut may be a
+  little steeper than *Ramp Angle* (20 passes at most). A ride through the air beyond the stock's box is not
+  checked against a clamp there (the grid covers the stock): not seen in the cut check (long plate on a
+  faceplate), and Post Process refuses such a program anyway.
