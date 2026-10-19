@@ -26,6 +26,10 @@ PROPERTIES = (
      "Both sides only: how far past the centre the cutter may go (your negative X travel)."),
     ("PolarXMax", "App::PropertyLength",
      "Largest X (radius) your machine can reach: its X soft limit. Required."),
+    ("PolarCMaxVelocity", "App::PropertyFloat",
+     "Optional: the C axis top speed in degrees per second ([JOINT_n] MAX_VELOCITY of C in the "
+     "LinuxCNC .ini). With it, each operation says how much slower the C axis makes it near the "
+     "centre. 0 = not given (no estimate)."),
     ("PolarLayout", "App::PropertyEnumeration",
      "Face: the router looks at the face of the part (parallel to Z). Wrap: the router is turned to "
      "look at the outside of the part (radial); the part is drawn as it is, its axis on Z through "

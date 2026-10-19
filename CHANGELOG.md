@@ -1,5 +1,31 @@
 # Changelog
 
+## 2.20.0 — polar with FreeCAD's own operations, each one checked when it is made
+
+### Changed
+- **Polar Face is removed.** A polar Job is machined with FreeCAD's own operations (Face, Pocket, Profile,
+  Drilling, Helix…), made the way you want. Files made with Polar Face still open: such an operation keeps the
+  path it had, is not remade, and a warning says to replace it.
+- **Nothing is greyed out in a polar Job**, FreeCAD's Face included: what does not suit polar only gets a warning.
+  (A Wrap Job still offers only Polar Wrap.)
+- **Each operation is checked as soon as it is made**, alone, the way Post Process will write it: FreeCAD's
+  LinuxCNC output → the converter (X C Z) → read back as the machine moves the joints → the chuck. If it **will
+  crash** into a jaw, a clamp or the chuck body, cannot be written as polar G-code, or a Y is left, a card says so
+  and Post Process refuses the program until it is fixed. Nothing in the operation is changed.
+- Warnings in Greek or English (the help language): line-by-line patterns name the ring pattern to use only if
+  the operation offers one; FreeCAD's Face (its rectangle cuts air on round stock, its lines are slow near the
+  centre); 3D Surface, Waterline, Probe, Adaptive and the others; a cut below the jaw tops.
+- A polar Job with a post-processor other than `polar_linuxcnc` is warned about (it would write X Y Z, not X C Z).
+- New optional Job setting **Polar C Max Velocity** (deg/s, from the LinuxCNC `.ini`): with it each operation says
+  how much slower the C axis makes it near the centre.
+
+### Fixed
+- "could not set the operation defaults: 'Spiral' is not part of the enumeration": FreeCAD versions whose Face has
+  no Spiral pattern; the defaults are now set one by one and a value that is not offered is skipped.
+
+### Not changed
+- The web converter (`src/`, `lib/`, `css/`): no change since 2.17.0; the golden programs are byte for byte the same.
+
 ## 2.19.1 — a cut check, and what it found
 
 ### Fixed

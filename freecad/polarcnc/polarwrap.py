@@ -84,7 +84,7 @@ class ObjectPolarWrap(PathOp.ObjectOp):
         obj.ChuckClearance = 2.0
 
     def opExecute(self, obj):
-        from .polarface import Progress, Stopped
+        from .progress import Progress, Stopped
         progress = Progress("Polar Wrap")
         try:
             self._execute(obj, progress.tick)

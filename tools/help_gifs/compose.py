@@ -32,9 +32,8 @@ FRAME_MS = 120
 HOLD_MS = 1600               # the last frame, before it starts again
 FONT_BOLD = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 # scene -> animation file (a toolbar command's, or a field's)
-SCENES = {"machine": "machine", "chuck": "chuck", "clamp": "clamp", "polarface": "polarface",
-          "polarwrap": "polarwrap", "simulate": "simulate", "pf_clearing": "pf_clearing",
-          "pf_ramp": "pf_ramp", "wrap_strategy": "wrap_strategy"}
+SCENES = {"machine": "machine", "chuck": "chuck", "clamp": "clamp", "polarwrap": "polarwrap",
+          "simulate": "simulate", "wrap_strategy": "wrap_strategy"}
 
 
 def px(v):

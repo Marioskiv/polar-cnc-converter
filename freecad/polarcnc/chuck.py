@@ -433,6 +433,16 @@ def head_warning(chuck, path):
     top = chuck.Shape.BoundBox.ZMax
     if low is None or low >= top - 1e-6:
         return None
+    try:
+        from . import help
+        greek = help.language() == "el"
+    except Exception:
+        greek = False
+    if greek:
+        what = "τους σφιγκτήρες" if chuck.ChuckType == FACEPLATE else "τις σιαγόνες"
+        return ("κόβει μέχρι Z %.2f, %.2f mm κάτω από την κορυφή από %s (Z %.2f). Το κοπτικό "
+                "κρατάει απόσταση από αυτές, το παξιμάδι και η άτρακτος δεν ελέγχονται: το κοπτικό "
+                "πρέπει να βγαίνει από το παξιμάδι πάνω από %.1f mm." % (low, top - low, what, top, top - low))
     what = "clamps" if chuck.ChuckType == FACEPLATE else "jaws"
     return ("cuts down to Z %.2f, %.2f mm below the top of the %s (Z %.2f). The cutter keeps clear "
             "of them, the collet nut and spindle are not checked: the cutter must stick out of the "

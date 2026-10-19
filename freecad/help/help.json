@@ -5,7 +5,7 @@
    "i": "machine.gif",
    "en": {
     "t": "Machining type",
-    "d": "Chooses what the selected Job is: ordinary CAM (a 3-axis mill), polar (the chuck turns the part, the router looks at its face) or Wrap (the router turned to look at a bar). It sets the post-processor and the machine settings and greys out the operations that do not suit it. Choose ordinary to go back.",
+    "d": "Chooses what the selected Job is: ordinary CAM (a 3-axis mill), polar (the chuck turns the part, the router looks at its face) or Wrap (the router turned to look at a bar). It sets the post-processor and the machine settings. In a polar Job you use FreeCAD's own operations; each one is checked as soon as it is made (polar G-code, the chuck) and what does not suit polar gets a warning. Choose ordinary to go back.",
     "steps": [
      "Select the Job in the tree.",
      "Press Machining type.",
@@ -16,7 +16,7 @@
    },
    "el": {
     "t": "Τύπος κατεργασίας",
-    "d": "Διαλέγει τι είναι το επιλεγμένο Job: κανονική CAM (φρέζα 3 αξόνων), πολική (το τσοκ γυρίζει το κομμάτι, το router κοιτάει τη φάτσα) ή Wrap (το router γυρισμένο να κοιτάει μπάρα). Βάζει τον post-processor και τις ρυθμίσεις του μηχανήματος και γκριζάρει τις εργασίες που δεν ταιριάζουν. Με «Κανονική» γυρίζει πίσω.",
+    "d": "Διαλέγει τι είναι το επιλεγμένο Job: κανονική CAM (φρέζα 3 αξόνων), πολική (το τσοκ γυρίζει το κομμάτι, το router κοιτάει τη φάτσα) ή Wrap (το router γυρισμένο να κοιτάει μπάρα). Βάζει τον post-processor και τις ρυθμίσεις του μηχανήματος. Σε πολικό Job δουλεύεις με τις εργασίες του FreeCAD· η καθεμιά ελέγχεται μόλις γίνει (πολικό G-code, τσοκ) και ό,τι δεν ταιριάζει στο πολικό παίρνει προειδοποίηση. Με «Κανονική» γυρίζει πίσω.",
     "steps": [
      "Διάλεξε το Job στο δέντρο.",
      "Πάτα Τύπος κατεργασίας.",
@@ -30,7 +30,7 @@
    "i": "chuck.gif",
    "en": {
     "t": "Chuck",
-    "d": "One click sets the part up in the chuck: the face you clicked goes into the chuck, the part is put on the chuck axis with Z0 on the stock top, and the chuck that holds this stock is chosen (your K11-125 or K72-125). Polar Face keeps clear of the jaws and Post Process refuses a program that would hit them.",
+    "d": "One click sets the part up in the chuck: the face you clicked goes into the chuck, the part is put on the chuck axis with Z0 on the stock top, and the chuck that holds this stock is chosen (your K11-125 or K72-125). Every operation is checked against the jaws when it is made, and Post Process refuses a program that would hit them.",
     "steps": [
      "Click the face of the part that goes INTO the chuck.",
      "Press Chuck.",
@@ -41,7 +41,7 @@
    },
    "el": {
     "t": "Τσοκ",
-    "d": "Με ένα κλικ στήνει το κομμάτι στο τσοκ: η πλευρά που πάτησες μπαίνει στο τσοκ, το κομμάτι μπαίνει στον άξονα με το Z0 στην κορυφή του stock, και διαλέγεται το τσοκ που το πιάνει (το K11-125 ή το K72-125 σου). Το Polar Face κρατάει απόσταση από τις σιαγόνες και το Post Process δεν γράφει πρόγραμμα που θα τις χτυπούσε.",
+    "d": "Με ένα κλικ στήνει το κομμάτι στο τσοκ: η πλευρά που πάτησες μπαίνει στο τσοκ, το κομμάτι μπαίνει στον άξονα με το Z0 στην κορυφή του stock, και διαλέγεται το τσοκ που το πιάνει (το K11-125 ή το K72-125 σου). Κάθε κατεργασία ελέγχεται για τις σιαγόνες μόλις γίνει, και το Post Process δεν γράφει πρόγραμμα που θα τις χτυπούσε.",
     "steps": [
      "Κάνε κλικ στην πλευρά του κομματιού που ΜΠΑΙΝΕΙ στο τσοκ.",
      "Πάτα Τσοκ.",
@@ -74,31 +74,6 @@
     ],
     "w": "",
     "r": "Οι σφιγκτήρες προστατεύονται όπως οι σιαγόνες."
-   }
-  },
-  "PolarCNC_PolarFace": {
-   "i": "polarface.gif",
-   "en": {
-    "t": "Polar Face",
-    "d": "Polar facing and clearing: circles round the chuck axis, only where the stock really is (round, square, hexagon, any shape), so the cutter does not cut air. Choose: the top only, all the stock round the part (a square bar becomes round), or only a band round the part.",
-    "steps": [
-     "Select the Job.",
-     "Press Polar Face.",
-     "Choose what to cut, check the step over and press OK."
-    ],
-    "w": "X0 Y0 = the chuck axis; Z0 = the stock top, where you touch off the cutter.",
-    "r": "Circles only where the stock is: no cutting air."
-   },
-   "el": {
-    "t": "Polar Face (πλανάρισμα)",
-    "d": "Πολικό πλανάρισμα και καθάρισμα: κύκλοι γύρω από τον άξονα του τσοκ, μόνο εκεί που υπάρχει πραγματικά υλικό (στρογγυλό, τετράγωνο, εξάγωνο, οποιοδήποτε σχήμα), οπότε δεν κόβει αέρα. Διαλέγεις: μόνο τη φάτσα, όλο το υλικό γύρω από το κομμάτι (η τετράγωνη μπάρα γίνεται στρογγυλή), ή μόνο μια λωρίδα γύρω του.",
-    "steps": [
-     "Διάλεξε το Job.",
-     "Πάτα Polar Face.",
-     "Διάλεξε τι κόβει, δες το βήμα και πάτα OK."
-    ],
-    "w": "X0 Y0 = ο άξονας του τσοκ· Z0 = η πάνω επιφάνεια του stock, εκεί που μηδενίζεις το κοπτικό.",
-    "r": "Κύκλοι μόνο όπου υπάρχει υλικό: δεν κόβει αέρα."
    }
   },
   "PolarCNC_PolarWrap": {
@@ -168,56 +143,6 @@
   }
  },
  "fields": {
-  "PolarFace:StepOver": {
-   "en": {
-    "t": "Step over",
-    "d": "Distance between the circles, in % of the cutter diameter. 40-60 % is a good start; smaller = smoother face, longer time."
-   },
-   "el": {
-    "t": "Βήμα (step over)",
-    "d": "Απόσταση ανάμεσα στους κύκλους, σε % της διαμέτρου του κοπτικού. 40-60 % είναι καλή αρχή· μικρότερο = πιο λεία επιφάνεια, περισσότερος χρόνος."
-   }
-  },
-  "PolarFace:StockToLeave": {
-   "en": {
-    "t": "Stock to leave",
-    "d": "Material left round the part, for a later finishing pass. 0 = cut to the part."
-   },
-   "el": {
-    "t": "Υλικό που μένει",
-    "d": "Υλικό που αφήνεται γύρω από το κομμάτι, για επόμενο φινίρισμα. 0 = κόβει ως το κομμάτι."
-   }
-  },
-  "PolarFace:CutMode": {
-   "en": {
-    "t": "Cut mode",
-    "d": "Climb (usual on a CNC) or Conventional, for a spindle turning forward (M3)."
-   },
-   "el": {
-    "t": "Τρόπος κοπής",
-    "d": "Climb (το συνηθισμένο σε CNC) ή Conventional, για άτρακτο που γυρίζει δεξιά (M3)."
-   }
-  },
-  "PolarFace:AirFeedFactor": {
-   "en": {
-    "t": "Air feed",
-    "d": "Where the cutter goes round without touching material, it goes this many times faster than the cutting feed."
-   },
-   "el": {
-    "t": "Ταχύτητα στον αέρα",
-    "d": "Όπου το κοπτικό γυρίζει χωρίς να ακουμπάει υλικό, πηγαίνει τόσες φορές πιο γρήγορα από την ταχύτητα κοπής."
-   }
-  },
-  "PolarFace:ChuckClearance": {
-   "en": {
-    "t": "Chuck clearance",
-    "d": "How far the cutter stays from the jaws and clamps, sideways and in height."
-   },
-   "el": {
-    "t": "Απόσταση από το τσοκ",
-    "d": "Πόσο μακριά μένει το κοπτικό από τις σιαγόνες και τους σφιγκτήρες, στο πλάι και καθ' ύψος."
-   }
-  },
   "PolarWrap:Strategy": {
    "en": {
     "t": "Strategy",
@@ -410,56 +335,6 @@
     "d": "Ένα μέγεθος καταλόγου. Όλες οι διαστάσεις αλλάζουν μετά στις ιδιότητες του τσοκ· το πιο σημαντικό είναι το ύψος των σιαγόνων: μέτρησέ το στο δικό σου τσοκ."
    }
   },
-  "PolarFace:Clearing": {
-   "en": {
-    "t": "What to cut",
-    "d": "Face only: the top, down to the part top. All the stock: everything outside the part is cut away down to the final depth (a square bar becomes the round part; round stock is turned down to the part). Only round the part: a band round the part, the rest of the stock stays. The final depth goes to the part bottom, but stops above the jaws (on a faceplate: above the plate).",
-    "steps": [
-     "Face only: the top, down to the part top.",
-     "All the stock round the part: everything outside it goes.",
-     "Only round the part: a band round it, the rest stays."
-    ]
-   },
-   "el": {
-    "t": "Τι κόβει",
-    "d": "Μόνο φάτσα: η κορυφή, ως την κορυφή του κομματιού. Όλο το υλικό: ό,τι είναι έξω από το κομμάτι φεύγει ως το τελικό βάθος (μια τετράγωνη μπάρα γίνεται το στρογγυλό κομμάτι· μια στρογγυλή μπάρα κατεβαίνει στη διάμετρο του κομματιού). Μόνο γύρω από το κομμάτι: μια λωρίδα γύρω του, το υπόλοιπο υλικό μένει. Το τελικό βάθος πάει ως τον πάτο του κομματιού, αλλά σταματάει πάνω από τις σιαγόνες (σε πλατό: πάνω από το πλατό).",
-    "steps": [
-     "Μόνο φάτσα: η κορυφή, ως την κορυφή του κομματιού.",
-     "Όλο το υλικό γύρω από το κομμάτι: φεύγει ό,τι είναι έξω από αυτό.",
-     "Μόνο γύρω από το κομμάτι: μια λωρίδα γύρω του, το υπόλοιπο μένει."
-    ]
-   },
-   "i": "pf_clearing.gif"
-  },
-  "PolarFace:BandWidth": {
-   "en": {
-    "t": "Band width",
-    "d": "Only round the part: how wide the band cut round the part is. auto (0) = 1.5 cutter diameters."
-   },
-   "el": {
-    "t": "Πλάτος λωρίδας",
-    "d": "Μόνο γύρω από το κομμάτι: πόσο φαρδιά είναι η λωρίδα που κόβεται γύρω του. auto (0) = 1,5 φορές η διάμετρος του κοπτικού."
-   }
-  },
-  "PolarFace:RampAngle": {
-   "en": {
-    "t": "Ramp angle",
-    "d": "Where the cutter must go down into material, it does not plunge: it ramps down along the circle it is going to cut (the chuck turns while Z goes down), back and forth on a short cut, then back to the start at depth. 2-5° suits most end mills; 0 = straight down (needs a centre-cutting end mill).",
-    "steps": [
-     "Down along the circle it is going to cut (the chuck turns while Z goes down).",
-     "Back to the start at depth; then it cuts on."
-    ]
-   },
-   "el": {
-    "t": "Γωνία ράμπας",
-    "d": "Όπου το κοπτικό πρέπει να μπει μέσα σε υλικό, δεν βυθίζεται κάθετα: κατεβαίνει σε ράμπα πάνω στον κύκλο που θα κόψει (το τσοκ γυρίζει ενώ το Z κατεβαίνει), μπρος-πίσω αν η κοπή είναι μικρή, και μετά γυρίζει στην αρχή στο βάθος. 2-5° κάνει για τις περισσότερες φρέζες· 0 = κάθετα (θέλει φρέζα που κόβει στο κέντρο).",
-    "steps": [
-     "Κατεβαίνει πάνω στον κύκλο που θα κόψει (το τσοκ γυρίζει ενώ το Z κατεβαίνει).",
-     "Γυρίζει στην αρχή στο βάθος· μετά συνεχίζει την κοπή."
-    ]
-   },
-   "i": "pf_ramp.gif"
-  },
   "Chuck:Pick": {
    "en": {
     "t": "Chuck",
@@ -483,11 +358,11 @@
   "Settings:Kind": {
    "en": {
     "t": "Machining type",
-    "d": "Ordinary CAM: every FreeCAD operation, the usual post. Polar: the chuck turns; face with Polar Face, pockets, holes and contours with the usual Pocket, Drilling, Helix, Profile. Wrap: the router radial; the whole job with Polar Wrap."
+    "d": "Ordinary CAM: every FreeCAD operation, the usual post. Polar: the chuck turns; FreeCAD's own operations (Face, Pocket, Drilling, Helix, Profile...), each checked when it is made, with a warning for what does not suit polar. Wrap: the router radial; the whole job with Polar Wrap."
    },
    "el": {
     "t": "Τύπος κατεργασίας",
-    "d": "Κανονική CAM: όλες οι εργασίες του FreeCAD, ο κανονικός post. Πολική: γυρίζει το τσοκ· φάτσα με Polar Face, pocket, τρύπες και περιγράμματα με τα κανονικά Pocket, Drilling, Helix, Profile. Wrap: το router ακτινικά· όλη η δουλειά με το Polar Wrap."
+    "d": "Κανονική CAM: όλες οι εργασίες του FreeCAD, ο κανονικός post. Πολική: γυρίζει το τσοκ· οι κανονικές εργασίες του FreeCAD (Face, Pocket, Drilling, Helix, Profile...), η καθεμιά ελέγχεται μόλις γίνει, με προειδοποίηση για ό,τι δεν ταιριάζει στο πολικό. Wrap: το router ακτινικά· όλη η δουλειά με το Polar Wrap."
    }
   },
   "Settings:WrapXMax": {
@@ -499,30 +374,33 @@
     "t": "X Max για Wrap",
     "d": "Μόνο για Wrap: το μεγαλύτερο X του προφίλ Wrap του μηχανήματος (με το router γυρισμένο αλλάζει η διαδρομή και το μηδέν του X). 0 = ίδιο με το X Max."
    }
-  },
-  "PolarFace:Pattern": {
-   "en": {
-    "t": "Pattern",
-    "d": "Rings: circles round the chuck axis, any stock; on the machine only the chuck turns on each one. Spiral: one spiral from the edge to the centre, for the top of round stock: X falls steadily while the chuck turns, one smooth cut with no step-in marks. Auto: the spiral on round stock (face only), rings everywhere else."
-   },
-   "el": {
-    "t": "Μοτίβο",
-    "d": "Κύκλοι: κύκλοι γύρω από τον άξονα του τσοκ, για κάθε υλικό· στο μηχάνημα σε κάθε κύκλο γυρίζει μόνο το τσοκ. Σπείρα: μία σπείρα από την άκρη ως το κέντρο, για τη φάτσα στρογγυλού υλικού: το X μικραίνει σιγά-σιγά όσο γυρίζει το τσοκ, μία ομαλή κοπή χωρίς σημάδια. Αυτόματο: σπείρα σε στρογγυλό υλικό (μόνο φάτσα), κύκλοι παντού αλλού."
-   }
   }
  },
  "errors": [
   {
-   "re": "needs a part",
+   "re": "WILL CRASH|ΘΑ ΤΡΑΚΑΡΕΙ",
    "en": {
-    "t": "There is no part to cut round",
-    "why": "'Only round the part' follows the outline of the part, and the Job has none.",
-    "do": "Add the part to the Job's Model, or choose another 'What to cut'."
+    "t": "This operation will crash into the chuck",
+    "why": "Followed the way the machine moves X, C and Z, the cutter (or a rapid move) goes into a jaw, a clamp or the chuck body.",
+    "do": "Change the operation (depth, start / final depth, the faces picked), the grip length or the jaw position. Post Process will not write the program until it clears."
    },
    "el": {
-    "t": "Δεν υπάρχει κομμάτι για να κόψει γύρω του",
-    "why": "Το «Μόνο γύρω από το κομμάτι» ακολουθεί το περίγραμμα του κομματιού, και το Job δεν έχει.",
-    "do": "Βάλε το κομμάτι στο Model του Job, ή διάλεξε άλλο «Τι κόβει»."
+    "t": "Αυτή η κατεργασία θα τρακάρει στο τσοκ",
+    "why": "Ακολουθώντας το X, το C και το Z όπως θα κινηθεί η μηχανή, το κοπτικό (ή μια γρήγορη κίνηση) μπαίνει σε σιαγόνα, σφιγκτήρα ή στο σώμα του τσοκ.",
+    "do": "Άλλαξε την κατεργασία (βάθος, start / final depth, τις επιφάνειες που διάλεξες), το μήκος πιάσης ή τη θέση των σιαγόνων. Το Post Process δεν θα γράψει πρόγραμμα μέχρι να μη χτυπάει."
+   }
+  },
+  {
+   "re": "cannot be written as polar|δεν γράφεται σε πολικό|still has a Y move|έχει ακόμα κίνηση Y",
+   "en": {
+    "t": "This operation cannot become polar G-code",
+    "why": "The converter refused it (its message is below): Post Process would refuse the whole program.",
+    "do": "Fix what the message says (often X past X Max, or a cycle the converter does not take), then recompute the operation."
+   },
+   "el": {
+    "t": "Αυτή η κατεργασία δεν γίνεται πολικό G-code",
+    "why": "Ο converter την αρνήθηκε (το μήνυμά του είναι από κάτω): το Post Process θα αρνιόταν όλο το πρόγραμμα.",
+    "do": "Διόρθωσε αυτό που λέει το μήνυμα (συνήθως X πέρα από το X Max, ή κύκλος που δεν μετατρέπεται) και ξανα-υπολόγισε την κατεργασία."
    }
   },
   {
@@ -735,10 +613,6 @@
   }
  },
  "notes": {
-  "PolarFace": {
-   "en": "Circles round the chuck axis, outside in, only where the stock is (any shape). Choose what to cut: the top only, all the stock round the part, or only a band round it.",
-   "el": "Κύκλοι γύρω από τον άξονα του τσοκ, από έξω προς τα μέσα, μόνο όπου υπάρχει υλικό (οποιοδήποτε σχήμα). Διάλεξε τι κόβει: μόνο τη φάτσα, όλο το υλικό γύρω από το κομμάτι, ή μόνο μια λωρίδα γύρω του."
-  },
   "PolarWrap": {
    "en": "The part as it is (solid or STL), its axis on Z: it is unrolled automatically and machined with helices round it, from the free end toward the chuck. Set the stock diameter in the Job (Polar Wrap Diameter).",
    "el": "Το κομμάτι όπως είναι (στερεό ή STL), με τον άξονά του στον Z: ξετυλίγεται μόνο του και κόβεται σε έλικα γύρω-γύρω, από την ελεύθερη άκρη προς το τσοκ. Τη διάμετρο της μπάρας τη βάζεις στο Job (Polar Wrap Diameter)."
@@ -770,7 +644,7 @@
    "kind_face": "Polar (the chuck turns, face)",
    "kind_wrap": "Wrap (router turned, round a bar)",
    "what_normal": "Every FreeCAD operation, the usual post-processor. Nothing of Polar CNC is used.",
-   "what_face": "Face: Polar Face. Pockets, holes, contours: the usual Pocket (Offset), Drilling, Helix, Profile. FreeCAD's Facing and the 3D operations are greyed out.",
+   "what_face": "Use FreeCAD's own operations: Face, Pocket (Offset), Profile, Drilling, Helix. Each one is checked as soon as it is made: it must convert to X C Z G-code and clear the chuck. What does not suit polar (ZigZag, lines across the face...) only gets a warning; nothing is changed for you.",
    "what_wrap": "The whole job with Polar Wrap (roughing and finishing round the bar). The other operations are greyed out."
   },
   "el": {
@@ -798,7 +672,7 @@
    "kind_face": "Πολική (γυρίζει το τσοκ, φάτσα)",
    "kind_wrap": "Wrap (router γυρισμένο, γύρω από μπάρα)",
    "what_normal": "Όλες οι εργασίες του FreeCAD, ο κανονικός post-processor. Τίποτα από το Polar CNC.",
-   "what_face": "Φάτσα: Polar Face. Pocket, τρύπες, περίγραμμα: τα κανονικά Pocket (Offset), Drilling, Helix, Profile. Το Facing του FreeCAD και οι 3D εργασίες γκριζάρουν.",
+   "what_face": "Δουλεύεις με τις εργασίες του FreeCAD: Face, Pocket (Offset), Profile, Drilling, Helix. Η καθεμιά ελέγχεται μόλις γίνει: πρέπει να μετατρέπεται σε G-code X C Z και να μη χτυπάει στο τσοκ. Ό,τι δεν ταιριάζει στο πολικό (ZigZag, γραμμές πάνω στη φάτσα...) παίρνει μόνο προειδοποίηση· δεν αλλάζει τίποτα μόνο του.",
    "what_wrap": "Όλη η δουλειά με το Polar Wrap (ξεχόνδρισμα και φινίρισμα γύρω από τη μπάρα). Οι άλλες εργασίες γκριζάρουν."
   }
  }

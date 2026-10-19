@@ -3,11 +3,12 @@
 # An independent check of what comes out at the end: the polar program, read back the way
 # LinuxCNC moves the joints (X, C, Z), is followed point by point and the cutter's own body is
 # tested against the solid part and the chuck with FreeCAD's isInside: it may never be inside the
-# part (gouge) or a jaw. And it must not leave what it was asked to cut: Polar Face must reach the
-# part top everywhere over the part, Polar Wrap must come down to the bar all round.
-# Face: Polar Face (every clearing x every pattern, round and square stock, both chucks) and the
-# usual CAM operations (Profile, Pocket, Helix, Drilling) through the polar conversion.
-# Wrap: Polar Wrap on a bar with a groove and a flat.
+# part (gouge) or a jaw. And it must not leave what it was asked to cut: FreeCAD's Face must reach
+# the part top everywhere over the part, Polar Wrap must come down to the bar all round.
+# Face: FreeCAD's Face in every pattern it offers (round and square stock, both chucks; on a
+# faceplate its rectangle runs over the clamps: Polar CNC must say it will crash, and this check
+# must find the same) and the usual CAM operations (Profile, Pocket, Helix, Drilling) through the
+# polar conversion. Wrap: Polar Wrap on a bar with a groove and a flat.
 #
 # Copyright (c) 2026 Marioskiv
 # https://github.com/Marioskiv/polar-cnc-converter
@@ -139,7 +140,7 @@ def gouges(label, pts, R, part, obstacles, wrap=False):
 
 
 def face_covered(label, pts, R, part, z_top):
-    """Polar Face: over the part, the top is cut down to the part top everywhere (a point counts
+    """Facing: over the part, the top is cut down to the part top everywhere (a point counts
     as cut when the cutter passed over it at the part top or lower)."""
     bb = part.BoundBox
     low = [(r * math.cos(a), r * math.sin(a)) for r, a, z, rapid in pts if not rapid and z <= z_top + 0.01]
@@ -229,57 +230,58 @@ def keepout(held):
 
 
 def face_cases():
+    """FreeCAD's Face (MillFacing) in a polar Job, every pattern this FreeCAD offers."""
     import Part
-    from polarcnc import polarface as pf, setup
+    import Path.Op.MillFacing as MillFacing
+    from polarcnc import policy, setup
     cases = [
-        ("round part, round stock, 3-jaw", Part.makeCylinder(25, 15), True, setup.MY_CHUCKS[0]),
-        ("square part, square stock, 4-jaw", Part.makeBox(40, 30, 15, V(-20, -15, 0)), False, setup.MY_CHUCKS[1]),
-        ("long plate, faceplate and clamps", Part.makeBox(100, 50, 10, V(-50, -25, 0)), False, "Faceplate Ø250"),
+        ("round part, round stock, 3-jaw", Part.makeCylinder(25, 15), True, setup.MY_CHUCKS[0], False),
+        ("square part, square stock, 4-jaw", Part.makeBox(40, 30, 15, V(-20, -15, 0)), False, setup.MY_CHUCKS[1], False),
+        ("long plate, faceplate and clamps", Part.makeBox(100, 50, 10, V(-50, -25, 0)), False, "Faceplate Ø250", True),
     ]
-    for name, shape, round_stock, preset in cases:
+    for name, shape, round_stock, preset, crashes in cases:
         doc, job, held = make_face_job("Cut%d" % len(fails), shape, round_stock, preset)
+        if crashes:                       # four strap clamps over the plate's edges
+            from polarcnc import chuck as chuckmod
+            for a in (20, 160, 200, 340):
+                chuckmod.add_clamp(held, a)
+            doc.recompute()
         part = job.Model.Group[0].Shape
         z_top = part.BoundBox.ZMax
         obs = keepout(held)
         check(bool(obs), "%s: the chuck is there to check against (%d pieces)" % (name, len(obs)))
-        op = pf.Create("PolarFace", parentJob=job)
+        op = MillFacing.Create("MillFacing", parentJob=job)
         doc.recompute()
-        for clearing in (pf.FACE_ONLY, pf.WHOLE, pf.BAND):
-            for pattern in (pf.AUTO, pf.RINGS, pf.SPIRAL):
-                op.Clearing = clearing
-                op.Pattern = pattern
-                t = time.time()
-                doc.recompute()
-                label = "%s, %s, %s" % (name, clearing, pattern)
-                n = len(op.Path.Commands)
-                if n < 5:
-                    check(False, "%s: a path (%d commands)" % (label, n))
-                    continue
-                log.write("     %s: %d commands in %.1f s\n" % (label, n, time.time() - t))
-                try:
-                    pts, R = moves(job)
-                except Exception as e:
-                    check(False, "%s: converts to polar (%s)" % (label, e))
-                    continue
-                gouges(label, pts, R, part, obs)
-                face_covered(label, pts, R, part, z_top)
-        # settings at their edges: a wide step (the spiral must not leave a lip on the rim),
-        # a band narrower than the cutter
-        for label, props in (("StepOver 95%%", {"Clearing": pf.FACE_ONLY, "Pattern": pf.AUTO, "StepOver": 95}),
-                             ("band 2 mm", {"Clearing": pf.BAND, "Pattern": pf.AUTO, "StepOver": 40,
-                                            "BandWidth": 2.0})):
-            for k, v in props.items():
-                setattr(op, k, v)
+        for pattern in op.getEnumerationsOfProperty("ClearingPattern"):
+            op.ClearingPattern = pattern
+            t = time.time()
             doc.recompute()
-            label = "%s, %s" % (name, label.replace("%%", "%"))
-            pts, R = moves(job)
+            label = "%s, Face %s" % (name, pattern)
+            n = len(op.Path.Commands)
+            if n < 5:
+                check(False, "%s: a path (%d commands)" % (label, n))
+                continue
+            log.write("     %s: %d commands in %.1f s\n" % (label, n, time.time() - t))
+            stops, _notes = policy.check(op)
+            if crashes:
+                # its rectangle runs over the clamps: said, and found by this check too
+                check(any("WILL CRASH" in m for m in stops), "%s: Polar CNC says it will crash" % label)
+                pts, R = moves(job)
+                hit = None
+                for r, a, z, rapid in spread([p for p in pts if not p[3]]):
+                    if first_inside(obs, face_probes(r * math.cos(a), r * math.sin(a), z, R)) is not None:
+                        hit = (round(r, 2), round(math.degrees(a), 1), round(z, 2))
+                        break
+                check(hit is not None, "%s: ... and this check finds the cutter in a clamp too (%s)" % (label, hit))
+                continue
+            check(not stops, "%s: Polar CNC finds nothing wrong %s" % (label, stops[:1]))
+            try:
+                pts, R = moves(job)
+            except Exception as e:
+                check(False, "%s: converts to polar (%s)" % (label, e))
+                continue
             gouges(label, pts, R, part, obs)
             face_covered(label, pts, R, part, z_top)
-            if "band" in label:
-                below = [p for p in pts if not p[3] and p[2] < z_top - 0.5]
-                check(len(below) > 20, "%s: a too narrow band is widened, round the part is cut (%d points)"
-                      % (label, len(below)))
-        op.BandWidth = 0
         App.closeDocument(doc.Name)
 
 

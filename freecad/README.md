@@ -19,13 +19,16 @@ FreeCAD.
 
 ## Use
 
-1. Draw the part with its **face centre at X0 Y0**: that point is the chuck axis. Make the CAM Job as usual
-   (stock, tool controllers with **feeds**, operations).
+1. Draw the part with its **face centre at X0 Y0**: that point is the chuck axis. **Z0 = the stock top** (the face
+   you touch the cutter off on; the program header says where the top is if it is not at Z0). Make the CAM Job as
+   usual (stock, tool controllers with **feeds**, operations).
 2. Select the Job and click **Machining type** (first button of the *Polar CNC* toolbar in the CAM workbench).
    Choose **Ordinary CAM**, **Polar** (the chuck turns, the router looks at the face) or **Wrap** (the router turned
-   to a bar). It sets the post-processor, adds a **Polar CNC** group to the Job's properties and greys out the
-   operations that do not suit the choice. **Ordinary CAM** takes the Job back: the Polar CNC settings go and its
-   former post-processor comes back.
+   to a bar). It sets the post-processor and adds a **Polar CNC** group to the Job's properties. In a polar Job
+   you make the operations with **FreeCAD's own tools** (Face, Pocket, Profile, Drilling, Helix…): nothing is
+   greyed out and nothing is changed for you; each operation is **checked as soon as it is made** (see *Checked
+   when made* below). **Ordinary CAM** takes the Job back: the Polar CNC settings go and its former post-processor
+   comes back.
 3. The settings (dialog, or the Job's properties, group **Polar CNC**):
    - **Polar X Max**: the largest X your machine can reach (its X soft limit). Required.
    - **Polar Wrap X Max** (Wrap): the largest X of the machine's Wrap profile (the router turned has its own travel
@@ -33,6 +36,8 @@ FreeCAD.
    - **Polar Cutting Side**: one side of the centre, or both sides (then **Polar Past Centre**: how far).
    - **Polar Profile** (optional): a `.polar-profile.json` saved from the web page (rotary letter, directions,
      X as diameter, chord tolerance).
+   - **Polar C Max Velocity** (optional): the C axis top speed, degrees per second (`MAX_VELOCITY` of the C joint
+     in the LinuxCNC `.ini`). With it, each operation says how much slower it will run near the centre.
 4. **Polar simulation** (last button on the *Polar CNC* toolbar) plays the polar program — exactly what Post
    Process writes, read back the way LinuxCNC moves the axes:
    - *Machine view*: the part turns with the chuck and the cutter only moves in X and Z, as on the machine;
@@ -52,14 +57,14 @@ happens only when the G-code is written.
 - **Hover** over a button of the *Polar CNC* toolbar: a card shows what it does, a short animation recorded in
   FreeCAD, the numbered steps (the step playing in the animation is lit) and what to watch out for. The card is
   30 % of the screen wide (400–540 px); the animations are 1248 × 750, so they stay sharp on any screen.
-- In the **Polar Face** and **Polar Wrap** panels every field has a **?** button with its explanation.
+- In the **Polar Wrap** panel every field has a **?** button with its explanation.
 - When something is refused (Post Process, the simulator, a missing tool), an **error card** says what happened,
   **why**, and **what to do**, with the original message below it (button *Copy* for asking for help).
 - Language: Greek when FreeCAD is in Greek, otherwise English. The **?** button at the end of the toolbar
   (*Polar CNC help language*) chooses Greek, English, automatic, or no popups (the plain tooltips again).
 
 The texts are in `freecad/help/help.json`; the animations are made by `tools/help_gifs/record.py` (in a real
-FreeCAD at 150 % scale, with the addon's own chuck, Polar Face, Polar Wrap and simulator) and
+FreeCAD at 150 % scale, with the addon's own chuck, Polar Wrap and simulator) and
 `tools/help_gifs/compose.py` (one shared 256-colour palette, as WikiTips does). The pictures have no words, only the
 step numbers, so one animation serves every language.
 
@@ -97,52 +102,23 @@ about and Post Process refuses them). Undercuts (a groove narrower than the cutt
 only as far as the cutter fits. The web page keeps its own Wrap input: a program of the surface drawn flat, from any
 CAM.
 
-## Polar Face: facing any stock without cutting air
+## Checked when made
 
-The stock in the chuck is often not round: square or hexagon bar, a plate, a casting, held off the centre in a
-4-jaw chuck. **Polar Face** (on the *Polar CNC* toolbar) faces it from the stock top down to the part
-top (or the depths you set), at every depth only where the stock really is:
+In a polar Job every operation is checked as soon as it is made or changed (OK or Apply in its panel), alone, the
+way Post Process will write it: FreeCAD's LinuxCNC output for it, converted to **X C Z** by the same converter as the
+web page, then read back the way LinuxCNC moves the joints.
 
-- circles round the chuck axis, from the outside in, each cut only where it meets material. On a polar machine
-  such a circle is a pure turn of the chuck at constant X — its smoothest move — and the converter writes it with no
-  error; inside the largest circle that fits in the stock it is one continuous cut;
-- where a circle leaves the stock (the corners of a square) the cutter goes on round the same circle — fast where
-  it reaches nothing, at the cutting feed where it still touches material that later circles will cut — or lifts,
-  whichever is quicker. A straight move at depth is never used to link two cuts (a chord runs inside the circle,
-  where material may be). It goes down where it reaches nothing and comes into the material along the circle,
-  never by plunging into it where it can avoid it;
-- the part (everything of it at or above the depth being cut) is never touched; *Stock to leave* keeps a skin round
-  it; the last pass runs straight into the centre (X only), where no circle could keep the feed.
-
-**What to cut** (in the panel, with its **?**):
-
-| Choice | What it does | Final depth by default |
-|---|---|---|
-| *Face only* | the top of the stock, down to the part top | the part top |
-| *All the stock round the part* | everything outside the part goes: a square bar becomes the round part, a round bar is turned down to it | the part bottom, but above the jaws (+ chuck clearance); on a faceplate above the plate |
-| *Only round the part (leave the rest)* | a band of *Band width* round the part (auto = 1.5 cutter diameters); the rest of the stock stays and is kept clear like the jaws | as above |
-
-Round or square stock, any shape: the same choices. The final depth can always be typed in by hand.
-
-**Pattern:** *Rings* (circles round the chuck axis: on the machine only the chuck turns on each, any stock) or
-*Spiral* (one spiral from the edge to the centre: X falls steadily while the chuck turns, one smooth cut with no
-step-in marks; for the top of round stock). *Auto* (the default) uses the spiral where the area is one round disc
-(round stock, *Face only*) and rings everywhere else.
-
-**Into the material without plunging:** where the cutter has to go down into stock (a band closed in by material,
-the first cut of a layer), it ramps down along the cut it is about to make — on a circle the chuck turns while Z
-goes down, a helix round the axis — at *Ramp angle* (3° by default), back and forth on a short cut, then back to
-the start at depth. 0 = straight down (then use an end mill that cuts at the centre).
-
-**Where the zero is:** X0 Y0 = the chuck axis (draw the part with its centre there). Z0 = the **stock top** (the face
-you touch the cutter off on): in FreeCAD put the top of the stock at Z 0, or the program header says where the top
-is (`( Setup: … )` and a note when Z0 is not on the stock top). The chuck is placed from the stock (bottom + grip),
-so you never set it by hand.
-
-Measured (`tests/freecad/polarface_geometry_test.py`, Ø6 cutter, step 40 %): nothing left uncut, the part never
-touched, no fast move over uncut material, and compared with full circles over the whole swept circle the time is
-16–21 % shorter on round stock, 37–41 % on a square, 44–46 % on a square turned and off the centre, 33–36 % on a
-hexagon and 58–60 % on a plate off the centre.
+- **It will crash** (the cutter or a rapid move runs into a jaw, a clamp or the chuck body), **it cannot be written
+  as polar G-code** (the converter refuses it: e.g. X past X Max), or a **Y** is left in the polar output: a card
+  says so, in Greek or English, and **Post Process refuses to write the program** until it is fixed. Nothing in the
+  operation is changed for you.
+- **Not recommended for polar** (a warning in the Report view and the status bar, never a dialog): patterns that
+  cross the face line by line (ZigZag, Line, Grid, ZigZag Offset; Face Bidirectional / Directional), with the
+  ring-shaped pattern to use instead when this FreeCAD offers one; FreeCAD's Face (it covers the stock's bounding
+  rectangle: on round stock about 40 % of its path is in the air, and its lines are slow near the centre); Adaptive,
+  V-carve, Slot, Deburr, Thread milling, 3D Surface, Waterline; a cut below the jaw tops (the collet nut is not
+  checked); and, with *Polar C Max Velocity* set, how much slower the C axis makes the operation.
+- A polar Job whose post-processor is not `polar_linuxcnc` is warned about: Post Process would write X Y Z, not X C Z.
 
 ## The chuck, the 4-jaw chuck and the faceplate
 
@@ -181,8 +157,7 @@ Measure your chuck and correct them. *Grip length* is how much of the stock the 
 - **Faceplate**: select the chuck and click **Add clamp** for each clamp. Give its *Angle* (where round the plate) and
   change *Length*, *Width*, *Overlap* if you like; it reaches the stock edge by itself and follows the stock if it
   changes.
-- **Polar Face** keeps *Chuck clearance* (default 2 mm) away from jaws and clamps; the simulator shows the chuck
-  turning with the part (jaws and clamps in red).
+- The simulator shows the chuck turning with the part (jaws and clamps in red).
 
 - An operation that cuts lower than the top of the jaws (or clamps) gets a warning in the Report view and when
   posting: the cutter keeps clear of them, but the collet nut and spindle are not checked, so the cutter must stick
@@ -193,10 +168,10 @@ Measure your chuck and correct them. *Grip length* is how much of the stock the 
   the way round. Tick the chuck's **Jaws At Known Angle** only if you set C0 so that the jaws really are where the
   CAM shows them. (Square, hexagon or off-centre stock: the jaws are where they grip it.)
 - The clearance holds in height too: a cut at the jaw tops would rub them.
-- **Every operation is checked against the chuck** (Profile, Pocket, Drilling, … and their rapid moves): the
-  cutter, tip and everything above it, against the body, the jaws and the clamps. A hit is reported in the Report
-  view, and **Post Process writes no file** and names the operation, the move and the place. Post Process then
-  checks the polar program itself, as the machine moves it (a rapid curves between its end points).
+- **Every operation is checked against the chuck** (Profile, Pocket, Drilling, … and their rapid moves) when it is
+  made: the cutter, tip and everything above it, against the body, the jaws and the clamps, on the polar program as
+  the machine moves it (a rapid curves between its end points). A hit opens a card that says it will crash, and
+  **Post Process writes no file** and names the operation, the move and the place.
 
 Not done yet: the jaws' angle on the machine is not tied to C0 (see *Open items* in
 [docs/FREECAD.md](../docs/FREECAD.md)).
@@ -204,36 +179,22 @@ Not done yet: the jaws' angle on the machine is not tied to C0 (see *Open items*
 ## Which operations suit polar machining
 
 The chuck turns and the cutter only moves in X and Z. Close to the centre the chuck must turn very fast to keep
-the feed; it cannot, so the controller slows the cut there. Commercial CAM systems therefore offer 2D / 2.5D
-operations on a polar face (contour, pocket, facing, drilling) and no 3D surfacing. In a **polar Job** the addon
-does the same:
-
-| | Operations |
-|---|---|
-| **Offered** | **Polar Face** (below), Profile, Pocket (**Offset** by default), Drilling, Helix, Engrave |
-| **Offered, with a warning** | Adaptive (many direction changes of the chuck, large files: pockets away from the centre), V-carve (Z moves together with many direction changes), Slot, Deburr, Thread milling (fine away from the centre) |
-| **Greyed out** | FreeCAD's Facing (it covers the stock's bounding rectangle: on round stock 40 % of its path is in the air — use Polar Face), 3D Pocket, 3D Surface, Waterline, Planar / Rotary Surface (3D), Probe (probing is not converted) |
-
-**No special tools are needed for pockets and holes**: the usual CAM operations work in a polar Job and are
-turned into polar G-code when it is written. What to use:
+the feed; it cannot, so the controller slows the cut there. Commercial CAM systems therefore use 2D / 2.5D
+operations on a polar face (contour, pocket, facing, drilling). In a **polar Job** every FreeCAD operation can be
+used; the addon only warns (see *Checked when made*):
 
 | To make | Use | Notes |
 |---|---|---|
+| The face of the stock | **Face** (FreeCAD) or a **Pocket** (Offset) on the top face | Face covers the stock's rectangle and runs in lines: warned about; a Pocket Offset follows the real stock in rings |
 | A pocket | **Pocket Shape**, pattern **Offset** (the default in a polar Job) | ZigZag works but is warned against: the chuck reverses on every line |
 | A round hole | **Drilling** (any size of drill; the cycle is turned into X, C and Z moves) or **Helix** (bigger than the cutter) | a hole on the axis is ideal: only Z moves |
-| A contour | **Profile** | |
-| The face of the stock | **Polar Face** (not FreeCAD's Facing) | it also clears all the stock round the part, or a band round it |
+| A contour | **Profile** | for teeth or slots use a cutter that fits them |
 | The outside of a bar, router radial | **Polar Wrap** (Wrap Job) | |
 
-Only three things are the addon's own: **Polar Face** (FreeCAD's Facing works on the stock's rectangle, half of it in
-the air on round stock), **Polar Wrap** (FreeCAD has no radial router) and the **chuck** (not a tool: what holds the
-part, so that every operation is checked against it). Everything was run end to end in `tests/freecad/ops_test.py`.
+Only two things are the addon's own: **Polar Wrap** (FreeCAD has no radial router) and the **chuck** (not a tool:
+what holds the part, so that every operation is checked against it). Everything was run end to end in
+`tests/freecad/ops_test.py` and `tests/freecad/cut_check_test.py`.
 
-- The defaults are the Job's own *Operation defaults* (SetupSheet), set by *Machining type*; they apply
-  to operations made after that. Operations that were already there are checked once and reported.
-- If a pattern that crosses the face line by line is chosen (ZigZag, Line, Grid, ZigZag Offset; Facing ZigZag,
-  Bidirectional, Directional), a warning appears in the Report view and the status bar — never a dialog. The same
-  for the dressups AxisMap, Drag knife and Z correction, and for a Drilling operation set to Tapping (the converter
-  refuses tapping cycles).
-- Greying out follows the Job CAM would put a new operation in: the selected Job, the Job of the selected
-  operation, or the only Job of the document. Ordinary Jobs keep every operation.
+- The defaults are the Job's own *Operation defaults* (SetupSheet), set by *Machining type* (Pocket Offset; Face
+  Spiral where this FreeCAD has it); they apply to operations made after that.
+- A Wrap Job greys out every operation but Polar Wrap (Post Process would refuse them).

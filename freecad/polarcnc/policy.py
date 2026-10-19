@@ -1,10 +1,11 @@
-# Polar CNC — which CAM operations suit a polar Job, their polar defaults, and the warnings.
+# Polar CNC — what suits a polar Job, its polar defaults, and the checks and warnings.
 #
-# The choice follows how commercial CAM handles polar (C-axis) face milling: the machine makes the
-# Job polar, and the face is cut with 2D / 2.5D operations (contour, pocket, facing, drilling);
-# 3D surfacing is not offered. Lines and zigzags cross the face again and again, and at the
-# centre the chuck would have to turn without limit to keep the feed (it cannot, so the cut
-# crawls there), so ring-shaped patterns (Offset, Spiral) are the defaults. See freecad/README.md.
+# A polar Job is machined with FreeCAD's own operations (2.20.0: Marios wants to make them himself,
+# with nothing done automatically). Nothing is greyed out; each operation is checked when it is made
+# the way Post Process will write it (converts to X C Z, clears the chuck) and what does not suit
+# polar is warned about. Lines and zigzags cross the face again and again, and at the centre the
+# chuck would have to turn without limit to keep the feed (it cannot, so the cut crawls there), so
+# ring-shaped patterns (Offset, Spiral) are the defaults. See freecad/README.md.
 #
 # Copyright (c) 2026 Marioskiv
 # https://github.com/Marioskiv/polar-cnc-converter
@@ -17,19 +18,9 @@ import FreeCAD as App
 
 from . import machine
 
-# CAM operation commands that are greyed out while the current Job is polar:
-# command -> module that holds its Python command object (`Command`)
-BLOCKED = {
-    "CAM_Pocket3D": "Path.Op.Gui.Pocket",
-    "CAM_Surface": "Path.Op.Gui.Surface",
-    "CAM_Waterline": "Path.Op.Gui.Waterline",
-    "CAM_PlanarSurface": "Path.Op.Gui.PlanarSurface",
-    "CAM_RotarySurface": "Path.Op.Gui.RotarySurface",
-    "CAM_Probe": "Path.Op.Gui.Probe",
-    # FreeCAD's Facing covers the stock's bounding rectangle (measured on round stock: 40 % of
-    # its path in the air); a polar Job faces with Polar Face, which follows the real stock
-    "CAM_MillFacing": "Path.Op.Gui.MillFacing",
-}
+# A polar Job greys nothing out (2.20.0): every FreeCAD operation can be used, and what does not
+# suit polar is only warned about (Marios: "only warnings, nothing automatic").
+BLOCKED = {}
 
 # a Wrap Job is machined with Polar Wrap only (the router is radial): every operation that cuts a
 # flat face from above is greyed out there (Post Process would refuse it anyway)
@@ -56,37 +47,90 @@ WRAP_BLOCKED = {
     "CAM_Probe": "Path.Op.Gui.Probe",
 }
 
-# operations allowed in a polar Job with a word of warning: operation module -> reason
+# operations that work in a polar Job but call for a word of warning: module -> (English, Greek)
 WARN_OPS = {
-    "Path.Op.Adaptive": "Adaptive works, but its many short moves make the chuck change direction "
-                        "very often: big files, slower near the centre. Keep it to pockets away "
-                        "from the centre.",
-    "Path.Op.Vcarve": "V-carve moves Z together with many direction changes: fine away from the "
-                      "centre, slow and heavy close to it.",
-    "Path.Op.Slot": "Slot: a slot through the centre is ideal (only X moves); one that passes "
-                    "close to the centre makes the chuck race there.",
-    "Path.Op.Deburr": "Deburr follows the edge: fine away from the centre, slow close to it.",
-    "Path.Op.ThreadMilling": "Thread milling: each small helix off the centre makes the chuck "
-                             "swing to and fro; use a low feed, holes away from the centre.",
-    "Path.Op.MillFacing": "Facing covers the bounding rectangle of the stock, not the stock "
-                          "itself, so much of it cuts air; use Polar Face.",
+    "Path.Op.Adaptive": (
+        "Adaptive works, but its many short moves make the chuck change direction very often: "
+        "big files, slower near the centre. Keep it to pockets away from the centre.",
+        "Το Adaptive δουλεύει, αλλά οι πολλές μικρές κινήσεις του κάνουν το τσοκ να αλλάζει φορά "
+        "συνέχεια: μεγάλα αρχεία, πιο αργό κοντά στο κέντρο. Καλύτερα σε τσέπες μακριά από το κέντρο."),
+    "Path.Op.Vcarve": (
+        "V-carve moves Z together with many direction changes: fine away from the centre, slow "
+        "and heavy close to it.",
+        "Το V-carve κινεί το Z μαζί με πολλές αλλαγές φοράς: εντάξει μακριά από το κέντρο, αργό και "
+        "βαρύ κοντά του."),
+    "Path.Op.Slot": (
+        "Slot: a slot through the centre is ideal (only X moves); one that passes close to the "
+        "centre makes the chuck race there.",
+        "Slot: ένα αυλάκι που περνάει από το κέντρο είναι ιδανικό (κινείται μόνο το X)· ένα που "
+        "περνάει κοντά στο κέντρο κάνει το τσοκ να γυρίζει πολύ γρήγορα εκεί."),
+    "Path.Op.Deburr": (
+        "Deburr follows the edge: fine away from the centre, slow close to it.",
+        "Το Deburr ακολουθεί την ακμή: εντάξει μακριά από το κέντρο, αργό κοντά του."),
+    "Path.Op.ThreadMilling": (
+        "Thread milling: each small helix off the centre makes the chuck swing to and fro; use a "
+        "low feed, holes away from the centre.",
+        "Thread milling: κάθε μικρή έλικα εκτός κέντρου κάνει το τσοκ να πηγαινοέρχεται· χαμηλή "
+        "πρόωση, τρύπες μακριά από το κέντρο."),
+    "Path.Op.MillFacing": (
+        "Facing covers the bounding rectangle of the stock, not the stock itself: on round stock "
+        "much of it cuts air (40 % of the path, measured). Its passes are straight lines across "
+        "the face, so it is slower than on an XY mill, most of all near the centre. A Pocket "
+        "(pattern Offset) on the top face follows the real stock.",
+        "Το Face καλύπτει το ορθογώνιο γύρω από το υλικό, όχι το ίδιο το υλικό: σε στρογγυλό "
+        "υλικό μεγάλο μέρος κόβει αέρα (40 % της διαδρομής, μετρημένο). Τα περάσματά του είναι "
+        "ευθείες γραμμές πάνω στη φάτσα, άρα πιο αργό από φρέζα XY, πιο πολύ κοντά στο κέντρο. "
+        "Ένα Pocket (μοτίβο Offset) στην πάνω επιφάνεια ακολουθεί το πραγματικό υλικό."),
+    "Path.Op.MillFace": (
+        "Face (MillFace): its passes are straight lines across the face, slower than on an XY "
+        "mill, most of all near the centre. Pattern Offset or Spiral if you have it.",
+        "Face (MillFace): τα περάσματά του είναι ευθείες πάνω στη φάτσα, πιο αργό από φρέζα XY, "
+        "πιο πολύ κοντά στο κέντρο. Μοτίβο Offset ή Spiral αν υπάρχει."),
+    "Path.Op.Surface": (
+        "3D Surface works through the polar conversion, but a 3D path has very many short moves: "
+        "a big file, slow near the centre. Pattern Circular, centred on X0 Y0, suits polar best.",
+        "Το 3D Surface μετατρέπεται σε πολικό, αλλά μια 3D διαδρομή έχει πάρα πολλές μικρές "
+        "κινήσεις: μεγάλο αρχείο, αργό κοντά στο κέντρο. Το μοτίβο Circular με κέντρο X0 Y0 "
+        "ταιριάζει καλύτερα στο πολικό."),
+    "Path.Op.Waterline": (
+        "Waterline: many short moves round the shape; slow near the centre.",
+        "Waterline: πολλές μικρές κινήσεις γύρω από το σχήμα· αργό κοντά στο κέντρο."),
+    "Path.Op.Probe": (
+        "Probing is not converted to polar: Post Process will refuse it.",
+        "Η μέτρηση (probe) δεν μετατρέπεται σε πολικό: το Post Process θα την αρνηθεί."),
 }
-# the same (dressups have no reachable command object, so they are only warned about)
+# the same for dressups (no reachable command object, so they are only warned about)
 WARN_DRESSUPS = {
-    "Path.Dressup.AxisMap": "AxisMap wraps Y onto a rotary axis (4th axis); it does not belong in "
-                            "a polar Job, which the converter turns into X/C itself.",
-    "Path.Dressup.DragKnife": "Drag knife is for knives, not for a milling cutter on a chuck.",
-    "Path.Dressup.ZCorrect": "Z correction needs probing data; probing is not converted to polar.",
+    "Path.Dressup.AxisMap": (
+        "AxisMap wraps Y onto a rotary axis (4th axis); it does not belong in a polar Job, which "
+        "the converter turns into X/C itself.",
+        "Το AxisMap τυλίγει το Y σε περιστροφικό άξονα (4ος άξονας)· δεν ανήκει σε πολικό Job, "
+        "το μετατρέπει σε X/C ο converter μόνος του."),
+    "Path.Dressup.DragKnife": (
+        "Drag knife is for knives, not for a milling cutter on a chuck.",
+        "Το Drag knife είναι για μαχαίρια, όχι για φρέζα σε τσοκ."),
+    "Path.Dressup.ZCorrect": (
+        "Z correction needs probing data; probing is not converted to polar.",
+        "Το Z correction θέλει δεδομένα μέτρησης· η μέτρηση δεν μετατρέπεται σε πολικό."),
 }
 
-# patterns that cross the face line by line -> what to use instead
+# patterns that cross the face line by line -> the ring-shaped ones to use instead (in order of
+# preference: the first that this FreeCAD offers for the operation is named)
 BAD_PATTERNS = {
-    "ClearingPattern": {"ZigZag": "Offset", "Line": "Offset", "Grid": "Offset",
-                        "ZigZagOffset": "Offset", "Bidirectional": "Spiral",
-                        "Directional": "Spiral"},
+    "ClearingPattern": {"ZigZag": ("Offset", "Spiral"), "Line": ("Offset", "Spiral"),
+                        "Grid": ("Offset", "Spiral"), "ZigZagOffset": ("Offset", "Spiral"),
+                        "Bidirectional": ("Spiral", "Offset"), "Directional": ("Spiral", "Offset")},
+    "CutPattern": {"ZigZag": ("Circular", "Offset"), "Line": ("Circular", "Offset"),
+                   "ZigZagOffset": ("Circular", "Offset")},
 }
-PATTERN_REASON = ("crosses the face line by line: the chuck reverses on every pass and crawls at "
-                  "the centre.")
+PATTERN_REASON = (
+    "%s %s is not recommended for polar: it crosses the face line by line, so the chuck reverses "
+    "on every pass and crawls at the centre (slower, more wear).",
+    "Το %s %s δεν συνιστάται για πολικό: διασχίζει τη φάτσα γραμμή-γραμμή, οπότε το τσοκ "
+    "αλλάζει φορά σε κάθε πέρασμα και σέρνεται στο κέντρο (πιο αργό, περισσότερη φθορά).")
+PATTERN_USE = (" Use %s.", " Βάλε %s.")
+PATTERN_NONE = (" This FreeCAD has no ring-shaped pattern for it.",
+                " Αυτό το FreeCAD δεν έχει κυκλικό μοτίβο γι' αυτό.")
 
 # SetupSheet operation defaults of a polar Job (only operations CAM has registered are used)
 DEFAULTS = {
@@ -96,6 +140,7 @@ DEFAULTS = {
 }
 
 
+POLAR_POST = "polar_linuxcnc"
 LIVE_CHECK_LIMIT = 5000      # Path commands an operation may have for the live chuck check
 
 
@@ -185,7 +230,14 @@ def apply_defaults(job):
     import Path.Base.SetupSheet as SetupSheet
     registered = getattr(SetupSheet, "_RegisteredOps", {})
     attrs = {op: props for op, props in DEFAULTS.items() if op in registered}
-    job.SetupSheet.Proxy.setFromTemplate(attrs)
+    done = []
+    for op, props in attrs.items():     # one by one: a value this FreeCAD does not offer (MillFacing
+        for prop, value in props.items():   # has no "Spiral" in some versions) skips only itself
+            try:
+                job.SetupSheet.Proxy.setFromTemplate({op: {prop: value}})
+                done.append(op)
+            except Exception:
+                pass
     if "Surface" in registered:     # if 3D Surface is ever used: rings round the chuck axis
         ss = job.SetupSheet
         job.SetupSheet.Proxy.setFromTemplate({"Surface": {"CutPattern": "Circular",
@@ -193,64 +245,142 @@ def apply_defaults(job):
         if not hasattr(ss, "SurfacePatternCenterCustom"):
             ss.addProperty("App::PropertyVector", "SurfacePatternCenterCustom", "Op Surface")
         ss.SurfacePatternCenterCustom = App.Vector(0, 0, 0)
-    return sorted(attrs)
+    return sorted(set(done))
 
 
 # ---- warnings ------------------------------------------------------------------------------
+def _say(pair):
+    """The English or the Greek of a (en, el) pair, as the help language says."""
+    try:
+        from . import help
+        return pair[1] if help.language() == "el" else pair[0]
+    except Exception:
+        return pair[0]
+
+
+def _pattern_message(obj, prop, value, better):
+    offered = []
+    try:
+        offered = obj.getEnumerationsOfProperty(prop) or []
+    except Exception:
+        pass
+    use = next((b for b in better if b in offered), None)
+    text = _say(PATTERN_REASON) % (prop, value)
+    return text + (_say(PATTERN_USE) % use if use else _say(PATTERN_NONE))
+
+
 def problems(obj):
-    """What is not right for polar about this operation (empty if fine or not in a polar Job)."""
+    """What is not right for polar about this operation (empty if fine or not in a polar Job):
+    warnings, in the help language. What would make Post Process refuse it is in check()."""
     import PathScripts.PathUtils as PathUtils
+    if hasattr(obj, "PostProcessor") and hasattr(obj, "Operations"):     # the Job itself
+        post = getattr(obj, "PostProcessor", "") or ""
+        if machine.has_settings(obj) and post != POLAR_POST:
+            return [_say(("This Job is polar, but its post-processor is '%s': Post Process would "
+                          "write X Y Z G-code, not X C Z. Choose %s (or press Machining type)."
+                          % (post or "none", POLAR_POST),
+                          "Αυτό το Job είναι πολικό, αλλά ο post-processor του είναι «%s»: το Post "
+                          "Process θα έγραφε G-code X Y Z, όχι X C Z. Διάλεξε %s (ή πάτα «Τύπος "
+                          "κατεργασίας»)." % (post or "κανένας", POLAR_POST)))]
+        return []
     job = PathUtils.findParentJob(obj)
     if job is not None and machine.has_settings(job) and machine.is_wrap(job):
         if hasattr(obj, "ToolController") and \
                 type(getattr(obj, "Proxy", None)).__name__ != "ObjectPolarWrap":
-            return ["A Wrap Job is machined with Polar Wrap (the router is radial); this operation "
-                    "works on a flat face and Post Process will refuse it."]
+            return [_say(("A Wrap Job is machined with Polar Wrap (the router is radial); this "
+                          "operation works on a flat face and Post Process will refuse it.",
+                          "Ένα Wrap Job κατεργάζεται με το Polar Wrap (ο router είναι ακτινικός)· "
+                          "αυτή η κατεργασία δουλεύει σε επίπεδη φάτσα και το Post Process θα την "
+                          "αρνηθεί."))]
         return []
     if not is_polar(job):
         return []
     out = []
-    mod = type(getattr(obj, "Proxy", None)).__module__
+    proxy = getattr(obj, "Proxy", None)
+    mod = type(proxy).__module__
+    if type(proxy).__name__ == "ObjectPolarFace":
+        from . import polarface
+        out.append(_say((polarface.REMOVED, polarface.REMOVED_EL)))
     if mod in WARN_OPS:
-        out.append(WARN_OPS[mod])
+        out.append(_say(WARN_OPS[mod]))
     if mod in WARN_DRESSUPS:
-        out.append(WARN_DRESSUPS[mod])
+        out.append(_say(WARN_DRESSUPS[mod]))
     for prop, bad in BAD_PATTERNS.items():
         val = getattr(obj, prop, None)
         if val in bad:
-            out.append("%s %s %s Use %s." % (prop, val, PATTERN_REASON, bad[val]))
+            out.append(_pattern_message(obj, prop, val, bad[val]))
     if hasattr(obj, "Path") and obj in getattr(getattr(job, "Operations", None), "Group", []):
-        from . import chuck, collision
-        held = getattr(job, "PolarChuck", None)
-        # checked here (on every change) only for paths of a usual size, so a big 3D path never
-        # slows FreeCAD down while editing; Post Process checks every path anyway
-        small = len(obj.Path.Commands) <= LIVE_CHECK_LIMIT
-        msg = collision.hit_message(obj, collision.obstacles(held)) if held is not None and small else None
+        from . import chuck
+        msg = chuck.head_warning(getattr(job, "PolarChuck", None), obj.Path)
         if msg:
             out.append(msg)
-        msg = chuck.head_warning(held, obj.Path)
-        if msg:
-            out.append(msg)
-    if getattr(obj, "Proxy", None) and mod == "Path.Op.Drilling" and \
-            getattr(obj, "Strategy", "") == "Tapping":
-        out.append("Tapping is not converted to polar (the converter refuses tapping cycles).")
+    if proxy is not None and mod == "Path.Op.Drilling" and getattr(obj, "Strategy", "") == "Tapping":
+        out.append(_say(("Tapping is not converted to polar (the converter refuses tapping cycles).",
+                         "Το σπείρωμα (tapping) δεν μετατρέπεται σε πολικό (ο converter αρνείται "
+                         "τους κύκλους tapping).")))
     return out
 
 
-class Observer:
-    """Warns (Report view and status bar, never a dialog) when a polar Job gets an operation or a
-    pattern that does not suit it. Checks are deferred: CAM sets temporary values while it
-    creates an operation (e.g. ZigZag first, then the Job's default)."""
+STOP_TEXT = {
+    "chuck": ("WILL CRASH: %s Post Process will not write the program until this is fixed.",
+              "ΘΑ ΤΡΑΚΑΡΕΙ: %s Το Post Process δεν θα γράψει το πρόγραμμα μέχρι να διορθωθεί."),
+    "not converted": ("This operation cannot be written as polar (X C Z) G-code: %s",
+                      "Αυτή η κατεργασία δεν γράφεται σε πολικό (X C Z) G-code: %s"),
+    "Y in output": ("The polar output still has a Y move (it must be X, C, Z only): %s",
+                    "Το πολικό G-code έχει ακόμα κίνηση Y (πρέπει να είναι μόνο X, C, Z): %s"),
+}
+SLOWER = ("About %.0f %% slower than its programmed feed (%.1f -> %.1f min): near the centre the "
+          "C axis reaches its top speed.",
+          "Περίπου %.0f %% πιο αργή από την προγραμματισμένη πρόωση (%.1f -> %.1f λεπτά): κοντά "
+          "στο κέντρο ο C φτάνει τη μέγιστη ταχύτητά του.")
+SLOWER_LIMIT = 20.0          # % slower than programmed before it is said
+BIG = ("A big path (%d commands): not checked now, so that FreeCAD stays quick; Post Process checks it "
+       "(polar G-code and the chuck) when the program is written.",
+       "Μεγάλη διαδρομή (%d εντολές): δεν ελέγχεται τώρα, για να μένει γρήγορο το FreeCAD· το Post "
+       "Process την ελέγχει (πολικό G-code και τσοκ) όταν γράφει το πρόγραμμα.")
 
-    WATCH = ("ClearingPattern", "CutPattern", "Strategy", "Base", "Path")
+
+def check(obj):
+    """(stops, notes) for an operation of a polar Job, checked alone the way Post Process will
+    write it: stops (crash into the chuck, not convertible, Y left) stop Post Process; notes are
+    warnings. Large paths (over LIVE_CHECK_LIMIT commands) are left to Post Process."""
+    import PathScripts.PathUtils as PathUtils
+    job = PathUtils.findParentJob(obj)
+    if not is_polar(job) or not hasattr(obj, "Path") or not hasattr(obj, "ToolController") or \
+            obj not in getattr(getattr(job, "Operations", None), "Group", []) or \
+            not getattr(obj, "Active", True) or len(obj.Path.Commands) < 2:
+        return [], []
+    if len(obj.Path.Commands) > LIVE_CHECK_LIMIT:
+        return [], [_say(BIG) % len(obj.Path.Commands)]
+    from . import program
+    raw_stops, raw_notes = program.check_operation(job, obj)
+    stops = [_say(STOP_TEXT[kind]) % text for kind, text in raw_stops]
+    notes = []
+    for note in raw_notes:
+        if note[0] == "slower" and note[1] > SLOWER_LIMIT:
+            notes.append(_say(SLOWER) % (note[1], note[2] / 60.0, note[3] / 60.0))
+    return stops, notes
+
+
+class Observer:
+    """Checks an operation of a polar Job when it is made or changed. Warnings (patterns, slow
+    near the centre...) go to the Report view and the status bar. What would crash or cannot be
+    written as polar G-code opens a card, once; Post Process then refuses the program until it is
+    fixed. Nothing is changed in the operation. Checks are deferred: CAM sets temporary values
+    while it creates an operation (e.g. ZigZag first, then the Job's default)."""
+
+    WATCH = ("ClearingPattern", "CutPattern", "Strategy", "Base", "Path", "Active", "PostProcessor")
 
     def __init__(self):
         self._said = {}
+        self._stopped = {}
         self._pending = set()
 
     def _later(self, obj):
         try:
             name, doc = obj.Name, obj.Document.Name
+            if "Restore" in obj.State or getattr(obj.Document, "Restoring", False):
+                return                       # a file being opened: nothing pops up
         except Exception:
             return
         if (doc, name) in self._pending:
@@ -266,8 +396,14 @@ class Observer:
             obj = d.getObject(name) if d else None
             if obj is None or "Restore" in obj.State:
                 return
-            msgs = problems(obj)
             key = (doc, name)
+            msgs = problems(obj)
+            stops, notes = [], []
+            try:
+                stops, notes = check(obj)
+            except Exception as e:
+                App.Console.PrintLog("Polar CNC check (%s): %s\n" % (obj.Label, e))
+            msgs = msgs + notes
             if msgs and self._said.get(key) != msgs:
                 self._said[key] = msgs
                 for m in msgs:
@@ -280,6 +416,17 @@ class Observer:
                     pass
             elif not msgs:
                 self._said.pop(key, None)
+            if stops and self._stopped.get(key) != stops:
+                self._stopped[key] = stops
+                for m in stops:
+                    App.Console.PrintError("Polar CNC (%s): %s\n" % (obj.Label, m))
+                from . import help
+                help.error_card("%s\n\n%s" % (obj.Label, "\n\n".join(stops)),
+                                "Polar CNC — %s" % obj.Label)
+            elif not stops and key in self._stopped:
+                del self._stopped[key]
+                App.Console.PrintMessage("Polar CNC (%s): OK now, it converts to polar G-code and "
+                                         "clears the chuck.\n" % obj.Label)
         except Exception:
             pass
 
@@ -290,6 +437,10 @@ class Observer:
         try:
             if prop in self.WATCH or prop == "Group":
                 self._later(obj)
+            if prop in ("PolarXMax", "PolarCuttingSide", "PolarPastCentre", "PolarProfile",
+                        "PolarCMaxVelocity", "PolarLayout") and hasattr(obj, "Operations"):
+                for op in getattr(obj.Operations, "Group", []):      # the Job's machine changed
+                    self._later(op)
             if prop == "Shape" and obj.TypeId == "Part::FeaturePython":
                 self._chuck_changed(obj)
             elif prop in ("Stock", "PolarLayout", "PolarWrapDiameter") and \

@@ -3,9 +3,10 @@
 # Set-ups: round stock in a 3-jaw SC-10, square stock in a 4-jaw chuck (jaws on the flats),
 # off-centre square in a 3-jaw (must be refused with a note), a square and a rectangle in the
 # SAN OU K12-125 4-jaw self-centring chuck (the rectangle refused; held by the K72-125), a plate on a faceplate with three
-# clamps. Checks: presets fill the sizes, the jaws meet the stock where they should, Polar Face cut
-# below the top of the jaws keeps the chuck clearance from every jaw and clamp, and screenshots
-# of the simulator with the real chuck.
+# clamps. Checks: presets fill the sizes, the jaws meet the stock where they should, every
+# operation is checked against the jaws and clamps when it is made (a cut or a rapid into a jaw
+# says it will crash, and Post Process refuses it), and screenshots of the simulator with the real
+# chuck.
 #
 # Copyright (c) 2026 Marioskiv
 # https://github.com/Marioskiv/polar-cnc-converter
@@ -54,48 +55,14 @@ def job_for(doc, part_shape, stock_shape):
     return job
 
 
-def polar_face(job, final):
-    from polarcnc import polarface_gui
-    polarface_gui.register()
-    cmd = polarface_gui.Command()
-    cmd.res.job = job
-    op = polarface_gui.create(cmd.res)
-    for _ in range(50):                  # the task panel opens on a later event-loop turn
-        pump(100)
-        if Gui.Control.activeTaskDialog() is not None:
-            break
-    Gui.Control.activeTaskDialog().accept()
-    pump(200)
-    op.setExpression("FinalDepth", None)
-    op.FinalDepth = final
-    op.recompute()
+def custom(job, label, gcode):
+    """A Custom operation with this G-code (a cut where the test wants it)."""
+    import Path.Op.Custom as Custom
+    op = Custom.Create(label, parentJob=job)
+    op.Source = "Text"
+    op.Gcode = gcode
     job.Document.recompute()
     return op
-
-
-def min_clearance(op, chuck, z_top):
-    """Smallest distance from the cutter (radius R, its tip and everything above it) to the
-    jaws/clamps, over all cutting points below z_top (the jaw tops + the clearance: a cut just
-    above the jaws must keep clear of them too)."""
-    import Part
-    R = op.ToolController.Tool.Diameter.Value / 2
-    obst = chuck.Shape
-    worst = 1e9
-    x = y = None
-    for c in op.Path.Commands:
-        p = c.Parameters
-        x, y, z = p.get("X", x), p.get("Y", y), p.get("Z", None)
-        if z is not None:
-            zc = z
-        if x is None or c.Name == "G0" or zc >= z_top:
-            continue
-        v = Part.Vertex(App.Vector(x, y, zc + 0.01))
-        d = v.distToShape(obst)[0] - R
-        if d < worst:
-            worst = d
-            min_clearance.where = (c.Name, round(x, 2), round(y, 2), round(zc, 2))
-    log.write("   closest: %s\n" % (getattr(min_clearance, "where", None),))
-    return worst
 
 
 def shot(name):
@@ -122,34 +89,10 @@ def go():
         check(any("closed on the stock at 30.00, 30.00, 30.00" in n for n in c.Notes), "A: %s" % c.Notes)
         jaw_top = c.Shape.BoundBox.ZMax
         check(abs(jaw_top - 10) < 1e-6, "A: jaw tops at stock bottom + grip = 10 (%.2f)" % jaw_top)
-        op = polar_face(job, 6)
-        gap = min_clearance(op, c, jaw_top + op.ChuckClearance.Value)  # also just above the jaw tops
-        check(gap >= op.ChuckClearance.Value - 0.05, "A: Polar Face keeps %.2f mm from the jaws (needs %.1f)"
-              % (gap, op.ChuckClearance.Value))
-        # round stock: the jaws may sit anywhere round it, so they are kept clear as a ring -
-        # nothing is cut beside them at all below their tops
-        def arcs(o):
-            return [(round(x.Parameters.get("X", 0), 2), round(x.Parameters.get("Y", 0), 2))
-                    for x in o.Path.Commands if x.Name in ("G2", "G3")]
-        low = [math.hypot(x.Parameters["X"], x.Parameters["Y"]) for x in op.Path.Commands
-               if x.Name in ("G1", "G2", "G3") and "X" in x.Parameters and x.Parameters.get("Z", 99) < 10 + 2]
-        check(low and max(low) <= 30 - 2 - 2.5 + 0.05,
-              "A: round stock, jaws as a ring: below the jaw tops nothing is cut past r %.2f" % max(low or [0]))
-        ringed = arcs(op)
-        c.FirstJawAngle = 45
-        doc.recompute()
-        check(arcs(op) == ringed, "A: round stock: turning the jaws changes nothing (they are a ring)")
-        # with C0 set to the jaws, they are where the CAM shows them: the path follows them
-        c.JawsAtKnownAngle = True
-        doc.recompute()
-        before = arcs(op)
-        c.FirstJawAngle = 0
-        doc.recompute()
-        gap = min_clearance(op, c, c.Shape.BoundBox.ZMax + op.ChuckClearance.Value)
-        check(op.PolarChuck == c and arcs(op) != before and gap >= op.ChuckClearance.Value - 0.05,
-              "A: jaws at a known angle, turned -> Polar Face made again by itself, keeps %.2f mm" % gap)
-        c.JawsAtKnownAngle = False
-        doc.recompute()
+        # a cut 4 mm below the jaw tops, well inside the jaws: clear of them, but the collet nut
+        # above the cutter is not checked -> a reminder
+        op = custom(job, "Inside", ["G0 X0 Y0 Z30", "G1 Z6 F100", "G1 X10 F300", "G0 Z30"])
+        check(not policy.check(op)[0], "A: a cut inside the jaws clears them: %s" % policy.check(op)[0][:1])
         warn = [m for m in policy.problems(op) if "below the top of the jaws" in m]
         check(len(warn) == 1 and "4.00 mm below" in warn[0], "A: warns about the collet nut: %s" % warn)
         import Path
@@ -164,26 +107,22 @@ def go():
         c.GripLength, c.FirstJawAngle = 10, 0
         doc.recompute()
         check(any("closed on the stock at 25.00, 25.00, 25.00, 25.00" in n for n in c.Notes), "B: %s" % c.Notes)
-        op = polar_face(job, 6)
-        gap = min_clearance(op, c, c.Shape.BoundBox.ZMax + op.ChuckClearance.Value)
-        check(gap >= op.ChuckClearance.Value - 0.05, "B: keeps %.2f mm from the jaws" % gap)
-        # the collision check of every operation: Polar Face is clear, a cut onto a jaw and a
-        # rapid into a jaw are found, and Post Process writes no file
-        from polarcnc import collision
-        obs = collision.obstacles(c)
-        res = collision.check(obs, op.Path, collision.tool_radius(op))
-        check(res is not None and res["clearance"] >= op.ChuckClearance.Value - 0.05,
-              "B: collision check agrees: Polar Face keeps %.2f mm" % (res or {}).get("clearance", -1))
+        # every operation is checked when it is made, the way the machine moves X, C and Z: one
+        # clear of the jaws passes, a cut onto a jaw and a rapid into a jaw say they will crash,
+        # and Post Process writes no file
+        op = custom(job, "Clear", ["G0 X0 Y0 Z30", "G1 Z6 F100", "G1 X12 F300", "G0 Z30"])
+        check(not policy.check(op)[0], "B: a cut clear of the jaws passes: %s" % policy.check(op)[0][:1])
         import Path.Op.Custom as Custom
         bad = Custom.Create("OntoJaw", parentJob=job)
         bad.Source = "Text"
         bad.Gcode = ["G0 X40 Y0 Z30", "G1 Z5 F100", "G0 Z30"]
         doc.recompute()
-        msgs = [m for m in policy.problems(bad) if "runs into" in m]
-        check(len(msgs) == 1 and "The cut runs into the jaw" in msgs[0], "B: cut onto a jaw found: %s" % msgs)
+        msgs = policy.check(bad)[0]
+        check(len(msgs) == 1 and "WILL CRASH" in msgs[0] and "The cut runs into the jaw" in msgs[0],
+              "B: cut onto a jaw found: %s" % msgs)
         bad.Gcode = ["G0 X40 Y0 Z30", "G0 Z5", "G0 Z30"]
         doc.recompute()
-        msgs = [m for m in policy.problems(bad) if "runs into" in m]
+        msgs = policy.check(bad)[0]
         check(len(msgs) == 1 and "A rapid move runs into" in msgs[0], "B: rapid into a jaw found: %s" % msgs)
         from Path.Post.Processor import PostProcessorFactory
         job.PostProcessorArgs = "--no-show-editor"
@@ -222,9 +161,8 @@ def go():
         check(c.ChuckType == ch.FOUR_JAW_SC and abs(c.JawHeight.Value - 26) < 1e-9,
               "E: SAN OU K12-125 preset, jaws 26 mm above the face")
         check(any("closed on the stock at 20.00, 20.00, 20.00, 20.00" in n for n in c.Notes), "E: %s" % c.Notes)
-        op = polar_face(job, 6)
-        gap = min_clearance(op, c, 10 + op.ChuckClearance.Value)
-        check(gap >= op.ChuckClearance.Value - 0.05, "E: keeps %.2f mm from the jaws" % gap)
+        op = custom(job, "Inside", ["G0 X0 Y0 Z30", "G1 Z6 F100", "G1 X10 F300", "G0 Z30"])
+        check(not policy.check(op)[0], "E: a cut inside the jaws clears them: %s" % policy.check(op)[0][:1])
         App.closeDocument(doc.Name)
         doc = App.newDocument("ChuckE2")
         job = job_for(doc, Part.makeCylinder(8, 15), Part.makeBox(50, 30, 20, App.Vector(-25, -15, 0)))
@@ -318,10 +256,14 @@ def go():
               "D: turned to 270, the clamp reaches the stock edge (radius %.2f)" % clamps[2].Radius.Value)
         clamps[2].Angle = 240
         doc.recompute()
-        op = polar_face(job, 15)
-        gap = min_clearance(op, c, c.Shape.BoundBox.ZMax + op.ChuckClearance.Value)
-        check(gap >= op.ChuckClearance.Value - 0.05, "D: keeps %.2f mm from the clamps" % gap)
-        check(len([x for x in op.Path.Commands if x.Name in ("G2", "G3")]) > 10, "D: still faces the plate")
+        op = custom(job, "OnPlate", ["G0 X0 Y0 Z30", "G1 Z19 F100", "G1 X20 F300", "G0 Z30"])
+        check(not policy.check(op)[0], "D: a cut on the plate clears the clamps: %s" % policy.check(op)[0][:1])
+        far = custom(job, "IntoClamp", ["G0 X0 Y0 Z30", "G1 Z19 F100", "G1 X60 F300", "G0 Z30"])
+        msgs = policy.check(far)[0]
+        check(len(msgs) == 1 and "WILL CRASH" in msgs[0] and "clamp" in msgs[0],
+              "D: a cut out over a clamp will crash: %s" % msgs)
+        doc.removeObject(far.Name)
+        doc.recompute()
         try:
             for o in (job, c, clamps[0], op):
                 o.OutListRecursive
