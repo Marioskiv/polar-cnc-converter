@@ -132,3 +132,53 @@ def polar(job):
         wrap_tool_length_check(job, text)
         text = unroll(text, opts["wrapRadius"])
     return bridge.convert(text, opts), opts
+
+
+
+def check_operation(job, op):
+    """One operation of a polar (face) Job alone, the way Post Process will write it: FreeCAD's
+    LinuxCNC output for it, converted to X/C/Z by the converter, then read back as the machine
+    runs it and checked against the chuck. Returns (stops, notes): stops are what Post Process
+    will refuse (it does not convert, it runs into the chuck, a Y is left in the polar output);
+    notes are for information (e.g. the time the C axis adds). Raises nothing."""
+    import re
+    from . import collision
+    stops, notes = [], []
+    tc = getattr(op, "ToolController", None)
+    objs = ([tc] if tc is not None else []) + [op]
+    try:
+        opts = machine.options(job)
+        text = cartesian(objs, getattr(job, "PostProcessorArgs", ""))
+        polar = bridge.convert(text, opts)
+    except Exception as e:
+        stops.append(("not converted", str(e)))
+        return stops, notes
+    # XYZ and XZC are never mixed: a polar program moves X, C and Z only
+    for line in polar.splitlines():
+        code = line.split("(")[0].split(";")[0].upper()
+        if re.search(r"\bY\s*[-+]?\d", code) and re.search(r"\bG\s*0*[0123]\b", code):
+            stops.append(("Y in output", line.strip()))
+            break
+    try:
+        data = bridge.parse(polar, opts)
+    except Exception as e:
+        stops.append(("not converted", str(e)))
+        return stops, notes
+    held = getattr(job, "PolarChuck", None)
+    if held is not None and not held.Shape.isNull():
+        msg = collision.polar_hits(collision.obstacles(held), data, collision.tool_radius(op))
+        if msg:
+            stops.append(("chuck", msg))
+    vmax = getattr(job, "PolarCMaxVelocity", 0) or 0
+    vmax = getattr(vmax, "Value", vmax)
+    if vmax > 0:
+        nominal = sum(d for d, rapid in zip(data["dur"][1:], data["rapid"][1:]) if not rapid)
+        real = 0.0
+        for i in range(1, len(data["dur"])):
+            if data["rapid"][i]:
+                continue
+            dc = abs(data["c"][i] - data["c"][i - 1])
+            real += max(data["dur"][i], dc / vmax)
+        if nominal > 0:
+            notes.append(("slower", (real - nominal) / nominal * 100.0, nominal, real))
+    return stops, notes

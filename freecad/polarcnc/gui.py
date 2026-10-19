@@ -37,8 +37,10 @@ class MachineSettingsCommand:
             "MenuText": "Machining type",
             "ToolTip": "The machining type of the selected CAM Job: ordinary CAM, polar (the chuck "
                        "turns, the router looks at the face) or Wrap (the router turned to the "
-                       "bar). Sets the post-processor and the machine settings; the unsuitable "
-                       "operations are greyed out. Choose ordinary to go back.",
+                       "bar). Sets the post-processor and the machine settings. A polar Job is "
+                       "machined with FreeCAD's own operations: each one is checked when it is "
+                       "made (polar G-code, the chuck) and what does not suit polar is warned "
+                       "about. Choose ordinary to go back.",
         }
 
     def IsActive(self):
@@ -125,28 +127,6 @@ class SimulateCommand:
         job = policy.current_job()
         if job is not None and machine.has_settings(job):
             simulator.open_for(job)
-
-
-class PolarFaceCommand:
-    """Polar Face (the CAM modules are loaded only when it is used)."""
-
-    def GetResources(self):
-        return {"Pixmap": os.path.join(os.path.dirname(HERE), "Resources", "PolarFace.svg"),
-                "MenuText": "Polar Face",
-                "ToolTip": "Polar Face: facing for a polar Job that cuts only where the stock "
-                           "is (round, square, hexagon, any shape): circles round the chuck "
-                           "axis, outside in, linked without cutting air."}
-
-    def IsActive(self):
-        try:
-            return policy.is_polar(policy.current_job())
-        except Exception:
-            return False
-
-    def Activated(self):
-        from . import polarface_gui
-        polarface_gui.register()
-        return polarface_gui.Command().Activated()
 
 
 class PolarWrapCommand:
@@ -341,9 +321,11 @@ def _ensure_toolbar():
         grp.SetString("Name", "Polar CNC")
         grp.SetBool("Active", True)
     for cmd in ("PolarCNC_MachineSettings", "PolarCNC_Chuck", "PolarCNC_Clamp",
-                "PolarCNC_PolarFace", "PolarCNC_PolarWrap", "PolarCNC_Simulate", "PolarCNC_Help"):
+                "PolarCNC_PolarWrap", "PolarCNC_Simulate", "PolarCNC_Help"):
         if not grp.GetString(cmd, ""):
             grp.SetString(cmd, "PolarCNC")
+    if grp.GetString("PolarCNC_PolarFace", ""):       # removed in 2.20.0
+        grp.RemString("PolarCNC_PolarFace")
 
 
 def register_post():
@@ -360,8 +342,7 @@ def _on_workbench(name):
     if name == "CAMWorkbench":
         try:
             policy.install_blocking()
-            from . import polarface_gui, polarwrap_gui
-            polarface_gui.register()
+            from . import polarwrap_gui
             polarwrap_gui.register()
         except Exception as e:
             App.Console.PrintError("Polar CNC: %s\n" % e)
@@ -376,7 +357,6 @@ def install():
     register_post()
     Gui.addCommand("PolarCNC_MachineSettings", MachineSettingsCommand())
     Gui.addCommand("PolarCNC_Simulate", SimulateCommand())
-    Gui.addCommand("PolarCNC_PolarFace", PolarFaceCommand())
     Gui.addCommand("PolarCNC_PolarWrap", PolarWrapCommand())
     Gui.addCommand("PolarCNC_Chuck", ChuckCommand())
     Gui.addCommand("PolarCNC_Clamp", ClampCommand())

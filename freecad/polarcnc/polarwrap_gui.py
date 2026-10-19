@@ -8,10 +8,11 @@ import os
 
 import Path.Base.SetupSheet as PathSetupSheet
 import Path.Op.Gui.Base as PathOpGui
+import Path.Op.Gui.Selection as PathSelection
 import PathScripts.PathUtils as PathUtils
 from PySide import QtGui
 
-from . import help, polarface_gui, polarwrap
+from . import help, polarwrap
 
 NAME = "PolarWrap"          # also the key of its defaults in the Job's SetupSheet
 ICON = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
@@ -106,7 +107,10 @@ class TaskPanelOpPage(PathOpGui.TaskPanelPage):
         return []
 
 
-class ViewProvider(polarface_gui.ViewProvider):
+class ViewProvider(PathOpGui.ViewProvider):
+    """CAM's view provider, with our icon and a selection mode (CAM's own table of operations
+    does not know this one)."""
+
     def __init__(self, vobj, resources):
         super().__init__(vobj, resources)
         self.OpIcon = ICON
@@ -115,6 +119,9 @@ class ViewProvider(polarface_gui.ViewProvider):
         if getattr(self.Object, "Active", True):
             return ICON
         return ":/icons/CAM_OpActive.svg"
+
+    def getSelectionFactory(self):
+        return PathSelection.pocketselect
 
 
 class Command:

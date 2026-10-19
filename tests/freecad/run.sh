@@ -33,20 +33,7 @@ sim=$(cat "$OUT/sim/result.txt" 2>/dev/null || echo "RESULT: no result (see $OUT
 echo "simulator: $sim"
 [ "$sim" = "RESULT: PASS" ] || result="$result; simulator $sim"
 
-# Polar Face: its geometry without the GUI (FreeCADCmd), then in the GUI with square stock
 CMD=$(dirname "$FREECAD")/freecadcmd
-HOME="$OUT/home" PC_OUT="$OUT/pfgeo" PC_REPO="$REPO" "$CMD" "$REPO/tests/freecad/polarface_geometry_test.py" \
-    > "$OUT/freecad-pfgeo.log" 2>&1
-cat "$OUT/pfgeo/log.txt" 2>/dev/null
-pfgeo=$(cat "$OUT/pfgeo/result.txt" 2>/dev/null || echo "RESULT: no result (see $OUT/freecad-pfgeo.log)")
-echo "polar face geometry: $pfgeo"
-[ "$pfgeo" = "RESULT: PASS" ] || result="$result; polar face geometry $pfgeo"
-HOME="$OUT/home" PC_OUT="$OUT/pf" PC_REPO="$REPO" xvfb-run -a -s "-screen 0 1600x1000x24" \
-    "$FREECAD" "$REPO/tests/freecad/polarface_test.py" > "$OUT/freecad-pf.log" 2>&1
-cat "$OUT/pf/log.txt" 2>/dev/null
-pfr=$(cat "$OUT/pf/result.txt" 2>/dev/null || echo "RESULT: no result (see $OUT/freecad-pf.log)")
-echo "polar face: $pfr"
-[ "$pfr" = "RESULT: PASS" ] || result="$result; polar face $pfr"
 
 # the chuck, 4-jaw chuck and faceplate with clamps
 HOME="$OUT/home" PC_OUT="$OUT/ch" PC_REPO="$REPO" xvfb-run -a -s "-screen 0 1600x1000x24" \
@@ -75,7 +62,7 @@ echo "wrap: $wr"
 # the chuck from one click (the face that goes into the chuck), and every usual CAM operation in
 # a polar Job end to end (made, checked against the chuck, Post Process, simulator), and the cut
 # check: the final polar program followed point by point against the part and the chuck
-for t in setup ops cut_check; do
+for t in setup ops cut_check old_file; do
     HOME="$OUT/home" PC_OUT="$OUT/$t" PC_REPO="$REPO" xvfb-run -a -s "-screen 0 1600x1000x24" \
         "$FREECAD" "$REPO/tests/freecad/${t}_test.py" > "$OUT/freecad-$t.log" 2>&1
     grep -v "^ok" "$OUT/$t/log.txt" 2>/dev/null

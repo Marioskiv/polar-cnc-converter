@@ -32,22 +32,23 @@ def op_policy(doc, job):
     # a second, ordinary Job in the same document
     other = PathJob.Create("Ordinary", [doc.getObject("Disk")], None)
     doc.recompute()
-    blocked = [n for n in policy.BLOCKED if n in Gui.listCommands()]
-    check("CAM_Pocket3D" in blocked, "blocked commands present in this FreeCAD: %s" % blocked)
+    # 2.20.0: nothing is greyed out in a polar Job (only warnings); the Wrap Job still is
+    free = [n for n in ("CAM_Pocket3D", "CAM_Surface", "CAM_MillFacing", "CAM_Waterline")
+            if n in Gui.listCommands()]
+    check("CAM_MillFacing" in free, "FreeCAD's Facing exists in this FreeCAD: %s" % free)
 
     def active(sel):
         Gui.Selection.clearSelection()
         Gui.Selection.addSelection(sel)
         policy._cache[0] = 0.0
-        return {n: Gui.Command.get(n).isActive() for n in blocked + ["CAM_Profile", "CAM_Adaptive"]}
+        return {n: Gui.Command.get(n).isActive() for n in free + ["CAM_Profile", "CAM_Adaptive"]}
 
     a = active(job)
-    check(not any(a[n] for n in blocked), "polar Job selected: 3D/probe greyed out %s" % a)
-    check(a["CAM_Profile"] and a["CAM_Adaptive"], "polar Job: Profile and Adaptive stay active")
+    check(all(a.values()), "polar Job selected: nothing greyed out %s" % a)
     a = active(job.Operations.Group[0])
-    check(not any(a[n] for n in blocked), "an operation of the polar Job selected: greyed out")
+    check(all(a.values()), "an operation of the polar Job selected: nothing greyed out %s" % a)
     a = active(other)
-    check(all(a[n] for n in blocked), "ordinary Job selected: everything active %s" % a)
+    check(all(a.values()), "ordinary Job selected: everything active %s" % a)
 
     # defaults and warnings for new operations of the polar Job
     obs = policy._observer[0]
@@ -61,8 +62,8 @@ def op_policy(doc, job):
     check(pocket.ClearingPattern == "Offset", "polar Job: new Pocket is Offset (%s)" % pocket.ClearingPattern)
     check(ofacing.ClearingPattern == "ZigZag", "ordinary Job keeps FreeCAD's default (%s)"
           % ofacing.ClearingPattern)
-    check(any("Polar Face" in m for m in obs._said.get((doc.Name, face.Name)) or []),
-          "FreeCAD's Facing in a polar Job -> warning pointing to Polar Face")
+    check(any("bounding rectangle" in m for m in obs._said.get((doc.Name, face.Name)) or []),
+          "FreeCAD's Facing in a polar Job -> a warning (air on round stock, slow near the centre)")
     pocket.ClearingPattern = "ZigZag"
     pump(200)
     said = obs._said.get((doc.Name, pocket.Name)) or []
@@ -73,6 +74,26 @@ def op_policy(doc, job):
     oad = Adaptive.Create("Adaptive", parentJob=other)
     pump(200)
     check(not obs._said.get((doc.Name, oad.Name)), "no warnings in an ordinary Job")
+    # a Job whose operation defaults hold an older choice list (Face without Spiral, as in
+    # Marios's file: "'Spiral' is not part of the enumeration ... MillFacingClearingPattern")
+    ss = other.SetupSheet
+    if not hasattr(ss, "MillFacingClearingPattern"):
+        ss.addProperty("App::PropertyEnumeration", "MillFacingClearingPattern", "Op MillFacing")
+    ss.MillFacingClearingPattern = ["ZigZag", "Bidirectional", "Directional"]
+    ops = policy.apply_defaults(other)
+    check(ss.MillFacingClearingPattern == "Spiral" and "MillFacing" in ops,
+          "older choice list in the Job's defaults: brought up to date, Face default Spiral (%s, %s)"
+          % (ss.MillFacingClearingPattern, ops))
+    # XYZ and XZC never mixed up: a polar Job with an ordinary post is warned about
+    plain = next((p for p in ("linuxcnc", "linuxcnc_legacy") if p in job.getEnumerationsOfProperty("PostProcessor")), None)
+    if plain:
+        job.PostProcessor = plain
+        pump(200)
+        said = obs._said.get((doc.Name, job.Name)) or []
+        check(any("X Y Z" in m for m in said), "polar Job with the %s post -> warning: %s" % (plain, said))
+        job.PostProcessor = "polar_linuxcnc"
+        pump(200)
+        check(not obs._said.get((doc.Name, job.Name)), "back to polar_linuxcnc: no warning")
 
 
 def go():
@@ -149,7 +170,7 @@ def go():
                 got = "refused: %s" % e
             same += got == want
         check(same == len(G["outputs"]), "golden %d/%d identical in FreeCAD" % (same, len(G["outputs"])))
-        # 5. a polar Job: unsuitable operations greyed out, polar defaults, warnings
+        # 5. a polar Job: nothing greyed out, polar defaults, warnings
         op_policy(doc, job)
     except Exception:
         log.write(traceback.format_exc())

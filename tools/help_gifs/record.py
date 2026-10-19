@@ -7,7 +7,7 @@
 # Writes <HELP_OUT>/<scene>/NNN.png (the 3D view) and frames.json: for every frame the step it
 # belongs to (1, 2, 3 = the numbered steps of the popup; 0 = the result) and whether the
 # toolbar button is shown pressed. compose.py then adds the button card and the captions.
-# Everything shown is made by the addon itself (chuck, clamps, Polar Face, Polar Wrap, the
+# Everything shown is made by the addon itself (chuck, clamps, Polar Wrap, the
 # simulator), on small example parts.
 #
 # Copyright (c) 2026 Marioskiv
@@ -389,42 +389,6 @@ def scene_clamp(doc):
     orbit(0, 14, 50.0)
 
 
-def scene_polarface(doc):
-    """Square stock round a round part: Polar Face cuts circles only where the stock is."""
-    import Part
-    job, part = polar_job(doc, Part.makeCylinder(15, 10).fuse(Part.makeCylinder(6, 15)), stock=(10, 5))
-    make_polar(job)
-    from polarcnc import chuck
-    held = chuck.make_chuck(job)
-    held.GripLength = 4
-    doc.recompute()
-    stock = job.Stock
-    steel(stock, (0.80, 0.62, 0.30), 55)
-    steel(part, (0.35, 0.55, 0.85))
-    only(doc, [stock, part])
-    copy = show_copy(doc, held)
-    iso(1.0)
-    frame(1, n=4)
-    Gui.Selection.addSelection(job.Stock)
-    frame(1, n=6)
-    Gui.Selection.clearSelection()
-    from polarcnc import polarface_gui
-    polarface_gui.register()
-    cmd = polarface_gui.Command()
-    cmd.res.job = job
-    frame(2, pressed=True, n=6)
-    op = polarface_gui.create(cmd.res)
-    pump(500)
-    Gui.Control.activeTaskDialog().accept()
-    pump(300)
-    doc.recompute()
-    only(doc, [stock, part, copy, op])
-    frame(3, n=10)
-    panel = open_simulator(job, part_view=True)
-    play(panel, 0, 34, 0.0, 1.0)
-    panel.reject()
-
-
 def scene_polarwrap(doc):
     """A bar with a groove and a flat: the Wrap Job, Polar Wrap, the helices on the machine."""
     import Part
@@ -500,7 +464,7 @@ def scene_simulate(doc):
 
 
 ICONS = {"machine": "PolarCNC.svg", "chuck": "PolarChuck.svg", "clamp": "PolarClamp.svg",
-         "polarface": "PolarFace.svg", "polarwrap": "PolarWrap.svg", "simulate": "PolarSimulate.svg"}
+         "polarwrap": "PolarWrap.svg", "simulate": "PolarSimulate.svg"}
 # field animations have no button card
 
 
@@ -513,104 +477,6 @@ def save_icon():
                         "freecad", "Resources", ICONS[SCENE])
     icon = QtGui.QIcon(path)
     icon.pixmap(QtCore.QSize(96, 96)).save(os.path.join(OUT, "icon.png"))
-
-
-def scene_pf_clearing(doc):
-    """What Polar Face cuts: 1 the top only, 2 all the stock round the part, 3 a band round it."""
-    import Part
-    from polarcnc import polarface as pf, polarface_gui
-    job, part = polar_job(doc, Part.makeCylinder(18, 16).fuse(Part.makeBox(10, 10, 20, App.Vector(-5, -5, 0))),
-                          stock=(12, 3))
-    job.Stock.ExtZneg = 6
-    make_polar(job)
-    from polarcnc import setup
-    held = setup.apply_chuck(job, setup.MY_CHUCKS[1], 6)
-    polarface_gui.register()
-    cmd = polarface_gui.Command()
-    cmd.res.job = job
-    op = polarface_gui.create(cmd.res)
-    pump(500)
-    Gui.Control.activeTaskDialog().accept()
-    pump(300)
-    for step, mode in ((1, pf.FACE_ONLY), (2, pf.WHOLE), (3, pf.BAND)):
-        op.Clearing = mode
-        op.BandWidth = 6
-        doc.recompute()
-        sim = Sim(job, chuck=False)
-        sim.play(step, 14, 0.0, 1.0)
-        frame(step, n=6)
-        sim.close()
-
-
-def scene_pf_ramp(doc):
-    """Into the material without plunging: the cutter ramps down along its circle (1), then goes
-    back to the start at depth (2) and cuts on."""
-    import Part
-    from polarcnc import polarface as pf, polarface_gui, setup
-    job, part = polar_job(doc, Part.makeCylinder(15, 14), stock=(10, 3))
-    job.Stock.ExtZneg = 6
-    make_polar(job)
-    setup.apply_chuck(job, setup.MY_CHUCKS[1], 6)
-    polarface_gui.register()
-    cmd = polarface_gui.Command()
-    cmd.res.job = job
-    op = polarface_gui.create(cmd.res)
-    pump(500)
-    Gui.Control.activeTaskDialog().accept()
-    pump(300)
-    op.Clearing = pf.BAND
-    op.BandWidth = 6
-    op.StepDown = 3
-    op.RampAngle = 6
-    doc.recompute()
-    # the first ramp: the run of G1 moves that go down while they move sideways
-    pts, z_prev, ramp, back = [], None, [], []
-    x = y = z = None
-    for c in op.Path.Commands:
-        p = c.Parameters
-        nx, ny, nz = p.get("X", x), p.get("Y", y), p.get("Z", z)
-        if c.Name == "G1" and x is not None and z is not None and nz < z - 1e-6 and \
-                math.hypot(nx - x, ny - y) > 1e-6:
-            ramp.append(App.Vector(nx, ny, nz))
-        elif ramp and c.Name == "G1" and abs(nz - z) < 1e-9 and math.hypot(nx - x, ny - y) > 1e-6:
-            back.append(App.Vector(nx, ny, nz))
-        elif ramp and c.Name in ("G2", "G3", "G0"):
-            break
-        x, y, z = nx, ny, nz
-    ramp = [App.Vector(ramp[0].x, ramp[0].y, ramp[0].z + 0.5)] + ramp if ramp else ramp
-    region = Part.makeCompound([Part.Vertex(p) for p in ramp + back]).BoundBox
-    fit_to(doc, Part.makeBox(max(region.XLength, 1) + 24, max(region.YLength, 1) + 24, region.ZLength + 16,
-                             App.Vector(region.XMin - 12, region.YMin - 12, region.ZMin - 8)), 1.25)
-    steel(job.Stock, (0.80, 0.62, 0.30), 75)
-    steel(part, (0.35, 0.55, 0.85))
-    only(doc, [job.Stock, part])
-    r = op.ToolController.Tool.Diameter.Value / 2
-    tool = doc.addObject("Part::Feature", "Cutter")
-    tool.Shape = Part.makeCylinder(r, 30)
-    steel(tool, (0.30, 0.33, 0.38))
-    trail = doc.addObject("Part::Feature", "Trail")
-    steel(trail, (0.94, 0.45, 0.10))
-
-    def tube(points, r=0.35):
-        """The path so far as a thin tube (a plain line is too thin to see at this size)."""
-        parts = []
-        for a, b in zip(points, points[1:]):
-            d = b - a
-            if d.Length > 1e-6:
-                parts.append(Part.makeCylinder(r, d.Length, a, d))
-        return Part.makeCompound(parts)
-    for step, pts in ((1, ramp), (2, back)):
-        n = len(pts)
-        idx = [int(round(k * (n - 1) / 13.0)) for k in range(14)] if n > 14 else list(range(n))
-        for i in idx:
-            q = pts[i]
-            tool.Placement = App.Placement(App.Vector(q.x, q.y, q.z), App.Rotation())
-            done = (ramp if step == 1 else ramp + back)[: (i + 1) if step == 1 else len(ramp) + i + 1]
-            if len(done) > 1:
-                trail.Shape = tube(done)
-            doc.recompute()
-            frame(step)
-    frame(0, n=8)
 
 
 def scene_wrap_strategy(doc):

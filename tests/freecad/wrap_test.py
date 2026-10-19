@@ -65,8 +65,8 @@ def go():
         policy._cache[0] = 0.0
         check(not policy.is_polar(job), "a Wrap Job is not a face Job (no greying out)")
         check(Gui.Command.get("PolarCNC_PolarWrap").isActive() and Gui.Command.get("PolarCNC_Chuck").isActive()
-              and not Gui.Command.get("PolarCNC_PolarFace").isActive(),
-              "Wrap Job: Polar Wrap and Chuck offered, Polar Face not")
+              and Gui.Command.get("PolarCNC_PolarFace") is None,
+              "Wrap Job: Polar Wrap and Chuck offered (Polar Face is gone)")
 
         boxes = []
         catch_messages(boxes)

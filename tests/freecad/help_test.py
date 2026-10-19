@@ -54,7 +54,7 @@ def contents():
         check(all(err.get(l, {}).get(k) for l in ("el", "en") for k in ("t", "why", "do")),
               "error card '%s' complete in both languages" % err["re"])
     # every field the panels ask for has help
-    for gui, op in (("polarface_gui.py", "PolarFace"), ("polarwrap_gui.py", "PolarWrap")):
+    for gui, op in (("polarwrap_gui.py", "PolarWrap"),):
         with open(os.path.join(REPO, "freecad", "polarcnc", gui), encoding="utf-8") as f:
             keys = re.findall(r'add_row\(lay, "([^"]+)"', f.read())
         check(keys and all(k in d["fields"] for k in keys), "%s: help for every field %s" % (gui, keys))
@@ -66,7 +66,7 @@ def run():
     Gui.activateWorkbench("CAMWorkbench")
     pump(800)
     count = help.install_toolbar()
-    check(count == 7, "hover help on the 7 Polar CNC toolbar buttons (%d)" % count)
+    check(count == 6, "hover help on the 6 Polar CNC toolbar buttons (%d)" % count)
     check(help.install_toolbar() == count, "installing again changes nothing")
 
     bars = [b for b in Gui.getMainWindow().findChildren(QtGui.QToolBar) if b.windowTitle() == "Polar CNC"]
@@ -123,7 +123,7 @@ def run():
 
     # off: the plain tooltip again, no popup
     help.set_setting("off")
-    button = buttons["PolarCNC_PolarFace"]
+    button = buttons["PolarCNC_PolarWrap"]
     QtGui.QApplication.sendEvent(button, QtCore.QEvent(QtCore.QEvent.Enter))
     pump(help.DELAY_MS + 300)
     check(help._POPUP is None, "off: no popup")
@@ -155,10 +155,10 @@ def run():
     box.deleteLater()
 
     # a field with an animation: its picture is sharp at the popup size and the steps light in turn
-    q = help.help_button("PolarFace:Clearing")
+    q = help.help_button("PolarWrap:Strategy")
     q.show()
     pump(100)
-    pop = help.show_popup(q, entry=help.field("PolarFace:Clearing"), key="PolarFace:Clearing")
+    pop = help.show_popup(q, entry=help.field("PolarWrap:Strategy"), key="PolarWrap:Strategy")
     lit = set()
     for _ in range(60):
         pump(150)
@@ -168,7 +168,7 @@ def run():
     pic = pop.findChild(QtGui.QLabel, "animation")
     check(pic is not None and pic.pixmap() is not None and not pic.pixmap().isNull(), "field animation drawn")
     check(help.WIDTH_MIN <= pop.width() <= help.WIDTH_MAX, "popup %d px wide" % pop.width())
-    grab(pop, "field_clearing_el.png")
+    grab(pop, "field_strategy_el.png")
     help.hide_popup()
     q.deleteLater()
 

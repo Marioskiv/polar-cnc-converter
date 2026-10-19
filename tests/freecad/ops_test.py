@@ -102,24 +102,34 @@ def run():
         make("Adaptive", "Path.Op.Adaptive", [(model, (floor,))])
     except ImportError:
         log.write("Adaptive not in this FreeCAD: skipped\n")
-    from polarcnc import polarface as pf
-    face_op = make("PolarFace", "polarcnc.polarface", None)
+    face_op = make("Facing", "Path.Op.MillFacing", None)     # FreeCAD's own Face, on the stock
 
     # the warnings: ZigZag is not for polar, Adaptive is said to be heavy
     said = [m for op in made for m in policy.problems(op)]
     check(zz is not None and any("ZigZag" in m for m in policy.problems(zz)), "ZigZag pocket -> warning: %s" % policy.problems(zz) if zz else "")
     log.write("warnings: %s\n" % said)
+    check(face_op is not None and any("bounding rectangle" in m for m in policy.problems(face_op)),
+          "FreeCAD's Face in a polar Job -> a warning, not refused")
 
-    # greyed out in a polar Job, offered in an ordinary one
+    # each operation checked when it is made, alone, the way Post Process writes it: the Profile
+    # down to the part bottom runs into the jaws -> a card that says it will crash; the others
+    # convert to X C Z with no Y and clear the chuck
+    pump(500)
+    stops, _notes = policy.check(prof)
+    check(any("WILL CRASH" in m for m in stops), "Profile into the jaws -> will crash: %s" % stops[:1])
+    check(any("WILL CRASH" in b for b in boxes), "... and a card said so when it was made (%d cards)" % len(boxes))
+    for op in made:
+        if op is not prof:
+            st, _n = policy.check(op)
+            check(not st, "%s: converts to X C Z and clears the chuck %s" % (op.Label, st[:1]))
+
+    # nothing greyed out in a polar Job (only warnings)
     policy._cache[0] = 0.0
     Gui.Selection.clearSelection()
     Gui.Selection.addSelection(job)
     pump(200)
-    for name in ("CAM_MillFacing", "CAM_Surface", "CAM_Waterline", "CAM_Pocket3D"):
-        cmd = Gui.Command.get(name)
-        if cmd is not None:
-            check(not cmd.isActive(), "%s greyed out in a polar Job" % name)
-    for name in ("CAM_Profile", "CAM_Pocket_Shape", "CAM_Helix", "CAM_Drilling"):
+    for name in ("CAM_MillFacing", "CAM_Surface", "CAM_Waterline", "CAM_Pocket3D", "CAM_Profile",
+                 "CAM_Pocket_Shape", "CAM_Helix", "CAM_Drilling"):
         cmd = Gui.Command.get(name)
         if cmd is not None:
             check(cmd.isActive(), "%s offered in a polar Job" % name)
@@ -139,19 +149,6 @@ def run():
     policy._cache[0] = 0.0
     pump(200)
     check(Gui.Command.get("CAM_Profile").isActive(), "back to polar: Profile offered again")
-
-    # every clearing of Polar Face, with the chuck
-    for mode in (pf.FACE_ONLY, pf.WHOLE, pf.BAND):
-        if face_op is None:
-            break
-        face_op.Clearing = mode
-        t = time.time()
-        doc.recompute()
-        check(len(face_op.Path.Commands) > 10 and time.time() - t < 30,
-              "Polar Face '%s': %d commands in %.1f s" % (mode, len(face_op.Path.Commands), time.time() - t))
-    if face_op is not None:
-        face_op.Clearing = pf.FACE_ONLY
-        doc.recompute()
 
     # each operation alone, then all together, through Post Process and the simulator
     for op in made:
