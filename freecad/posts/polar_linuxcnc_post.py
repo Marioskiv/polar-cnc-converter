@@ -86,6 +86,12 @@ def _polar_program(job, objectslist, argstring):
             if msg:
                 FreeCAD.Console.PrintWarning("Polar CNC (%s): %s\n" % (o.Label, msg))
 
+    # every cutter must start the spindle: without a speed FreeCAD writes no M3
+    spindle = program.spindle_problems(ops)
+    if spindle:
+        raise _Refused("a cutter would go in with the spindle stopped.\n" + "\n".join(spindle) +
+                       "\nSet Spindle Speed (and direction Forward) in its Tool Controller.")
+
     # the milling program, without its editor (it is not what goes to the machine)
     cartesian = program.cartesian(objectslist, argstring)
     if wrap:                # the real part's paths, unrolled for the wrap layout
@@ -118,7 +124,10 @@ def _polar_program(job, objectslist, argstring):
             msg = collision.polar_hits(collision.obstacles(held), data, radius, radii=radii)
         if msg:
             raise _Refused("the program runs into the chuck.\n" + msg)
-    return polar
+    # after the checks: the park before each tool change (machine coordinates), the spindle off
+    if getattr(job, "PolarToolChangePark", True):
+        polar = program.tool_change_park(polar, opts)
+    return program.spindle_off_at_end(polar)
 
 
 def _with_setup_notes(polar, job, wrap, held):

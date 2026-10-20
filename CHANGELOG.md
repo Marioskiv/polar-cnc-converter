@@ -1,5 +1,28 @@
 # Changelog
 
+## 2.22.0 — Tool change by hand: park position, spindle always started
+
+### Added
+- **Park before every tool change** (FreeCAD Post Process, Job property *Polar Tool Change Park*, on by default).
+  Polar: `G53 G0 Z0` (Z to where Home All parks it, away from the part), then `G53 G0 X0`. Wrap: `G0 X<X max>`
+  (away from the bar) first, then `G53 G0 Z0`. C does not move. `G53` goes to the machine position whatever the
+  tool length offset (checked in LinuxCNC 2.9 `interp_find.cc`). For machines with machine Z0 at the chuck end the
+  property must be unticked.
+- `M5` before the program end when the spindle was left on.
+
+### Changed
+- **A Tool Controller without a spindle speed (or with direction None) is refused** by Post Process: FreeCAD writes
+  no `M3 S` for it, and after `M6` (LinuxCNC stops the spindle) the cutter would go in with the spindle stopped.
+  Error card in Greek and English.
+
+### Fixed (comments and the simulation only: no change to the G-code of the web converter)
+- `examples/linuxcnc-vismach-xzc-lathe/polarlathe-sim.ini`: X synced with the real `.ini` of 2026-10-19
+  (`HOME_OFFSET` -24.039, limits -22.039 … 108.961); the Z comment said machine Z0 is at the chuck end — since
+  2026-10-04 the machine is homed like a mill and machine Z0 is the park at the tailstock end.
+- The same outdated sentence in `src/core/gcode-input.js` and `docs/TECHNICAL.md`; the G28 error message now says
+  "on some lathe conversions the chuck end of Z".
+- `profiles/example-lathe-xzc-one-side`, the example README and `tools/linuxcnc-compare.js`: X max 108.961.
+
 ## 2.21.0 — Wrap with several cutters, and what each cutter leaves
 
 ### Added

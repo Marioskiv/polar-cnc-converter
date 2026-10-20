@@ -134,6 +134,67 @@ def polar(job):
     return bridge.convert(text, opts), opts
 
 
+def spindle_problems(ops):
+    """Plain words for every tool controller that would start no spindle (FreeCAD writes M3/M4 S
+    only with a speed above 0 and a direction other than None), else []."""
+    out, seen = [], set()
+    for o in ops:
+        tc = getattr(o, "ToolController", None)
+        if tc is None or tc.Name in seen:
+            continue
+        seen.add(tc.Name)
+        speed = float(getattr(tc, "SpindleSpeed", 0) or 0)
+        direction = getattr(tc, "SpindleDir", "Forward")
+        if speed <= 0 or direction == "None":
+            out.append("%s (T%d): Spindle Speed %g, direction %s: no M3 S would start the spindle."
+                       % (tc.Label, int(getattr(tc, "ToolNumber", 0)), speed, direction))
+    return out
+
+
+def _code(line):
+    return line.split("(")[0].split(";")[0].upper()
+
+
+def tool_change_park(polar, opts):
+    """Before every tool change (M6) the cutter goes where it can be changed by hand; C stays.
+    Face layout: Z to machine Z0 first (where Home All parks it, at the tailstock end, away from
+    the part), then X to machine X0 (the chuck centre). Wrap layout: X out to X max first (away
+    from the bar), then Z to machine Z0. G53 goes to the machine position whatever the tool length
+    offset. After M6 the converter's next move gives every axis again."""
+    import re
+    if opts.get("layout") == "wrap":
+        x_out = (-1 if opts.get("invertX") else 1) * float(opts["xMax"])
+        park = ["( tool change: X out, then Z to the park position; C stays )",
+                "G0 X%.4f" % x_out, "G53 G0 Z0"]
+    else:
+        park = ["( tool change: Z to the park position, then X to the centre; C stays )",
+                "G53 G0 Z0", "G53 G0 X0"]
+    out = []
+    for line in polar.split("\n"):
+        if re.search(r"\bM0*6\b", _code(line)):
+            out.extend(park)
+        out.append(line)
+    return "\n".join(out)
+
+
+def spindle_off_at_end(polar):
+    """M5 before the program end (M2/M30) if the spindle was left on."""
+    import re
+    lines = polar.split("\n")
+    on = False
+    for i, line in enumerate(lines):
+        code = _code(line)
+        if re.search(r"\bM0*[34]\b", code):
+            on = True
+        elif re.search(r"\bM0*5\b", code):
+            on = False
+        elif re.search(r"\bM(0*2|30)\b", code):
+            if on:
+                lines.insert(i, "M5")
+            break
+    return "\n".join(lines)
+
+
 
 def check_operation(job, op):
     """One operation of a polar (face) Job alone, the way Post Process will write it: FreeCAD's

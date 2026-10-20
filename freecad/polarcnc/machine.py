@@ -42,6 +42,11 @@ PROPERTIES = (
     ("PolarWrapToolLengthInX", "App::PropertyBool",
      "Wrap only: tick when the tool lengths are in the X column of the LinuxCNC tool table (the "
      "router lies sideways, so its length runs along X). Until then a program with G43 is refused."),
+    ("PolarToolChangePark", "App::PropertyBool",
+     "Before every tool change (M6) the cutter goes where it can be changed by hand: face: G53 G0 Z0 "
+     "then G53 G0 X0; Wrap: X out to X max, then G53 G0 Z0. C stays. Only for a machine whose "
+     "machine Z0 (where Home All leaves Z) is the park position AWAY from the part, as on the "
+     "author's lathe conversion. Untick if machine Z0 is at the chuck end."),
     ("PolarProfile", "App::PropertyFile",
      "Optional machine profile (.polar-profile.json, saved from the web page): rotary letter, "
      "directions, X as diameter, chord tolerance, centre mode."),
@@ -82,6 +87,8 @@ def add_settings(job):
     for name, typ, tip in PROPERTIES:
         if not hasattr(job, name):
             job.addProperty(typ, name, GROUP, tip)
+            if name == "PolarToolChangePark":
+                job.PolarToolChangePark = True
     side = job.PolarCuttingSide if job.PolarCuttingSide in (ONE_SIDE, BOTH_SIDES) else ONE_SIDE
     job.PolarCuttingSide = [ONE_SIDE, BOTH_SIDES]
     job.PolarCuttingSide = side

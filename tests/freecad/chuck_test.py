@@ -52,6 +52,7 @@ def job_for(doc, part_shape, stock_shape):
     job.PolarXMax = 150
     tc = job.Tools.Group[0]
     tc.HorizFeed, tc.VertFeed = "600 mm/min", "200 mm/min"
+    tc.SpindleSpeed = 12000
     return job
 
 

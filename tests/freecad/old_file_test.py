@@ -41,6 +41,10 @@ def go():
         check(any("removed" in m for m in policy.problems(op)), "it is warned about: %s" % policy.problems(op)[:1])
         check(Gui.Command.get("PolarCNC_PolarFace") is None, "no Polar Face button any more")
         from Path.Post.Processor import PostProcessorFactory
+        for tc in job.Tools.Group:          # (since 2.22 a cutter with no spindle speed is refused)
+            if tc.SpindleSpeed <= 0:
+                tc.SpindleSpeed = 12000
+        doc.recompute()
         res = PostProcessorFactory.get_post_processor(job, "polar_linuxcnc").export()
         out = res[0][1] if res else None
         check(out is not None and "G93" in out, "Post Process still writes the polar program %s" % boxes[-1:])

@@ -43,6 +43,7 @@ def go():
         job.PolarXMax = 125
         tc = job.Tools.Group[0]
         tc.HorizFeed, tc.VertFeed = "600 mm/min", "200 mm/min"
+        tc.SpindleSpeed = 12000
         doc.recompute()
         check(Gui.Command.get("PolarCNC_Simulate").isActive(), "Simulate is active for a polar Job")
 

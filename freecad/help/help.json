@@ -424,6 +424,19 @@
    }
   },
   {
+   "re": "spindle stopped",
+   "en": {
+    "t": "A cutter would go in with the spindle stopped",
+    "why": "Its Tool Controller has no spindle speed (or direction None), so FreeCAD writes no M3 S: after a tool change LinuxCNC has stopped the spindle and nothing starts it again.",
+    "do": "Open the Tool Controller named in the message, set Spindle Speed (rpm) and direction Forward, then Post Process again. While the router is switched by hand, switch it on yourself before pressing Continue."
+   },
+   "el": {
+    "t": "Ένα κοπτικό θα έμπαινε με την άτρακτο σταματημένη",
+    "why": "Το Tool Controller του δεν έχει στροφές (ή η φορά είναι None), οπότε το FreeCAD δεν γράφει M3 S: μετά την αλλαγή εργαλείου το LinuxCNC έχει σταματήσει την άτρακτο και τίποτα δεν την ξαναξεκινά.",
+    "do": "Άνοιξε το Tool Controller που λέει το μήνυμα, βάλε Spindle Speed (στροφές) και φορά Forward, και ξανά Post Process. Όσο το router ανάβει με το χέρι, άναψέ το εσύ πριν πατήσεις συνέχεια."
+   }
+  },
+  {
    "re": "X Axis Max is not set",
    "en": {
     "t": "The machine's X travel is missing",
