@@ -7,6 +7,17 @@ Newest first. Move an item to `memory.md` (Decisions) when it is decided, delete
   tool setter mentioned; unsure whether to clamp each cutter at the same height or push it to the collet stop.
   Wants Wrap to go to a safe X AND a safe Z before every tool change. Proposed (waiting for his yes and the Z
   value): before each M6 in a Wrap program `G0 X<Wrap X max>` then `G0 Z<tool-change Z>`.
+- **2026-10-20, his answers (round 3):** (1) the polar .ini in this repo (`polarlathe-sim.ini`) is his latest
+  and correct one. Its numbers: Z switch +10 at the tailstock end, HOME 0, limits -590..+7 → machine Z0 = where
+  Home All parks Z, at the tailstock end; X HOME 0 = chuck centre. The comment "machine Z0 is at the CHUCK end"
+  (in that .ini and in `src/core/gcode-input.js`) contradicts these numbers: ask before correcting it.
+  (2) no Wrap .ini yet: the router's side is not decided; he asks where X0 should be and for a Wrap .ini/.hal.
+  Advice given: work X0 = the chuck axis, X+ = away from it (the converter and Polar Wrap write X = radius);
+  same .hal (if it reads scales/limits from the .ini), own .ini, own tool table (G43 applies every axis of a
+  tool's entry: Z lengths for polar, X lengths for Wrap must not share one table). Needs his real .hal.
+  (3) spindle on/off and speed are by hand today, LinuxCNC later: the program must carry M3 S / M5 anyway.
+  (4) wants speeds and on/off written properly → proposal: Post Process refuses a Tool Controller without a
+  spindle speed. All waiting for his explicit yes.
 - **Tool-change point (2026-10-20, his answer):** "check the .ini for the safe point; polar = machine X0 Z0 I
   think; Wrap the same Z, its X runs the other way (Wrap .ini)". From `polarlathe-sim.ini` (synced with the real
   .ini 2026-10-04): Z homes at the tailstock end, HOME 0, limits -590..+7, work Z0 = machine Z -490 in the sim →
