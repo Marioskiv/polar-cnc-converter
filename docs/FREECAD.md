@@ -77,7 +77,7 @@ FREECAD=/path/to/bin/freecad sh tests/freecad/run.sh   # the addon, in a real Fr
 `simulator_test.py` (cutter position in both views, playback, everything hidden and restored, screenshots),
 `chuck_test.py`, `wrapcut_geometry_test.py`,
 `wrap_test.py`, `setup_test.py` (the one-click chuck), `ops_test.py` (every usual operation in a polar Job, end
-to end), `cut_check_test.py` (the final polar program followed point by point: the cutter body never inside the
+to end), `wrap_relief_test.py` (a relief with three cutters, rest machining, the tool report), `wrap_ocl_test.py` (FreeCADCmd: the drop-cutter against OpenCAMLib, seam, cone, leftover and grid checks), `cut_check_test.py` (the final polar program followed point by point: the cutter body never inside the
 part or the chuck, FreeCAD's Face reaches the part top everywhere and its rectangle over a faceplate's clamps is found by both checks, Polar Wrap comes down to the bar) and `help_test.py` (popups on the toolbar, field help, error cards, both languages). Tests that
 expect a refusal catch the error card (`common.catch_messages`) instead of letting it block.
 It makes a throw-away FreeCAD user folder with this repository linked as the PolarCNC
@@ -120,3 +120,9 @@ Lessons carried over from other FreeCAD addon work (FreeCAD 26.3):
   booleans against an outline of hundreds of curves) and its ramp went back and forth on short cuts. Polar is done
   with FreeCAD's own operations; Polar CNC checks each one when it is made. A numeric (non-OCC) keep-out check that
   made it 8x faster was written and dropped with it.
+- Wrap research (2.21.0): FreeCAD 26.3 has its own continuous 4-axis Rotary Surface (OpenCAMLib drop-cutter,
+  `Path/Base/Generator/rotary_*.py`, tests `CAMTests/TestPathRotary*.py`, LGPL) for an A axis on a mill; Polar Wrap
+  stays for the XZC lathe layout (radial router, C, G93 through the converter) and is checked against that
+  drop-cutter. Not yet covered by a test: a grid point exactly on a mesh vertex or edge, a mesh with holes (refused
+  only if a whole slice is empty), the feed between points when C turns fast near the axis.
+

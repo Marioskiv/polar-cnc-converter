@@ -130,11 +130,13 @@ def _mesh_sections(mesh, zs, ds):
     return out
 
 
-def tip_map(H, zs, na, radius, ball=False, leave=0.0, tick=None):
+def tip_map(H, zs, na, radius, ball=False, leave=0.0, tick=None, edge=-0.5):
     """X[i, j]: the smallest radius the tool tip may have at (zs[i], angle j) without the cutter
     (radius `radius`, flat or ball end, pointing at the axis) touching the part grown by
     `leave`. The cutter's disk lies across the ray: a part point at radius rho, dTheta off the
-    ray and dz along the axis is lateral rho sin(dTheta) away and rho cos(dTheta) out along it."""
+    ray and dz along the axis is lateral rho sin(dTheta) away and rho cos(dTheta) out along it.
+    Distances to a neighbouring cell are measured to its near edge (edge -0.5: the safe side,
+    for the path); edge 0 measures to its centre (for the tool report: what really fits)."""
     Hl = numpy.where(H > 0, H + leave, 0.0)
     dz_step = zs[1] - zs[0] if len(zs) > 1 else 1.0
     dth = TWO_PI / na
@@ -151,16 +153,18 @@ def tip_map(H, zs, na, radius, ball=False, leave=0.0, tick=None):
         if tick is not None:
             tick()
         # a row stands for the cell half a step round it: measure from its near edge
-        dz = max(abs(oz) * dz_step - 0.5 * dz_step, 0.0)
+        dz = max(abs(oz) * dz_step + (edge * dz_step if oz else 0.0), 0.0)
         if dz > radius:
             continue
         rows = padded[kz + oz:kz + oz + nz]
         for oa in range(-ka, ka + 1):
-            a = max(abs(oa) * dth - 0.5 * dth, 0.0)
+            a = max(abs(oa) * dth + (edge * dth if oa else 0.0), 0.0)
             rho = numpy.roll(rows, -oa, axis=1)
             lat = rho * math.sin(a)
             reach = radius * radius - lat * lat - dz * dz
-            inside = (rho > 0) & (reach >= 0)
+            # a wall exactly a radius away only touches the cutter's side: on the safe side
+            # (edge < 0) it still counts, measured centre to centre (the report) it does not
+            inside = (rho > 0) & ((reach >= 0) if edge < 0 else (reach > 1e-9))
             if not inside.any():
                 continue
             out = rho * math.cos(a)
@@ -170,6 +174,102 @@ def tip_map(H, zs, na, radius, ball=False, leave=0.0, tick=None):
                 need = out
             X = numpy.where(inside & (need > X), need, X)
     return X
+
+
+def envelope(X, zs, na, radius, ball=False, tick=None, edge=0.5):
+    """E[i, j]: the radius of the surface the cutter leaves at (zs[i], angle j) when its tip has
+    been at X everywhere (the inverse of tip_map: what is left of the stock after the cutter,
+    smallest wins). The cutter at a tip q covers the points p within its radius round the ray of
+    q; at p it reaches in to its flat end (X / cos dTheta, the end is a disk across the ray) or
+    to its ball. Distances are measured to the far edge of a cell, so E is on the high side:
+    never less material than is really left (safe for what comes after, and for "what is left")."""
+    dz_step = zs[1] - zs[0] if len(zs) > 1 else 1.0
+    dth = TWO_PI / na
+    nz = len(zs)
+    big = float(X.max()) + 10 * radius + 1.0
+    E = numpy.full_like(X, big)
+    pos = X[X > 0]
+    rmin = max(float(pos.min()) if len(pos) else radius, radius)
+    kz = int(math.ceil(radius / dz_step + 0.5))
+    ka = int(math.ceil(math.asin(min(radius / rmin, 1.0)) / dth + 0.5))
+    padded = numpy.full((nz + 2 * kz, na), big)
+    padded[kz:kz + nz] = X
+    for oz in range(-kz, kz + 1):
+        if tick is not None:
+            tick()
+        dz = abs(oz) * dz_step + (edge * dz_step if oz else 0.0)
+        if dz > radius:
+            continue
+        rows = padded[kz + oz:kz + oz + nz]
+        for oa in range(-ka, ka + 1):
+            a = abs(oa) * dth + (edge * dth if oa else 0.0)
+            if a >= math.pi / 2:
+                continue
+            x = numpy.roll(rows, -oa, axis=1)          # the tip q, oa steps round from p
+            if ball:
+                c = x + radius                            # the ball's centre, on q's ray
+                disc = radius * radius - dz * dz - (c * math.sin(a)) ** 2
+                ok = disc >= 0
+                rho = c * math.cos(a) - numpy.sqrt(numpy.maximum(disc, 0))
+            else:
+                lat = x * math.tan(a)
+                ok = lat * lat + dz * dz <= radius * radius
+                rho = x / math.cos(a)
+            E = numpy.where(ok & (rho < E), rho, E)
+    return E
+
+
+def leftover(H, X, zs, na, radius, ball=False, leave=0.0, rows=None, tick=None, edge=0.5):
+    """What the cutter (tips X) leaves on the part beyond `leave`: (gap map, worst corner, worst
+    floor), each worst as (mm, row, angle index). The corner one is the most it leaves anywhere
+    (a ball always rounds an inside corner with its own radius); the floor one is the most it
+    leaves at the bottom of a hollow it cannot get down into (a groove narrower than the ball):
+    every hollow's floor is a connected stretch of cells lower than their neighbours, and it
+    counts as reached where the cutter gets down at any of its cells."""
+    E = envelope(X, zs, na, radius, ball, tick, edge)
+    gap = numpy.where(H > 0, E - (H + leave), 0.0)
+    if rows is not None:
+        gap[~rows] = 0.0
+    k = int(numpy.argmax(gap))
+    corner = (float(gap.flat[k]),) + divmod(k, gap.shape[1])
+    floor = _floors(H, gap, rows)
+    return gap, corner, floor
+
+
+def _floors(H, gap, rows):
+    """The worst hollow floor: (mm left at its best-reached cell, row, angle index)."""
+    nz, na = H.shape
+    on = H > 0
+    lower = on.copy()
+    for di, dj in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+        nb = numpy.roll(numpy.roll(H, di, axis=0), dj, axis=1)
+        if di == 1:
+            nb[0] = numpy.inf
+        elif di == -1:
+            nb[-1] = numpy.inf
+        lower &= H <= nb + 1e-6
+    if rows is not None:
+        lower &= rows[:, None]
+    seen = numpy.zeros_like(lower)
+    worst = (0.0, 0, 0)
+    for i0, j0 in zip(*numpy.nonzero(lower)):
+        if seen[i0, j0]:
+            continue
+        best = None
+        stack = [(i0, j0)]
+        seen[i0, j0] = True
+        while stack:
+            i, j = stack.pop()
+            if best is None or gap[i, j] < best[0]:
+                best = (float(gap[i, j]), i, j)
+            for di, dj in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                a, b = i + di, (j + dj) % na
+                if 0 <= a < nz and lower[a, b] and not seen[a, b] and abs(H[a, b] - H[i, j]) < 0.3:
+                    seen[a, b] = True
+                    stack.append((a, b))
+        if best[0] > worst[0]:
+            worst = best
+    return worst
 
 
 def sample(X, zs, na, z, theta):
@@ -241,7 +341,7 @@ def _pieces(cut, per_turn, keep):
 
 def helix_passes(X_rough, X_finish, zs, na, r_stock, z_from, z_to, pitch_rough, pitch_finish,
                  step_down, ds, roughing=True, finishing=True, ccw=True, radius=0.0,
-                 finish_lines=False):
+                 finish_lines=False, start=None):
     """The passes, each an array of (z, theta, r, cutting) of the tool tip (theta unwound).
     Roughing: layers from the stock radius down by step_down, each riding up over the part
     where it is higher (r = max(layer, X_rough)); a layer is cut only along the stretches of its
@@ -249,22 +349,27 @@ def helix_passes(X_rough, X_finish, zs, na, r_stock, z_from, z_to, pitch_rough, 
     every sample is marked cutting or not (air: faster feed) with a cutter's width of margin.
     The layers turn the chuck one way and back the other, so C does not pile up hundreds of
     turns over the program (LinuxCNC's C soft limits). Then the finishing pass on X_finish, all
-    of it cutting, the way `ccw` says."""
+    of it cutting, the way `ccw` says. start: the material there is to begin with (a map of its
+    radius, e.g. what an earlier operation with another cutter left); None = the whole bar."""
     passes = []
     theta = 0.0
     per_turn = max(int(math.ceil(TWO_PI * r_stock / ds)), 1)
     margin = max(int(math.ceil((2 * radius + 1.0) / ds)), 2)
     if roughing:
-        level = r_stock                    # what the previous layer left (the stock at first)
+        top = r_stock if start is None else min(r_stock, float(start.max()))
+        level = top                        # what the previous layer left (the stock at first)
         n_layer = 0
-        layer = r_stock
+        layer = top
         floor = float(X_rough.min())
         while layer > floor + 1e-6:
             layer = max(layer - step_down, floor)
             z, th = helix(z_from, z_to, pitch_rough, ds, r_stock, theta, ccw if n_layer % 2 == 0 else not ccw)
             part = sample(X_rough, zs, na, z, th)
             r = numpy.maximum(part, layer)
-            cut = r < numpy.maximum(part, level) - 1e-3
+            there = numpy.maximum(part, level)           # the material on top before this layer
+            if start is not None:
+                there = numpy.minimum(there, sample(start, zs, na, z, th))
+            cut = r < there - 1e-3
             if cut.any():
                 # a cutter's width either side of every cutting sample counts as cutting
                 near = numpy.convolve(cut.astype(float), numpy.ones(2 * margin + 1), "same") > 0

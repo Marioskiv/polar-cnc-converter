@@ -162,12 +162,25 @@ def check_points(obs, P, I, R, radius):
     return best
 
 
+def _radii(data, fallback):
+    """The cutter radius at every point of a program read back: the diameter its tool comment
+    gives (a program with several cutters checks each with its own), else `fallback`."""
+    out = []
+    for d in data.get("toolD") or []:
+        try:
+            out.append(float(d) / 2.0 if d else fallback)
+        except (TypeError, ValueError):
+            out.append(fallback)
+    return out if len(out) == len(data["r"]) else [fallback] * len(data["r"])
+
+
 def polar_hits(obs, data, radius, step=0.5):
     """Face mode, on the polar program as the machine runs it (data: bridge.parse): every block
     followed in joint space (X, C, Z linear, as LinuxCNC moves them), so a rapid that curves
     between two points is checked where it really goes. A sentence for a hit, else None."""
     r, c, z = data["r"], data["c"], data["z"]
-    pts, lines, rapid = [], [], []
+    radii = _radii(data, radius)
+    pts, lines, rapid, rads = [], [], [], []
     for i in range(1, len(r)):
         a0, a1 = math.radians(c[i - 1]), math.radians(c[i])
         L = math.hypot(r[i] - r[i - 1], z[i] - z[i - 1]) + abs(a1 - a0) * max(abs(r[i - 1]), abs(r[i]))
@@ -178,9 +191,16 @@ def polar_hits(obs, data, radius, step=0.5):
         pts.append(numpy.c_[rr * numpy.cos(aa), rr * numpy.sin(aa), z[i - 1] + (z[i] - z[i - 1]) * t])
         lines.append(numpy.full(len(t), data["line"][i] or 0))
         rapid.append(numpy.full(len(t), bool(data["rapid"][i])))
+        rads.append(numpy.full(len(t), radii[i]))
     if not pts:
         return None
-    res = check_points(obs, numpy.vstack(pts), numpy.concatenate(lines), numpy.concatenate(rapid), radius)
+    P, L, Rp, Rr = numpy.vstack(pts), numpy.concatenate(lines), numpy.concatenate(rapid), numpy.concatenate(rads)
+    res = None
+    for rad in numpy.unique(Rr):          # each cutter with its own radius
+        sel = Rr == rad
+        got = check_points(obs, P[sel], L[sel], Rp[sel], float(rad))
+        if got is not None and (res is None or got["clearance"] < res["clearance"]):
+            res = got
     if res is None or res["clearance"] >= -TOUCH:
         return None
     x, y, zz = res["at"]
@@ -203,10 +223,13 @@ def wrap_hits(chuck, data, radius, step=0.5):
         return None
     obs = Part.makeCompound(parts)
     bb = obs.BoundBox
-    zlo, zhi = bb.ZMin - radius, bb.ZMax + radius
-    outer = max(abs(bb.XMin), abs(bb.XMax), abs(bb.YMin), abs(bb.YMax)) + radius + 5
+    radii = _radii(data, radius)
+    big = max(radii + [radius])
+    zlo, zhi = bb.ZMin - big, bb.ZMax + big
+    outer = max(abs(bb.XMin), abs(bb.XMax), abs(bb.YMin), abs(bb.YMax)) + big + 5
     r, c, z, rapid, line = data["r"], data["c"], data["z"], data["rapid"], data["line"]
     for i in range(1, len(r)):
+        rad = radii[i]
         if not (min(z[i - 1], z[i]) <= zhi and max(z[i - 1], z[i]) >= zlo):
             continue
         a0, a1 = math.radians(c[i - 1]), math.radians(c[i])
@@ -219,7 +242,7 @@ def wrap_hits(chuck, data, radius, step=0.5):
                 continue
             d = App.Vector(math.cos(aa), math.sin(aa), 0)
             tool = Part.makeLine(d * rr + App.Vector(0, 0, zz), d * outer + App.Vector(0, 0, zz))
-            gap = tool.distToShape(obs)[0] - radius
+            gap = tool.distToShape(obs)[0] - rad
             if gap < -TOUCH:
                 return ("%s runs into the chuck at X %.2f C %.1f Z %.2f (line %s of the program). "
                         "Change the operation, the grip length or the jaw position."

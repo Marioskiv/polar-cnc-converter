@@ -374,6 +374,26 @@
     "t": "X Max για Wrap",
     "d": "Μόνο για Wrap: το μεγαλύτερο X του προφίλ Wrap του μηχανήματος (με το router γυρισμένο αλλάζει η διαδρομή και το μηδέν του X). 0 = ίδιο με το X Max."
    }
+  },
+  "PolarWrap:AfterOperation": {
+   "en": {
+    "t": "After operation",
+    "d": "The Polar Wrap that cut before this one, with another cutter. This one starts from what that one left, not from the whole bar: so a small ball end can finish after a big flat roughing cutter. The operations run in the order of the Job.",
+    "steps": [
+     "First Polar Wrap: a big flat cutter, Strategy Roughing.",
+     "Second Polar Wrap: a small ball end, Strategy Finishing, After operation = the first.",
+     "Read the tool report: if it leaves material, a third one with a smaller ball after the second."
+    ]
+   },
+   "el": {
+    "t": "Μετά από",
+    "d": "Το Polar Wrap που έκοψε πριν από αυτό, με άλλο κοπτικό. Αυτό ξεκινάει από ό,τι άφησε εκείνο, όχι από όλη τη μπάρα: έτσι ένα μικρό σφαιρικό φινίρει μετά από ένα μεγάλο επίπεδο ξεχόνδρισμα. Οι κατεργασίες τρέχουν με τη σειρά του Job.",
+    "steps": [
+     "Πρώτο Polar Wrap: μεγάλο επίπεδο κοπτικό, Στρατηγική Ξεχόνδρισμα.",
+     "Δεύτερο Polar Wrap: μικρό σφαιρικό, Στρατηγική Φινίρισμα, Μετά από = το πρώτο.",
+     "Διάβασε την αναφορά κοπτικού: αν αφήνει υλικό, τρίτο με μικρότερο σφαιρικό μετά το δεύτερο."
+    ]
+   }
   }
  },
  "errors": [

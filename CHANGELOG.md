@@ -1,5 +1,30 @@
 # Changelog
 
+## 2.21.0 — Wrap with several cutters, and what each cutter leaves
+
+### Added
+- **Polar Wrap *After operation***: a second (third…) Polar Wrap with another cutter starts from what the one before
+  it left, not from the whole bar. With *Roughing + finishing* its roughing cuts only where the cutter before did not
+  fit and goes through the rest at the air feed (on the test relief the Ø2 cuts less than half of what it would from
+  the bar).
+- **Tool report** of every Polar Wrap (panel, *Tool Report* property, Report view; Greek or English): whether the
+  cutter gets down into every hollow (groove, slot, dimple) or how much it leaves at the bottom of one and where;
+  how much inside corners keep (a ball rounds them with its radius); and the largest ball end that gets down into
+  every hollow.
+- `tests/freecad/wrap_relief_test.py`: a relief (rib, 1.2 mm groove, 2 mm slot, dimple) machined Ø6 flat → Ø2 ball →
+  Ø1 ball; every cutter followed against the solid and the chuck.
+- `tests/freecad/wrap_ocl_test.py`: Polar Wrap's radial drop-cutter against **OpenCAMLib** (FreeCAD's own rotary
+  drop-cutter of its Rotary Surface operation) on the same relief, flat Ø6, ball Ø2, ball Ø1, 16 835 points each:
+  never deeper than OpenCAMLib, the same within 0.003 mm at the median (the 2 µm the mesh is padded by). And checks
+  taken from the rotary tests of FreeCAD, Kiri:Moto and LinuxCNC (ideas only): a part turned across the 0° seam
+  gives the same map turned; a cone follows its formula; what a cutter leaves is never below the part, a smaller
+  ball never leaves more; a map twice as fine gives the same tips.
+
+### Fixed
+- **Post Process with several cutters checked every move against the chuck with the biggest cutter's radius**, so a
+  small cutter running past the jaws could be refused. Each move is now checked with its own cutter (the diameter of
+  its tool comment).
+
 ## 2.20.0 — polar with FreeCAD's own operations, each one checked when it is made
 
 ### Changed

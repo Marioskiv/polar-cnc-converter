@@ -93,6 +93,24 @@ chuck). **Nothing is drawn flat**: the part is used as it is.
    (G93, X = radius, C round, Z along) and refuses it if the router would run into the chuck (often a rapid next to
    the jaws).
 
+**Several cutters (a relief with details).** Polar Wrap does not choose the cutter: it makes the path for the cutter
+of its tool controller, cuts only where that cutter fits and leaves the rest. For a relief:
+
+1. **Roughing** with a big flat end mill (e.g. Ø6), *Strategy* Roughing: most of the material, fast.
+2. A second Polar Wrap with a small **ball end** (e.g. Ø2), *Strategy* **Roughing + finishing**, **After operation** =
+   the first one: it starts from what the Ø6 left (not from the whole bar), so its roughing cuts only where the
+   Ø6 did not fit (beside a rib, in a groove) and goes through the rest at the air feed; then it finishes.
+   (*Finishing* alone is refused when what is left is deeper than *Finish allowance* + *Step down* somewhere.)
+3. Read its **tool report** (in the panel, the operation's *Tool Report* and the Report view): it says whether the
+   cutter **gets down into every hollow** (grooves, slots, dimples) or how much it leaves at the bottom of one and
+   where, and names the largest ball end that gets down into all of them. Inside corners always keep the ball's
+   own radius; the report says how much that is. If it names a smaller ball, a third Polar Wrap with it,
+   *After operation* = the second.
+
+For very fine details make *Resolution* smaller than 0.25 mm (slower). Measured in
+`tests/freecad/wrap_relief_test.py`: a bar with a rib, a 1.2 mm groove, a 2 mm slot and a dimple, Ø6 flat → Ø2 ball →
+Ø1 ball, no cutter ever in the part or the chuck.
+
 **Tool length in Wrap:** the router lies sideways, so its length runs along X. Put each tool's length in the **X
 column** of the LinuxCNC tool table and tick the Job's **Polar Wrap Tool Length In X**; until then a program with
 G43 is refused (it would shift everything along the part).
