@@ -43,6 +43,15 @@ chr=$(cat "$OUT/ch/result.txt" 2>/dev/null || echo "RESULT: no result (see $OUT/
 echo "chuck: $chr"
 [ "$chr" = "RESULT: PASS" ] || result="$result; chuck $chr"
 
+# Polar Wrap's drop-cutter against OpenCAMLib (FreeCAD's own rotary drop-cutter), and the seam,
+# cone, leftover and grid checks (FreeCADCmd)
+HOME="$OUT/home" PC_OUT="$OUT/wrapocl" PC_REPO="$REPO" "$CMD" "$REPO/tests/freecad/wrap_ocl_test.py" \
+    > "$OUT/freecad-wrapocl.log" 2>&1
+grep -v "^ok" "$OUT/wrapocl/log.txt" 2>/dev/null
+wo=$(cat "$OUT/wrapocl/result.txt" 2>/dev/null || echo "RESULT: no result (see $OUT/freecad-wrapocl.log)")
+echo "wrap vs OpenCAMLib: $wo"
+[ "$wo" = "RESULT: PASS" ] || result="$result; wrap vs OpenCAMLib $wo"
+
 # Polar Wrap geometry without the GUI (solid and STL, the cutter never in the part)
 HOME="$OUT/home" PC_OUT="$OUT/wrapgeo" PC_REPO="$REPO" "$CMD" "$REPO/tests/freecad/wrapcut_geometry_test.py" \
     > "$OUT/freecad-wrapgeo.log" 2>&1
@@ -62,7 +71,7 @@ echo "wrap: $wr"
 # the chuck from one click (the face that goes into the chuck), and every usual CAM operation in
 # a polar Job end to end (made, checked against the chuck, Post Process, simulator), and the cut
 # check: the final polar program followed point by point against the part and the chuck
-for t in setup ops cut_check old_file; do
+for t in setup ops cut_check old_file wrap_relief; do
     HOME="$OUT/home" PC_OUT="$OUT/$t" PC_REPO="$REPO" xvfb-run -a -s "-screen 0 1600x1000x24" \
         "$FREECAD" "$REPO/tests/freecad/${t}_test.py" > "$OUT/freecad-$t.log" 2>&1
     grep -v "^ok" "$OUT/$t/log.txt" 2>/dev/null

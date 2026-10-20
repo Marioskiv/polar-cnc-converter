@@ -71,6 +71,14 @@ class TaskPanelOpPage(PathOpGui.TaskPanelPage):
         help.add_row(lay, "PolarWrap:Direction", "Chuck turns", self.direction)
         self.grid = length("GridStep", 0.05, 5)
         help.add_row(lay, "PolarWrap:GridStep", "Resolution", self.grid)
+        self.after = QtGui.QComboBox()
+        self.after.setToolTip(_tip("AfterOperation"))
+        help.add_row(lay, "PolarWrap:AfterOperation", "After operation", self.after)
+        self.report = QtGui.QLabel()
+        self.report.setObjectName("toolReport")
+        self.report.setWordWrap(True)
+        self.report.setStyleSheet("color: #334e68;")
+        lay.addRow(self.report)
         note = QtGui.QLabel(help.note("PolarWrap", ""))
         note.setWordWrap(True)
         lay.addRow(note)
@@ -90,6 +98,10 @@ class TaskPanelOpPage(PathOpGui.TaskPanelPage):
                           ("StockToLeave", self.leave), ("GridStep", self.grid)):
             if abs(getattr(obj, prop).Value - box.value()) > 1e-9:
                 setattr(obj, prop, box.value())
+        chosen = self.after.currentData() if hasattr(self.after, "currentData") else None
+        target = obj.Document.getObject(chosen) if chosen else None
+        if getattr(obj, "AfterOperation", None) is not target:
+            obj.AfterOperation = target
 
     def setFields(self, obj):
         self.strategy.setCurrentIndex(max(self.strategy.findText(obj.Strategy), 0))
@@ -101,6 +113,27 @@ class TaskPanelOpPage(PathOpGui.TaskPanelPage):
         self.allow.setValue(obj.FinishAllowance.Value)
         self.leave.setValue(obj.StockToLeave.Value)
         self.grid.setValue(obj.GridStep.Value)
+        self._fill_after(obj)
+        self.report.setText(getattr(obj, "ToolReport", "") or "")
+
+    def _fill_after(self, obj):
+        """The Polar Wrap operations of the Job before this one (the machine runs them in order)."""
+        self.after.blockSignals(True)
+        self.after.clear()
+        self.after.addItem("—", "")
+        ops = []
+        job = PathUtils.findParentJob(obj)
+        for o in getattr(getattr(job, "Operations", None), "Group", []):
+            if o is obj:
+                break
+            if type(getattr(o, "Proxy", None)).__name__ == "ObjectPolarWrap":
+                ops.append(o)
+        for o in ops:
+            self.after.addItem(o.Label, o.Name)
+        cur = getattr(obj, "AfterOperation", None)
+        k = self.after.findData(cur.Name) if cur is not None else 0
+        self.after.setCurrentIndex(max(k, 0))
+        self.after.blockSignals(False)
 
     def getSignalsForUpdate(self, obj):
         # no remake on every change of a field (mapping the part can take seconds): on OK/Apply
