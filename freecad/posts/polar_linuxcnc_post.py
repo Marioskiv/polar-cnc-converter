@@ -62,7 +62,7 @@ class _Refused(Exception):
     pass
 
 
-def _polar_program(job, objectslist, argstring):
+def _polar_program(job, objectslist, argstring, quiet=False):
     """The polar program for these objects, after every check; raises _Refused (in plain words)."""
     try:
         opts = machine.options(job)
@@ -72,10 +72,15 @@ def _polar_program(job, objectslist, argstring):
     ops = [getattr(item, "source", item) for item in objectslist]
     held = getattr(job, "PolarChuck", None)
     from polarcnc import chuck, collision
-    if held is None:
+    if held is None and not quiet:
         FreeCAD.Console.PrintWarning("Polar CNC: no chuck set up for this Job: the jaws are not "
                                      "checked (Polar CNC -> Chuck).\n")
-    elif not wrap:
+    if held is not None:
+        # 2.22.0: a cutter with no diameter would be checked as a point (radius 0) - refused
+        bare = program.missing_diameters(ops)
+        if bare:
+            raise _Refused(program.NO_DIAMETER % ", ".join(bare))
+    if held is not None and not wrap:
         # the CAM paths first: names the operation and the move
         obs = collision.obstacles(held)
         hits = ["%s: %s" % (o.Label, m) for o in ops for m in [collision.hit_message(o, obs)] if m]
@@ -83,7 +88,7 @@ def _polar_program(job, objectslist, argstring):
             raise _Refused("the program runs into the chuck.\n" + "\n".join(hits))
         for o in ops:       # cuts below the jaw / clamp tops: a reminder, never a refusal
             msg = chuck.head_warning(held, getattr(o, "Path", None))
-            if msg:
+            if msg and not quiet:
                 FreeCAD.Console.PrintWarning("Polar CNC (%s): %s\n" % (o.Label, msg))
 
     # the milling program, without its editor (it is not what goes to the machine)
@@ -101,6 +106,10 @@ def _polar_program(job, objectslist, argstring):
         # the converter's own words; its line numbers are those of the milling program
         raise _Refused("the program was not converted.\n%s" % e)
 
+    left = program.y_move(polar)    # 2.22.0: the same Y check as the live one
+    if left:
+        raise _Refused("the polar output still has a Y move (it must be X, C, Z only): %s" % left)
+
     polar = _with_setup_notes(polar, job, wrap, held)
 
     if held is not None:    # then the program as the machine really moves (joint space)
@@ -110,7 +119,9 @@ def _polar_program(job, objectslist, argstring):
         for o in ops:
             tc = getattr(o, "ToolController", None)
             if tc is not None and collision.tool_radius(o) > 0:
-                by_number[int(tc.ToolNumber)] = collision.tool_radius(o)
+                # two tool controllers with one number: the bigger cutter (the safe side)
+                n = int(tc.ToolNumber)
+                by_number[n] = max(by_number.get(n, 0.0), collision.tool_radius(o))
         radii = collision.tool_radii(polar, data, by_number, radius)
         if wrap:
             msg = collision.wrap_hits(held, data, radius, radii=radii)
@@ -131,8 +142,10 @@ def _with_setup_notes(polar, job, wrap, held):
             notes.append("( Setup: X0 = the chuck axis, X = radius of the tool tip. Z: the part's free "
                          "end is at Z %.3f, its chuck end at Z %.3f )" % (sb.ZMax, sb.ZMin))
         else:
-            notes.append("( Setup: X0 Y0 = the chuck axis. Stock top at Z %.3f, stock bottom at "
-                         "Z %.3f - touch off Z there )" % (sb.ZMax, sb.ZMin))
+            # 2.22.0: said plainly - "stock bottom ... touch off Z there" read as "touch off at
+            # the bottom", wrong by the stock height
+            notes.append("( Setup: X0 Y0 = the chuck axis. Touch off Z on the stock TOP with the "
+                         "value Z %.3f. Stock bottom at Z %.3f )" % (sb.ZMax, sb.ZMin))
             if abs(sb.ZMax) > 1e-6:
                 notes.append("( Note: Z0 is not on the stock top in this Job )")
         if held is not None:
@@ -146,6 +159,46 @@ def _with_setup_notes(polar, job, wrap, held):
     return "\n".join(lines[:at] + notes + lines[at:])
 
 
+_shown = {"msg": None, "time": 0.0}
+
+
+def _refuse_once(msg):
+    """The same refusal for every file of one Post Process run: the card is shown once."""
+    import time
+    if _shown["msg"] == msg and time.time() - _shown["time"] < 120:
+        FreeCAD.Console.PrintError("Polar CNC: %s\n" % msg)
+        return None
+    _shown["msg"], _shown["time"] = msg, time.time()
+    return _refuse(msg)
+
+
+def _names(objs):
+    return [getattr(getattr(o, "source", o), "Name", None) for o in objs]
+
+
+def _other_sections_refused(job, objectslist, argstring):
+    """2.22.0: FreeCAD calls this post once per output file when the Job splits its output (by
+    tool, fixture or operation) and then writes every file that was not refused. So a file
+    that runs into the chuck would be missing while the others are written. Every other file
+    of the Job is checked too; if one is refused, none is written. Returns its message or None."""
+    try:
+        secs = program.sections(job)
+    except Exception:
+        return None
+    if len(secs) < 2:
+        return None
+    mine = _names(objectslist)
+    for name, objs in secs:
+        if _names(objs) == mine:
+            continue
+        try:
+            _polar_program(job, objs, argstring, quiet=True)
+        except _Refused as e:
+            return ("the file %s of this Job is refused, so no file is written (the Job splits "
+                    "its output):\n%s" % (name, e))
+    return None
+
+
 def export(objectslist, filename, argstring):
     argstring = argstring or ""
     job = _job(objectslist)
@@ -153,8 +206,11 @@ def export(objectslist, filename, argstring):
         return _refuse("no CAM Job found for the operations to post.")
     try:
         polar = _polar_program(job, objectslist, argstring)
+        other = _other_sections_refused(job, objectslist, argstring)
+        if other:
+            return _refuse_once(other)
     except _Refused as e:
-        return _refuse(str(e))
+        return _refuse_once(str(e))
     except Exception as e:          # never a raw traceback: say what happened, plainly
         import traceback
         FreeCAD.Console.PrintError(traceback.format_exc())

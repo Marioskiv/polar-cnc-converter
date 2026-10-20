@@ -655,10 +655,12 @@
       // CORRECTED 2026-10-01 (same day). The first version passed "G53 G0 Z0"
       // and "G28 G91 Z0" straight to the machine, reasoning that LinuxCNC
       // executes them as retracts. That is only true on a MILL, where machine
-      // Z0 is the top of Z. On many lathe conversions (the author's included)
-      // the Z home switch is at the TAILSTOCK end (the positive end), so
-      // machine Z0 is at the CHUCK end: "G53 G0 Z0" would rapid the carriage
-      // toward the chuck. G28 is no better — its stored position (parameters
+      // Z0 is the top of Z. On many lathe conversions the Z home switch is at the
+      // TAILSTOCK end (the positive end) and machine Z0 can be at the CHUCK end:
+      // "G53 G0 Z0" would then rapid the carriage toward the chuck. (The author's
+      // machine was like that until 2026-10-04; it is now numbered like a mill,
+      // machine Z0 = the home park away from the chuck, but the converter cannot
+      // know any machine's numbering.) G28 is no better — its stored position (parameters
       // 5161-5169) is machine 0,0,0 unless set with G28.1.
       // Rule now: a machine-coordinate Z retract is replaced by
       //   G0 Z<the program's own highest Z>   (2.11.0; was a machine Z the user entered)
