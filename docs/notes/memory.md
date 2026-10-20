@@ -14,10 +14,28 @@ Update this file when a decision changes. Open work lives in `pending.md`.
 
 ## His machine
 - Holzmann lathe converted to XZC face milling, LinuxCNC 2.9.10, trivkins XZC. Its real configuration and
-  calibration notes are in the separate repo `linuxcnc-calibrations` (do not copy them here).
+  calibration notes are in the separate repo `linuxcnc-calibrations` (do not copy them here). NOTE 2026-10-20:
+  the latest real .ini (X centre -24.039) is in the private repo `cnc-manuals` — ask Marios which repo is current.
 - `examples/linuxcnc-vismach-xzc-lathe/polarlathe-sim.ini` is a simulation copy of its motion settings.
 
 ## Decisions (newest first)
+- 2026-10-20 (2.22.0, Marios: "fix them all, serious work, keep notes"): full review (two independent
+  read-throughs, every test, sweeps, LinuxCNC 2.9.10 `rs274` with his machine .ini, ruff, eslint). Fixed:
+  no-diameter cutter refused with a chuck; Split Output refuses all files if one is refused (one card), simulator
+  plays the files one after another; setup note "touch off Z on the stock TOP with the value Z …"; editor edits
+  re-checked; Y check in the post; drill cycles in Cartesian checks; obstacle cache key; Wrap layout C = -Y/R0
+  (was mirrored; `program.unroll` writes Y = -angle·R0 so Polar Wrap output is unchanged); first rapid and after
+  M6 split in Wrap; Polar Wrap points ≤ 1 map cell apart (flat cutter gouged 0.78 mm at a key edge); own
+  `polarwrap_gui.create` (was close to FreeCAD's LGPL Create). XZC output unchanged (golden 144/144).
+- 2026-10-20 workflow: Marios said (2026-10-16, in another chat) "no more PRs, the chat's PR button is stuck".
+  This repo's CLAUDE.md says branch → PR → merge after tests. Both kept: Claude opens the PR AND merges it
+  itself once every test passes, so Marios has no button to press.
+- 2026-10-16: his machine's X centre was MEASURED (router tip on the chuck axis at X 4.039 with the old
+  HOME_OFFSET -20): real .ini now HOME_OFFSET -24.039, X limits -22.039 / 108.961 (same physical places), X Axis
+  Max on the page 108.9. The real .ini and machine notes are in the PRIVATE repo `Marioskiv/cnc-manuals`
+  (`polar-cnc-converter/docs/handoff/machine-config/`). `polarlathe-sim.ini` here is a simulation copy, synced.
+- Machine Z0 on his machine = the HOME PARK at the tailstock end (mill-style numbering since 2026-10-04,
+  installed 2026-10-14). `G53 G0 Z0` is a safe retract there. Old comments that said "Z0 at the chuck end" fixed.
 - 2026-10-20 research (no change made): **FreeCAD 26.3 Rotary Surface cannot replace Polar Wrap** for his XZC
   machine. Checked in its source (`Mod/CAM/Path/Op/RotarySurface.py`, `Base/Generator/rotary_*.py`):
   the rotary axis must lie along world X or Y ("Rotary axis along world Z is not supported in v1"), it writes
@@ -54,6 +72,11 @@ Update this file when a decision changes. Open work lives in `pending.md`.
 
 ## How to test
 - Converter: `npm install` once, then `npm test`.
+- Also used 2026-10-20: `node tools/sweeps.js` (about a minute); `tools/linuxcnc-compare.js --rs274 <rs274>` with
+  LinuxCNC 2.9.10's interpreter built from source (`git clone -b v2.9.10 --depth 1` LinuxCNC; configure needs
+  python3.12 first in PATH for tkinter); `ruff check --select F,E9,B` on `freecad/`; `eslint` (no-undef,
+  no-redeclare, no-unreachable…) on `src/core`. A FreeCAD 26.3 build was found at `/tmp/claude-0/fcbin/env/bin/freecad`
+  in this container (GitHub release downloads are blocked here).
 - Addon in a real FreeCAD 26.3 (AppImage extracted, run under xvfb):
   `FREECAD=<path>/bin/freecad OUT=<dir> sh tests/freecad/run.sh` — every test must say PASS; look at the PNGs.
 - Pitfalls: with several tool controllers FreeCAD opens a dialog (tests monkeypatch

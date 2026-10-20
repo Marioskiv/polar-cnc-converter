@@ -3,6 +3,12 @@
 Newest first. Move an item to `memory.md` (Decisions) when it is decided, delete it when it is done.
 
 ## Waiting for Marios
+- **2.22.0 (2026-10-20):** after merging, tell Marios: Wrap from the web page is no longer mirrored; prove it
+  with an asymmetric test cut (like the F test) before a real Wrap part. Polar Wrap (FreeCAD) programs unchanged.
+- **Which repo holds his real machine config?** memory.md says `linuxcnc-calibrations`; the latest real .ini
+  (X centre -24.039, 2026-10-16) is in private `cnc-manuals`. Ask him; keep one.
+- The pending item below about "machine Z0 at the CHUCK end" is ANSWERED: machine Z0 = home park at the
+  tailstock end (confirmed on the machine 2026-10-14: after Home All Z reads 0 there). Comments fixed in 2.22.0.
 - **His answers 2026-10-20:** changes cutters by hand; all tool lengths are in the LinuxCNC tool table; no
   tool setter mentioned; unsure whether to clamp each cutter at the same height or push it to the collet stop.
   Wants Wrap to go to a safe X AND a safe Z before every tool change. Proposed (waiting for his yes and the Z
