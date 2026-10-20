@@ -3,6 +3,9 @@
 Update this file when a decision changes. Open work lives in `pending.md`.
 
 ## Marios and how we work
+- **RULE (Marios, 2026-10-20): NO change without asking him first.** Code, tests, settings, versions: propose,
+  explain, wait for a clear "ναι". Research and checks are fine; only these notes may be updated without asking
+  (he asked for that). A conditional "if it's fine, do it" is NOT a yes.
 - Answer in Greek script. He is a machinist, not a programmer: explain *why*, in plain words.
 - Never claim without checking (2026-10-19: I wrongly said FreeCAD's Face has no Spiral; it has. He said he
   will cancel the subscription if such mistakes continue). Research first, test in a real FreeCAD.
@@ -15,6 +18,20 @@ Update this file when a decision changes. Open work lives in `pending.md`.
 - `examples/linuxcnc-vismach-xzc-lathe/polarlathe-sim.ini` is a simulation copy of its motion settings.
 
 ## Decisions (newest first)
+- 2026-10-20 research (no change made): **FreeCAD 26.3 Rotary Surface cannot replace Polar Wrap** for his XZC
+  machine. Checked in its source (`Mod/CAM/Path/Op/RotarySurface.py`, `Base/Generator/rotary_*.py`):
+  the rotary axis must lie along world X or Y ("Rotary axis along world Z is not supported in v1"), it writes
+  X(along the part) Y0 Z(radius) + A, the FreeCAD posts have no X<->Z swap, and it writes G94 feeds: LinuxCNC
+  then applies F to the small XYZ part of a move only (docs machining-center.adoc "Feed Rate"), so C would
+  spin far too fast. Polar Wrap writes G93 through the converter and checks the chuck. Possible later (ask him
+  first): a post that remaps Rotary Surface output (X->Z, Z->X, A->C, G93).
+- 2026-10-20 research (no change made): **tool change.** The converter keeps `M5 / M6 Tn / G43 Hn / M3 S`
+  in order and adds no move. LinuxCNC M6 (interp_convert.cc `convert_tool_change`) stops the spindle, moves
+  nothing unless `[EMCIO] TOOL_CHANGE_QUILL_UP` (G53 Z0) or `TOOL_CHANGE_AT_G30` (G30 point, which also
+  moves C: would unwind) is set, waits for the manual tool-change dialog, then the program goes on by itself.
+  G43 applies the tool table offsets of all axes (parameters 5081-5089), so with each tool's length in the
+  table (Face: Z column; Wrap: X column) no re-zeroing at a tool change. In the Wrap test program the M6 comes
+  with the router only SafeDistance (5 mm) above the bar: no retract to a change position (open item).
 - 2026-10-20: **C wind-up → Marios raises the C soft limit** in his LinuxCNC .ini to a very large number, the
   same in `[AXIS_C]` and `[JOINT_2]` (e.g. ±9999999; per the LinuxCNC 2.9 ini docs, leaving MIN/MAX_LIMIT out
   of a rotary axis gives ±1e99). **No code change for it** (a draft that turned Wrap helices back was discarded
