@@ -118,7 +118,9 @@ def wrap_tool_length_check(job, text):
 
 def unroll(text, r0):
     """Polar Wrap paths are written round the real part (tip at x, y, z); the converter's wrap
-    layout takes them unrolled: X = z along the part, Y = angle (unwound) x r0, Z = radius - r0.
+    layout takes them unrolled: X = z along the part, Y = -angle (unwound) x r0, Z = radius - r0.
+    (2.22.0: minus, because the wrap layout now writes C = -Y / r0 so that hand-drawn unrolled
+    programs are not mirrored; C = angle stays exactly as before for Polar Wrap.)
     Every motion line (also with an N number, or with no G word under --modal) gets all three;
     other lines are kept. Refused: arcs (Polar Wrap writes none) and inches (G20)."""
     import math
@@ -154,7 +156,7 @@ def unroll(text, r0):
             raw = math.atan2(y, x)
             theta = raw if theta is None else theta + ((raw - theta + math.pi) % (2 * math.pi) - math.pi)
         rest = gword.sub("", word.sub("", code)).strip()
-        out.append("%s X%.4f Y%.4f Z%.4f%s" % (motion, z, theta * r0, r - r0,
+        out.append("%s X%.4f Y%.4f Z%.4f%s" % (motion, z, -theta * r0, r - r0,
                                                (" " + rest) if rest else ""))
     return "\n".join(out)
 
