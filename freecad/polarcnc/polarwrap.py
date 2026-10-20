@@ -321,11 +321,12 @@ class ObjectPolarWrap(PathOp.ObjectOp):
                 if obj.Strategy != "Roughing":
                     text += " " + self._advice(H, zs, na, rows, radius, leave, tick)
             elif corner[0] > REPORT_TOL:
-                z, c = at(corner)
-                text = _say(("%s gets down into every hollow; inside corners keep its shape: up to %.2f mm "
-                             "(Z %.1f, C %.0f)." % (name[0], corner[0], z, c),
-                             "Το %s κατεβαίνει σε κάθε κοιλότητα· οι εσωτερικές γωνίες κρατάνε το σχήμα του: "
-                             "έως %.2f mm (Z %.1f, C %.0f)." % (name[1], corner[0], z, c)))
+                # (how much a corner keeps is not given: on the map's cells it reads too high for
+                # small cutters; what is always true is the cutter's own radius)
+                text = _say(("%s gets down into every hollow; inside corners are rounded with its radius "
+                             "(%.2f mm)." % (name[0], radius),
+                             "Το %s κατεβαίνει σε κάθε κοιλότητα· οι εσωτερικές γωνίες στρογγυλεύουν με την "
+                             "ακτίνα του (%.2f mm)." % (name[1], radius)))
             else:
                 text = _say(("%s reaches every detail." % name[0], "Το %s φτάνει κάθε λεπτομέρεια." % name[1]))
             obj.ToolReport = text

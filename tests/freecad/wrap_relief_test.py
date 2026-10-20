@@ -176,6 +176,12 @@ def go():
               "the Ø1 gets down into the groove: %s" % fin1.ToolReport)
 
         from Path.Post.Processor import PostProcessorFactory
+        from polarcnc import program
+        try:                                   # the program as converted, for a person to read
+            text, _opts = program.polar(job)
+            open(os.path.join(OUT, "relief_polar.ngc"), "w").write(text)
+        except Exception as e:
+            log.write("     polar program: %s\n" % e)
         res = PostProcessorFactory.get_post_processor(job, "polar_linuxcnc").export()
         out = res[0][1] if res else None
         check(out is not None and "G93" in out and "T2" in out and "T3" in out,
