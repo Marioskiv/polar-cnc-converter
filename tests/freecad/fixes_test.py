@@ -30,6 +30,7 @@ def tool_controller(job, label, diameter, number):
         tool.ViewObject.Visibility = False
     tc = Controller.Create(label, tool=tool, toolNumber=number)
     tc.HorizFeed, tc.VertFeed = "600 mm/min", "200 mm/min"
+    tc.SpindleSpeed = 10000          # 2.22.0: a tool controller without a spindle speed is refused
     job.Proxy.addToolController(tc)
     return tc
 
@@ -54,6 +55,7 @@ def go():
         job.PostProcessorArgs = "--no-show-editor"
         tc1 = job.Tools.Group[0]
         tc1.HorizFeed, tc1.VertFeed = 600, 200
+        tc1.SpindleSpeed = 10000
         held = ch.make_chuck(job, "3-jaw SAN OU K11-125 (Ø125)")
         held.GripLength = 4                 # jaws up to Z 4; the Profile stops at Z 6 above them
         ops[0].setExpression("FinalDepth", None)

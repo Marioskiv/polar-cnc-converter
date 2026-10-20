@@ -3,8 +3,10 @@
 # Builds a CAM Job on a disk centred on the chuck axis, makes it polar with the toolbar command,
 # posts it with polar_linuxcnc and checks: the post is offered in the Job, the output is polar,
 # it is exactly what the converter makes of FreeCAD's own LinuxCNC output (run.sh compares it with
-# the Node converter), a Job without X Max is refused and no file is written, and the whole
-# golden set converts byte for byte inside FreeCAD's JavaScript engine.
+# the Node converter), a Job without X Max or without a spindle speed is refused and no file is
+# written, every tool change is preceded by the park (G53 Z0, G53 X0) and followed by M3, the
+# spindle is off at the end, and the whole golden set converts byte for byte inside FreeCAD's
+# JavaScript engine.
 #
 # Copyright (c) 2026 Marioskiv
 # https://github.com/Marioskiv/polar-cnc-converter
@@ -12,6 +14,7 @@
 
 import json
 import os
+import re
 import sys
 import traceback
 
@@ -127,13 +130,23 @@ def go():
 
         # 2. no feed in the tool controller: refused with the line, as on the web page
         job.PolarXMax = 125
+        job.Tools.Group[0].SpindleSpeed = 12000
+        doc.recompute()
         res = PostProcessorFactory.get_post_processor(job, "polar_linuxcnc").export()
         check(res and res[0][1] is None and "without a feed rate" in msgs[-1],
               "no feed -> refused: %r" % msgs[-1][:120])
 
-        # 3. polar output
+        # 3. no spindle speed: no M3 would start it after the tool change -> refused
         tc = job.Tools.Group[0]
         tc.HorizFeed, tc.VertFeed = 600, 200
+        tc.SpindleSpeed = 0
+        doc.recompute()
+        res = PostProcessorFactory.get_post_processor(job, "polar_linuxcnc").export()
+        check(res and res[0][1] is None and "spindle stopped" in msgs[-1],
+              "no spindle speed -> refused: %r" % msgs[-1][:120])
+
+        # 4. polar output
+        tc.SpindleSpeed, tc.SpindleDir = 12000, "Forward"
         doc.recompute()
         res = PostProcessorFactory.get_post_processor(job, "polar_linuxcnc").export()
         polar = res[0][1] if res else None
@@ -141,6 +154,21 @@ def go():
         if polar:
             open(os.path.join(OUT, "polar.ngc"), "w").write(polar)
             lines = polar.splitlines()
+            m6 = [i for i, l in enumerate(lines) if l.split("(")[0].strip().startswith("M6")]
+            check(m6 and all(lines[i - 2:i] == ["G53 G0 Z0", "G53 G0 X0"] for i in m6),
+                  "before every M6: Z to the park (G53 Z0), then X to the centre (G53 X0): %s"
+                  % [lines[i - 3:i + 1] for i in m6[:1]])
+            check(all(any(l.startswith("M3 S12000") for l in lines[i:i + 6]) for i in m6),
+                  "after every M6 the spindle starts again (M3 S12000)")
+            end = [i for i, l in enumerate(lines) if l.split("(")[0].strip() in ("M2", "M30")]
+            state = None
+            for l in lines[:end[0] if end else len(lines)]:
+                c = l.split("(")[0].upper()
+                if re.search(r"\bM0*[34]\b", c):
+                    state = "on"
+                elif re.search(r"\bM0*5\b", c):
+                    state = "off"
+            check(end and state == "off", "the spindle is off (M5) before the end of the program")
             check("( Polar G-code - G93 inverse time" in polar, "converter header")
             check("G93" in lines and "G8" in lines, "G93 and G8 (X radius)")
             moves = [l for l in lines if l.startswith(("G0", "G1")) and not l.startswith("G0 Z")]
@@ -148,6 +176,10 @@ def go():
             check(any(" C" in l for l in moves), "C moves present")
             check(max(float(w[1:]) for l in moves for w in l.split() if w.startswith("X")) <= 125,
                   "X within X Max")
+        job.PolarToolChangePark = False
+        res = PostProcessorFactory.get_post_processor(job, "polar_linuxcnc").export()
+        check(res and res[0][1] and "G53" not in res[0][1], "Tool Change Park off: no G53 park moves")
+        job.PolarToolChangePark = True
         # the milling program FreeCAD itself writes for the same Job, for run.sh to convert with Node
         import polarcnc.machine as machine
         from polarcnc import program
@@ -156,7 +188,7 @@ def go():
             program.cartesian(objs, job.PostProcessorArgs))
         json.dump(machine.options(job), open(os.path.join(OUT, "options.json"), "w"))
 
-        # 4. the golden set through FreeCAD's JavaScript engine
+        # 5. the golden set through FreeCAD's JavaScript engine
         from polarcnc import bridge
         G = json.load(open(os.path.join(REPO, "tests", "fixtures", "golden.json")))
         dia = {"real": 6, "wide": 6, "alt": 10}
@@ -170,7 +202,7 @@ def go():
                 got = "refused: %s" % e
             same += got == want
         check(same == len(G["outputs"]), "golden %d/%d identical in FreeCAD" % (same, len(G["outputs"])))
-        # 5. a polar Job: nothing greyed out, polar defaults, warnings
+        # 6. a polar Job: nothing greyed out, polar defaults, warnings
         op_policy(doc, job)
     except Exception:
         log.write(traceback.format_exc())

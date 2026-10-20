@@ -654,14 +654,14 @@
       // ─── MACHINE-REFERENCE MOVES: G53, G28, G30 ───────────────────────────
       // CORRECTED 2026-10-01 (same day). The first version passed "G53 G0 Z0"
       // and "G28 G91 Z0" straight to the machine, reasoning that LinuxCNC
-      // executes them as retracts. That is only true on a MILL, where machine
-      // Z0 is the top of Z. On many lathe conversions the Z home switch is at the
-      // TAILSTOCK end (the positive end) and machine Z0 can be at the CHUCK end:
-      // "G53 G0 Z0" would then rapid the carriage toward the chuck. (The author's
-      // machine was like that until 2026-10-04; it is now numbered like a mill,
-      // machine Z0 = the home park away from the chuck, but the converter cannot
-      // know any machine's numbering.) G28 is no better — its stored position (parameters
-      // 5161-5169) is machine 0,0,0 unless set with G28.1.
+      // executes them as retracts. That is only true where machine Z0 is the
+      // park position away from the work (a mill, or a lathe conversion homed
+      // like one: the author's machine since 2026-10-04 parks at machine Z0 at
+      // the tailstock end). On a lathe conversion with machine Z0 at the CHUCK
+      // end, "G53 G0 Z0" would rapid the carriage toward the chuck, and the
+      // converter cannot know which kind it is writing for. G28 is no better —
+      // its stored position (parameters 5161-5169) is machine 0,0,0 unless set
+      // with G28.1.
       // Rule now: a machine-coordinate Z retract is replaced by
       //   G0 Z<the program's own highest Z>   (2.11.0; was a machine Z the user entered)
       // with a value the user has entered for THEIR machine. With no value set
@@ -684,7 +684,7 @@
         if (gSet[53] && (rx || ry))
           emit('( G53 X/Y park skipped: the tool stays where it is )');
         if (!gSet[53] && !rx && !ry && !rz)
-          inputError(li, rawLine, refName + ' with no axis words sends EVERY axis to the stored position (machine 0,0,0 unless set with G28.1) — the chuck centre and the chuck end of Z.' + RETRACT_HELP);
+          inputError(li, rawLine, refName + ' with no axis words sends EVERY axis to the stored position (machine 0,0,0 unless set with G28.1) — the chuck centre, and on some lathe conversions the chuck end of Z.' + RETRACT_HELP);
         if (!gSet[53] && (rx || ry)) {
           var parkOnly = distIncremental && (!rx || Math.abs(words['X']) < 1e-9)
                                          && (!ry || Math.abs(words['Y']) < 1e-9);

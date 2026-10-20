@@ -21,7 +21,7 @@ FreeCAD.
 
 1. Draw the part with its **face centre at X0 Y0**: that point is the chuck axis. **Z0 = the stock top** (the face
    you touch the cutter off on; the program header says where the top is if it is not at Z0). Make the CAM Job as
-   usual (stock, tool controllers with **feeds**, operations).
+   usual (stock, tool controllers with **feeds** and **spindle speed**, operations).
 2. Select the Job and click **Machining type** (first button of the *Polar CNC* toolbar in the CAM workbench).
    Choose **Ordinary CAM**, **Polar** (the chuck turns, the router looks at the face) or **Wrap** (the router turned
    to a bar). It sets the post-processor and adds a **Polar CNC** group to the Job's properties. In a polar Job
@@ -38,6 +38,8 @@ FreeCAD.
      X as diameter, chord tolerance).
    - **Polar C Max Velocity** (optional): the C axis top speed, degrees per second (`MAX_VELOCITY` of the C joint
      in the LinuxCNC `.ini`). With it, each operation says how much slower it will run near the centre.
+   - **Polar Tool Change Park** (on by default): the cutter goes to a place where it can be changed by hand before
+     every tool change (see *Tool change* below). Untick it if your machine Z0 is at the chuck end.
 4. **Polar simulation** (last button on the *Polar CNC* toolbar) plays the polar program — exactly what Post
    Process writes, read back the way LinuxCNC moves the axes:
    - *Machine view*: the part turns with the chuck and the cutter only moves in X and Z, as on the machine;
@@ -51,6 +53,25 @@ FreeCAD.
 
 The operations stay normal CAM operations, so FreeCAD shows and simulates them as usual. The polar conversion
 happens only when the G-code is written.
+
+## Tool change (by hand)
+
+Every operation with another cutter starts with `M5` / `M6 Tn` / `G43 Hn` / `M3 S…`. Before each `M6` Post Process
+writes a park move (machine coordinates, C does not move):
+
+- **Polar**: `G53 G0 Z0` (Z to where Home All parks it, away from the part), then `G53 G0 X0` (X to the centre).
+- **Wrap**: `G0 X<X max>` (out, away from the bar) first, then `G53 G0 Z0`.
+
+At `M6` LinuxCNC stops the spindle and shows the tool-change dialog; change the cutter and press Continue: the
+program applies the new cutter's length from the tool table (`G43`), starts the spindle (`M3 S…`) and goes on by
+itself. No new touch-off is needed **if every cutter goes into the collet exactly as it was when its length was
+measured** (for example always to the stop, or with a stop collar). Keep one tool table per layout: polar lengths
+in the Z column, Wrap lengths in the X column (`G43` applies every axis of the entry).
+
+The park assumes that machine Z0 is the park position away from the part (as on the author's machine, homed like
+a mill). If yours has machine Z0 at the chuck end, untick *Polar Tool Change Park*. A Tool Controller without a
+spindle speed is refused: FreeCAD would write no `M3` and the next cutter would go in with the spindle stopped.
+While the router is switched by hand, `M3`/`M5` do nothing: switch it off yourself before changing the cutter.
 
 ## Help inside FreeCAD (Greek or English)
 

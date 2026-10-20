@@ -13,29 +13,41 @@ Update this file when a decision changes. Open work lives in `pending.md`.
 - Do NOT change the web converter unless he asks (2026-10-19: "only addon changes, not the web converter").
 
 ## His machine
-- Holzmann lathe converted to XZC face milling, LinuxCNC 2.9.10, trivkins XZC. Its real configuration and
-  calibration notes are in the separate repo `linuxcnc-calibrations` (do not copy them here). NOTE 2026-10-20:
-  the latest real .ini (X centre -24.039) is in the private repo `cnc-manuals` — ask Marios which repo is current.
-- `examples/linuxcnc-vismach-xzc-lathe/polarlathe-sim.ini` is a simulation copy of its motion settings.
+- Holzmann lathe converted to XZC face milling, LinuxCNC 2.9.10, trivkins XZC. Its real `.ini` is in his private
+  repo `cnc-manuals`; calibration notes in `linuxcnc-calibrations` (do not copy either here).
+- `examples/linuxcnc-vismach-xzc-lathe/polarlathe-sim.ini` is only a simulation copy of its motion settings
+  (X synced 2026-10-19: HOME_OFFSET -24.039, limits -22.039 … 108.961).
+- Homed like a mill since 2026-10-04: Z switch at the tailstock end, machine Z0 = the park there (Home All leaves Z
+  at 0); machine X0 = the chuck centre. Comments saying "machine Z0 at the chuck end" were outdated and are fixed.
+- Cutters changed by hand; all tool lengths in the LinuxCNC tool table; router switched by hand (LinuxCNC later).
 
 ## Decisions (newest first)
-- 2026-10-20 (2.22.0, Marios: "fix them all, serious work, keep notes"): full review (two independent
-  read-throughs, every test, sweeps, LinuxCNC 2.9.10 `rs274` with his machine .ini, ruff, eslint). Fixed:
-  no-diameter cutter refused with a chuck; Split Output refuses all files if one is refused (one card), simulator
-  plays the files one after another; setup note "touch off Z on the stock TOP with the value Z …"; editor edits
-  re-checked; Y check in the post; drill cycles in Cartesian checks; obstacle cache key; Wrap layout C = -Y/R0
-  (was mirrored; `program.unroll` writes Y = -angle·R0 so Polar Wrap output is unchanged); first rapid and after
-  M6 split in Wrap; Polar Wrap points ≤ 1 map cell apart (flat cutter gouged 0.78 mm at a key edge); own
-  `polarwrap_gui.create` (was close to FreeCAD's LGPL Create). XZC output unchanged (golden 144/144).
+- 2026-10-20 (2.24.0, Marios: "fix them all, serious work, keep notes, find more check tools"): full review
+  (two independent read-throughs, every test, sweeps, LinuxCNC 2.9.10 `rs274` with his machine .ini, ruff,
+  eslint). Fixed: no-diameter cutter refused with a chuck; Split Output refuses all files if one is refused (one
+  card), simulator plays the files one after another; setup note "touch off Z on the stock TOP with the value
+  Z …"; editor edits re-checked (park lines G53 left out of the check, as on first write); Y check in the post;
+  drill cycles in Cartesian checks; obstacle cache key; Wrap layout C = -Y/R0 (was mirrored; `program.unroll`
+  writes Y = -angle·R0 so Polar Wrap output is unchanged); first rapid and after M6 split in Wrap; Polar Wrap
+  points ≤ 1 map cell apart (flat cutter gouged 0.78 mm at a key edge); own `polarwrap_gui.create` (was close
+  to FreeCAD's LGPL Create). XZC output unchanged (golden 144/144). Made in parallel with 2.22.0/2.23.0 of
+  another chat, merged on top of them.
 - 2026-10-20 workflow: Marios said (2026-10-16, in another chat) "no more PRs, the chat's PR button is stuck".
   This repo's CLAUDE.md says branch → PR → merge after tests. Both kept: Claude opens the PR AND merges it
-  itself once every test passes, so Marios has no button to press.
+  itself once every test (npm + FreeCAD) passes, so Marios has no button to press.
 - 2026-10-16: his machine's X centre was MEASURED (router tip on the chuck axis at X 4.039 with the old
-  HOME_OFFSET -20): real .ini now HOME_OFFSET -24.039, X limits -22.039 / 108.961 (same physical places), X Axis
-  Max on the page 108.9. The real .ini and machine notes are in the PRIVATE repo `Marioskiv/cnc-manuals`
-  (`polar-cnc-converter/docs/handoff/machine-config/`). `polarlathe-sim.ini` here is a simulation copy, synced.
-- Machine Z0 on his machine = the HOME PARK at the tailstock end (mill-style numbering since 2026-10-04,
-  installed 2026-10-14). `G53 G0 Z0` is a safe retract there. Old comments that said "Z0 at the chuck end" fixed.
+  HOME_OFFSET -20): real .ini HOME_OFFSET -24.039, X limits -22.039 / 108.961 (same physical places), X Axis
+  Max on the page 108.9.
+- 2026-10-20 (2.23.0) **repositories reorganised** (Marios: "everything polar in one repo, WikiTips separate"):
+  this repo = web converter + simulator + Polar CNC (polar, Polar Wrap) + **Knurling & Wrap** (`cad/`, Part
+  Design only, separate part, no WikiTips inside, MIT — his yes). WikiTips = only help + error explanations.
+  He also wants: this repo renamed (his words "XCZ converter polar, warp"; exact GitHub name to confirm; only
+  he can rename it in GitHub Settings), a SEPARATE repo for the cutter libraries, and from now on the chat in
+  which this was decided is for WikiTips only. Details of the move: `knurlwrap.md`.
+- 2026-10-20 (2.22.0, his yes to A/B/C/D): park before every M6 (polar `G53 G0 Z0` then `G53 G0 X0`; Wrap
+  `G0 X<X max>` then `G53 G0 Z0`; C stays; Job property *Polar Tool Change Park*, on by default); Post Process
+  refuses a Tool Controller without spindle speed; M5 added before the end when left on; outdated comments fixed
+  ("no comments that do not match the repo"), sim .ini X synced.
 - 2026-10-20 research (no change made): **FreeCAD 26.3 Rotary Surface cannot replace Polar Wrap** for his XZC
   machine. Checked in its source (`Mod/CAM/Path/Op/RotarySurface.py`, `Base/Generator/rotary_*.py`):
   the rotary axis must lie along world X or Y ("Rotary axis along world Z is not supported in v1"), it writes

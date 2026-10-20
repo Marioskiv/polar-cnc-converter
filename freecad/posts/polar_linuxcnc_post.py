@@ -11,6 +11,7 @@
 # SPDX-License-Identifier: MIT
 
 import os
+import re
 import sys
 
 import FreeCAD
@@ -91,6 +92,12 @@ def _polar_program(job, objectslist, argstring, quiet=False):
             if msg and not quiet:
                 FreeCAD.Console.PrintWarning("Polar CNC (%s): %s\n" % (o.Label, msg))
 
+    # every cutter must start the spindle: without a speed FreeCAD writes no M3
+    spindle = program.spindle_problems(ops)
+    if spindle:
+        raise _Refused("a cutter would go in with the spindle stopped.\n" + "\n".join(spindle) +
+                       "\nSet Spindle Speed (and direction Forward) in its Tool Controller.")
+
     # the milling program, without its editor (it is not what goes to the machine)
     cartesian = program.cartesian(objectslist, argstring)
     if wrap:                # the real part's paths, unrolled for the wrap layout
@@ -108,7 +115,10 @@ def _polar_program(job, objectslist, argstring, quiet=False):
 
     polar = _with_setup_notes(polar, job, wrap, held)
     _machine_check(polar, job, ops, opts, wrap, held)
-    return polar
+    # after the checks: the park before each tool change (machine coordinates), the spindle off
+    if getattr(job, "PolarToolChangePark", True):
+        polar = program.tool_change_park(polar, opts)
+    return program.spindle_off_at_end(polar)
 
 
 def _machine_check(polar, job, ops, opts, wrap, held):
@@ -245,8 +255,12 @@ def export(objectslist, filename, argstring):
                 edited = dia.editor.toPlainText()
                 if edited != polar:
                     # 2.22.0: what is written must pass the same checks as what was converted
+                    # the park lines (G53, machine coordinates) are added after the checks, as
+                    # when the program is first written: left out of the check here too
+                    checked = "\n".join(l for l in edited.split("\n")
+                                         if not re.match(r"\s*G0*53\b", l.upper()))
                     try:
-                        _machine_check(edited, job, [getattr(i, "source", i) for i in objectslist],
+                        _machine_check(checked, job, [getattr(i, "source", i) for i in objectslist],
                                        machine.options(job), machine.is_wrap(job),
                                        getattr(job, "PolarChuck", None))
                     except _Refused as e:

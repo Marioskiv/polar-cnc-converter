@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.22.0 — fixes from a full review (polar checks, Split Output, Wrap orientation)
+## 2.24.0 — fixes from a full review (polar checks, Split Output, Wrap orientation)
 
 A full review of the repository (two independent read-throughs of the converter and of the FreeCAD addon, every
 test, the sweeps, LinuxCNC 2.9.10's own interpreter on the author's machine `.ini`, `ruff` and `eslint`). The XZC
@@ -17,7 +17,8 @@ real programs give the same output.
 - The setup note at the top said "stock bottom at Z … – touch off Z there": it reads as "touch off at the bottom",
   wrong by the stock height. It now says: touch off Z on the stock TOP with the value Z ….
 - A program edited by hand in the post's editor was written without a new check. It is now checked again (Y left,
-  the chuck) and refused if it fails.
+  the chuck; the 2.22.0 tool-change park lines, in machine coordinates, are left out as on the first write)
+  and refused if it fails.
 - "Y in the output" is checked by Post Process too (it was only in the live check).
 - Two tool controllers with one tool number: the chuck check uses the bigger cutter.
 - Drilling cycles (G73, G81–G89) are followed in the Cartesian chuck check and in the jaw-height reminder
@@ -45,9 +46,42 @@ real programs give the same output.
 - `npm test` (wrap 145), sweeps unchanged (worst 0.0225 mm), LinuxCNC 2.9.10 `rs274` with the machine `.ini`: the
   author's three programs OK (time equal to the CAM), Wrap outputs accepted. FreeCAD 26.3: every addon test PASS,
   plus the new `tests/freecad/fixes_test.py`. `ruff` (Python) and `eslint` (JS): no real error.
-- `examples/linuxcnc-vismach-xzc-lathe/polarlathe-sim.ini`: X synced with the real machine (centre measured at
-  24.039 mm from the switch); the comment that put machine Z0 at the chuck end corrected (it is the home park, numbered
-  like a mill since 2026-10-04). The same old comment in `src/core/gcode-input.js` corrected (comment only).
+
+## 2.23.0 — Knurling & Wrap moved here from WikiTips
+
+### Added
+- **Knurling & Wrap** (`cad/`): the Knurl and "Σκαρίφημα σε κύλινδρο" (Wrap) tools, moved from WikiTips 0.4.1
+  with their tests and notes, MIT like the rest of the repository. A separate part of the addon (second
+  `<workbench>` in `package.xml`), on its own toolbar in **Part Design only**, with nothing of WikiTips inside:
+  its Greek messages (wrong selection, knurl too big, no closed shapes) are its own. Commands
+  `KnurlWrap_Knurl`, `KnurlWrap_Wrap` (were `WikiTips_Knurl`, `WikiTips_Wrap`).
+- Files made with WikiTips' Knurl or Wrap still open (the old module names are kept; FreeCAD 26.3 only lets a
+  document import modules already loaded, so they are loaded at start-up) and are saved under the new names.
+- Tests in a real FreeCAD: `knurl_test.py`, `cyl_wrap_test.py`, `knurlwrap_old_file_test.py` (fixture made
+  with WikiTips 0.4.1).
+
+## 2.22.0 — Tool change by hand: park position, spindle always started
+
+### Added
+- **Park before every tool change** (FreeCAD Post Process, Job property *Polar Tool Change Park*, on by default).
+  Polar: `G53 G0 Z0` (Z to where Home All parks it, away from the part), then `G53 G0 X0`. Wrap: `G0 X<X max>`
+  (away from the bar) first, then `G53 G0 Z0`. C does not move. `G53` goes to the machine position whatever the
+  tool length offset (checked in LinuxCNC 2.9 `interp_find.cc`). For machines with machine Z0 at the chuck end the
+  property must be unticked.
+- `M5` before the program end when the spindle was left on.
+
+### Changed
+- **A Tool Controller without a spindle speed (or with direction None) is refused** by Post Process: FreeCAD writes
+  no `M3 S` for it, and after `M6` (LinuxCNC stops the spindle) the cutter would go in with the spindle stopped.
+  Error card in Greek and English.
+
+### Fixed (comments and the simulation only: no change to the G-code of the web converter)
+- `examples/linuxcnc-vismach-xzc-lathe/polarlathe-sim.ini`: X synced with the real `.ini` of 2026-10-19
+  (`HOME_OFFSET` -24.039, limits -22.039 … 108.961); the Z comment said machine Z0 is at the chuck end — since
+  2026-10-04 the machine is homed like a mill and machine Z0 is the park at the tailstock end.
+- The same outdated sentence in `src/core/gcode-input.js` and `docs/TECHNICAL.md`; the G28 error message now says
+  "on some lathe conversions the chuck end of Z".
+- `profiles/example-lathe-xzc-one-side`, the example README and `tools/linuxcnc-compare.js`: X max 108.961.
 
 ## 2.21.0 — Wrap with several cutters, and what each cutter leaves
 

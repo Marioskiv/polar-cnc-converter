@@ -3,51 +3,38 @@
 Newest first. Move an item to `memory.md` (Decisions) when it is decided, delete it when it is done.
 
 ## Waiting for Marios
-- **2.22.0 (2026-10-20):** after merging, tell Marios: Wrap from the web page is no longer mirrored; prove it
-  with an asymmetric test cut (like the F test) before a real Wrap part. Polar Wrap (FreeCAD) programs unchanged.
-- **Which repo holds his real machine config?** memory.md says `linuxcnc-calibrations`; the latest real .ini
-  (X centre -24.039, 2026-10-16) is in private `cnc-manuals`. Ask him; keep one.
-- The pending item below about "machine Z0 at the CHUCK end" is ANSWERED: machine Z0 = home park at the
-  tailstock end (confirmed on the machine 2026-10-14: after Home All Z reads 0 there). Comments fixed in 2.22.0.
-- **His answers 2026-10-20:** changes cutters by hand; all tool lengths are in the LinuxCNC tool table; no
-  tool setter mentioned; unsure whether to clamp each cutter at the same height or push it to the collet stop.
-  Wants Wrap to go to a safe X AND a safe Z before every tool change. Proposed (waiting for his yes and the Z
-  value): before each M6 in a Wrap program `G0 X<Wrap X max>` then `G0 Z<tool-change Z>`.
-- **2026-10-20, his answers (round 3):** (1) the polar .ini in this repo (`polarlathe-sim.ini`) is his latest
-  and correct one. Its numbers: Z switch +10 at the tailstock end, HOME 0, limits -590..+7 → machine Z0 = where
-  Home All parks Z, at the tailstock end; X HOME 0 = chuck centre. The comment "machine Z0 is at the CHUCK end"
-  (in that .ini and in `src/core/gcode-input.js`) contradicts these numbers: ask before correcting it.
-  (2) no Wrap .ini yet: the router's side is not decided; he asks where X0 should be and for a Wrap .ini/.hal.
-  Advice given: work X0 = the chuck axis, X+ = away from it (the converter and Polar Wrap write X = radius);
-  same .hal (if it reads scales/limits from the .ini), own .ini, own tool table (G43 applies every axis of a
-  tool's entry: Z lengths for polar, X lengths for Wrap must not share one table). Needs his real .hal.
-  (3) spindle on/off and speed are by hand today, LinuxCNC later: the program must carry M3 S / M5 anyway.
-  (4) wants speeds and on/off written properly → proposal: Post Process refuses a Tool Controller without a
-  spindle speed. All waiting for his explicit yes.
-- **Tool-change point (2026-10-20, his answer):** "check the .ini for the safe point; polar = machine X0 Z0 I
-  think; Wrap the same Z, its X runs the other way (Wrap .ini)". From `polarlathe-sim.ini` (synced with the real
-  .ini 2026-10-04): Z homes at the tailstock end, HOME 0, limits -590..+7, work Z0 = machine Z -490 in the sim →
-  machine Z0 is the PARK at the tailstock end (README agrees). BUT the .ini comment says "Machine Z0 is at the
-  CHUCK end — G53 G0 Z0 must never reach this machine": contradicts; ask him to confirm on the machine before
-  any G53 Z0 is written. Wrap .ini not in this repo: its safe X unknown. He did not understand M3 (explained).
-  Ask: does LinuxCNC switch the spindle (router) on/off, or is it switched by hand?
-- **Tool change position (found 2026-10-20).** Wrap: before M6 the router is only 5 mm above the bar (no
-  retract to X max). Face: at the CAM's clearance height. LinuxCNC moves nothing on M6 unless his .ini says so.
-  Options to put to him: retract to X max (Wrap) / a safe Z (Face) before every M6 in the post; or
-  `TOOL_CHANGE_QUILL_UP = 1` in his .ini (Face: Z to machine 0; Wrap: moves along the bar, X stays). Ask
-  whether he has a tool setter and whether tool lengths are in his tool table. Do nothing until he answers.
-- **Spindle after a tool change:** FreeCAD writes `M3 S` only if the Tool Controller has a spindle speed; the
-  relief test has none, so its program has no M3 at all. Proposal (ask): Post Process warns/refuses a cut
-  with no spindle start.
+- **2.24.0 (2026-10-20):** tell Marios: Wrap from the web page is no longer mirrored; prove it with an
+  asymmetric test cut (like the F test) before a real Wrap part. Polar Wrap (FreeCAD) programs are unchanged.
+- **Rename this repo** (his request 2026-10-20: "XCZ converter polar, warp"). A GitHub name cannot have spaces
+  or commas: confirm the exact name (and XZC, the machine's axes, or XCZ as he wrote). Only he can rename it
+  (GitHub → Settings → Repository name). After it: the web page address changes
+  (`marioskiv.github.io/<new name>`, the old link stops working), and every file header, README, package.xml
+  URL and his Addon Manager custom repository must be updated (GitHub redirects the old git URL).
+- **Tool-library repo** (his request 2026-10-20): the cutter libraries were only sent as zips (YG-1 26 bits,
+  IZAR 85, Stepcraft 3, Amana 34; see WikiTips memory.md of 2026-10-17); they are not in any repo and not on
+  this machine (only his Amana .tools and IZAR PDF uploads remain). Ask: repo name, private or public, and
+  whether he uploads his zips or they are rebuilt from his catalogs.
+- **Knurling & Wrap**: not yet tried on his PC after the move (2.23.0). The texts are Greek only (as in
+  WikiTips); English not asked for.
+- **Wrap .ini / .hal:** the router's side on the Wrap setup is not decided yet. Advice given (2026-10-20): work X0 =
+  the chuck axis, X+ = away from it (flip the X scale sign in the Wrap .ini if needed); the same .hal if it reads
+  scales/limits from the .ini; its own .ini and its own tool table (lengths in the X column). To write it: his
+  decision on the router side + his real .hal. His real machine files are in his private repo `cnc-manuals`
+  (not in this repo; `examples/.../polarlathe-sim.ini` is only the simulation copy).
 - **Header text:** the converter always writes "C goes past 99999 deg" (fixed number) even when his .ini limit
   is larger. Cosmetic; ask before touching the converter.
 - **C soft limit:** decided 2026-10-20 (see memory.md). Marios raises the limit in his real .ini himself.
   Not confirmed yet that he has done it.
-- Polar mode with FreeCAD's own operations: he has not yet cut a real part with 2.20/2.21.
+- **Spindle:** switched by hand today (LinuxCNC later). Until then M3/M5 do nothing: he switches the router off
+  himself at the tool-change dialog.
+- Polar mode with FreeCAD's own operations: he has not yet cut a real part with 2.20–2.22.
 - Polar Wrap with After operation and the tool report: not yet tried on his PC.
+- 2.22.0 tool-change park: not yet run on the machine. Precondition (from the other chat): his real .ini must
+  have the X fix of 2026-10-19 (HOME_OFFSET -24.039) so that machine X0 is the chuck centre.
 
 ## Not covered by tests yet
 - Wrap: grid point exactly on a mesh vertex/edge; a mesh with holes; feed between points when C turns fast near
   the axis.
-- FreeCAD 26.3 has its own Rotary Surface (OpenCAMLib, A axis on a mill). Polar Wrap stays for the XZC lathe;
-  noted only, nothing to do.
+- The move from the park back to the next operation after M6 is not in the chuck check (the check sees the move
+  from the previous operation instead). It is clear by construction: Wrap keeps X ≥ the operation's safe X all the
+  way, polar moves X/C at the park Z and only then Z.
