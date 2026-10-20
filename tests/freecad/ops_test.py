@@ -48,6 +48,7 @@ def run():
     st.ExtZneg, st.ExtZpos = 8, 1
     tc = job.Tools.Group[0]
     tc.HorizFeed, tc.VertFeed = "600 mm/min", "200 mm/min"
+    tc.SpindleSpeed = 12000
     doc.recompute()
     Gui.Selection.clearSelection()
     Gui.Selection.addSelection(job)

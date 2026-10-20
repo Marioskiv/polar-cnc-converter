@@ -22,7 +22,7 @@
 //       --enable-non-distributable=yes --disable-userspace-pci && make ../bin/rs274
 // or use /usr/bin/rs274 from an installed linuxcnc-uspace.
 //
-// Usage: node tools/linuxcnc-compare.js --rs274 <path> [--ini <machine .ini>] [--xmin 0] [--xmax 113]
+// Usage: node tools/linuxcnc-compare.js --rs274 <path> [--ini <machine .ini>] [--xmin 0] [--xmax 108.961]
 //            [--tol 0.025] [--air-z 0] program.ngc [more.ngc ...]
 //   --ini    your machine's .ini (default: the example XZC sim config in examples/linuxcnc-vismach-xzc-lathe)
 //   --air-z  only moves at or below this Z count as cutting (leaves out feed moves in the air)
@@ -175,13 +175,13 @@ function compare(input, opts, env) {
 }
 
 function main(argv) {
-  const a = { xmin: 0, xmax: 113, tol: 0.025, ini: path.join(__dirname, '..', 'examples', 'linuxcnc-vismach-xzc-lathe', 'polarlathe-sim.ini') };
+  const a = { xmin: 0, xmax: 108.961, tol: 0.025, ini: path.join(__dirname, '..', 'examples', 'linuxcnc-vismach-xzc-lathe', 'polarlathe-sim.ini') };
   const files = [];
   for (let i = 0; i < argv.length; i++) {
     const m = argv[i].match(/^--(rs274|ini|xmin|xmax|tol|air-z)$/);
     if (m) a[m[1]] = argv[++i]; else files.push(argv[i]);
   }
-  if (!a.rs274 || !files.length) { console.log('usage: node tools/linuxcnc-compare.js --rs274 <path> [--ini <machine .ini>] [--xmin 0] [--xmax 113] [--tol 0.025] [--air-z Z] program.ngc ...'); return 2; }
+  if (!a.rs274 || !files.length) { console.log('usage: node tools/linuxcnc-compare.js --rs274 <path> [--ini <machine .ini>] [--xmin 0] [--xmax 108.961] [--tol 0.025] [--air-z Z] program.ngc ...'); return 2; }
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'polar-lc-'));
   const millIni = path.join(dir, 'mill.ini');
   fs.writeFileSync(millIni, '[RS274NGC]\nPARAMETER_FILE = mill.var\n[TRAJ]\nCOORDINATES = XYZ\nLINEAR_UNITS = mm\n[KINS]\nKINEMATICS = trivkins coordinates=XYZ\nJOINTS = 3\n');

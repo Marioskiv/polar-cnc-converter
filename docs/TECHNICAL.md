@@ -277,8 +277,9 @@ A dwell `G4 P` of 60 or more is kept but flagged with a warning: in LinuxCNC P i
 Fanuc-style posts write milliseconds.
 
 **Machine-coordinate retracts are machine-specific.** A mill's post emits `G53 G0 Z0` because on a
-mill machine Z0 is the top of Z. On many lathe conversions machine Z0 is at the **chuck** end — passing
-`G53 G0 Z0` through would rapid the carriage toward the chuck. `G28` is no safer: its stored position is
+mill machine Z0 is the top of Z. On some lathe conversions machine Z0 is at the **chuck** end — passing
+`G53 G0 Z0` through would rapid the carriage toward the chuck (the author's machine is homed like a mill since
+2026-10-04: machine Z0 is the park at the tailstock end, but the converter cannot know which kind it writes for). `G28` is no safer: its stored position is
 machine 0,0,0 unless set with `G28.1`. So the converter never passes these through. **Since 2.11.0 there is no
 setting for it:** every such retract becomes `G0 Z<the highest Z of the program itself>` — the clearance height
 the CAM already uses above the part, in work coordinates — so it is right on any machine. A program with no Z of

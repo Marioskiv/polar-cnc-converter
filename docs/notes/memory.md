@@ -13,11 +13,19 @@ Update this file when a decision changes. Open work lives in `pending.md`.
 - Do NOT change the web converter unless he asks (2026-10-19: "only addon changes, not the web converter").
 
 ## His machine
-- Holzmann lathe converted to XZC face milling, LinuxCNC 2.9.10, trivkins XZC. Its real configuration and
-  calibration notes are in the separate repo `linuxcnc-calibrations` (do not copy them here).
-- `examples/linuxcnc-vismach-xzc-lathe/polarlathe-sim.ini` is a simulation copy of its motion settings.
+- Holzmann lathe converted to XZC face milling, LinuxCNC 2.9.10, trivkins XZC. Its real `.ini` is in his private
+  repo `cnc-manuals`; calibration notes in `linuxcnc-calibrations` (do not copy either here).
+- `examples/linuxcnc-vismach-xzc-lathe/polarlathe-sim.ini` is only a simulation copy of its motion settings
+  (X synced 2026-10-19: HOME_OFFSET -24.039, limits -22.039 … 108.961).
+- Homed like a mill since 2026-10-04: Z switch at the tailstock end, machine Z0 = the park there (Home All leaves Z
+  at 0); machine X0 = the chuck centre. Comments saying "machine Z0 at the chuck end" were outdated and are fixed.
+- Cutters changed by hand; all tool lengths in the LinuxCNC tool table; router switched by hand (LinuxCNC later).
 
 ## Decisions (newest first)
+- 2026-10-20 (2.22.0, his yes to A/B/C/D): park before every M6 (polar `G53 G0 Z0` then `G53 G0 X0`; Wrap
+  `G0 X<X max>` then `G53 G0 Z0`; C stays; Job property *Polar Tool Change Park*, on by default); Post Process
+  refuses a Tool Controller without spindle speed; M5 added before the end when left on; outdated comments fixed
+  ("no comments that do not match the repo"), sim .ini X synced.
 - 2026-10-20 research (no change made): **FreeCAD 26.3 Rotary Surface cannot replace Polar Wrap** for his XZC
   machine. Checked in its source (`Mod/CAM/Path/Op/RotarySurface.py`, `Base/Generator/rotary_*.py`):
   the rotary axis must lie along world X or Y ("Rotary axis along world Z is not supported in v1"), it writes

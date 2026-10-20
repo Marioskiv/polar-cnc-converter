@@ -54,6 +54,7 @@ def tool_controller(job, label, shape, diameter, number):
         tool.ViewObject.Visibility = False
     tc = Controller.Create(label, tool=tool, toolNumber=number)
     tc.HorizFeed, tc.VertFeed = "600 mm/min", "200 mm/min"
+    tc.SpindleSpeed = 12000
     job.Proxy.addToolController(tc)
     return tc
 
@@ -197,6 +198,14 @@ def go():
               "Post Process writes the three tools in one program %s" % boxes[-1:])
         if out:
             open(os.path.join(OUT, "relief.ngc"), "w").write(out)
+            # Wrap: before every tool change X out to X max (away from the bar), then Z to the park
+            lines = out.splitlines()
+            m6 = [i for i, l in enumerate(lines) if l.split("(")[0].strip().startswith("M6")]
+            check(len(m6) == 3 and all(lines[i - 2:i] == ["G0 X125.0000", "G53 G0 Z0"] for i in m6),
+                  "Wrap: before every M6 X out to X max, then Z to the park: %s"
+                  % [lines[i - 3:i + 1] for i in m6[:1]])
+            check(all(any(l.startswith("M3 S12000") for l in lines[i:i + 6]) for i in m6),
+                  "after every M6 the spindle starts again (M3 S12000)")
         panel = simulator.open_for(job)
         pump(400)
         check(panel is not None, "the simulator opens")
