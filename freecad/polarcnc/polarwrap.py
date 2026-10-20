@@ -247,7 +247,12 @@ class ObjectPolarWrap(PathOp.ObjectOp):
         passes = wrapcut.helix_passes(
             Xr, Xf, zs, na, r_stock, z_from, z_to,
             max(obj.RoughStepOver, 1) / 100.0 * d, max(obj.StepOver, 1) / 100.0 * d,
-            max(obj.StepDown.Value, 0.01), min(0.5, step * 2),
+            # FIX 2.22.0: a written point at most ONE map cell apart (was two: min(0.5, step * 2)).
+            # wrapcut.sample takes the highest of the 4 grid points round each written point,
+            # so every grid point between two written points is seen by one of them only when
+            # they are at most a cell apart. Two cells apart, a flat cutter cut 0.78 mm too deep
+            # at the edge of a key along the bar (the machine moves straight between blocks).
+            max(obj.StepDown.Value, 0.01), min(0.5, 0.99 * 2 * math.pi * r_stock / na),
             roughing=obj.Strategy != "Finishing", finishing=obj.Strategy != "Roughing",
             ccw=obj.Direction == DIRECTIONS[0], radius=radius,
             finish_lines=obj.FinishStyle == FINISH_STYLES[1], start=start)

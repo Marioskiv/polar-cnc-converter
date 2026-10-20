@@ -18,6 +18,9 @@ RAPIDS = ("G0", "G00")
 LINES = ("G1", "G01")
 ARCS_CW = ("G2", "G02")
 ARCS_CCW = ("G3", "G03")
+# 2.22.0: drilling cycles, followed as the moves they stand for (they were skipped)
+CYCLES = tuple("G%d" % n for n in (73, 81, 82, 83, 85, 86, 89)) + \
+    tuple("G%02d" % n for n in (73, 81, 82, 83, 85, 86, 89))
 
 
 _obs_cache = {}
@@ -27,8 +30,14 @@ def obstacles(chuck):
     """[(name, top Z, outline as an (n, 2) array)] of the chuck body, jaws and clamps (kept
     while the chuck's shape stays the same: asked for on every operation recompute)."""
     try:
+        # 2.22.0: also what keepout_parts reads besides the chuck's own shape (the stock, and
+        # whether the jaws' angle is known): neither changes that shape until a recompute
+        from . import chuck as chuckmod
+        stock = chuckmod.stock_of(chuck)
         key = (chuck.Document.Name, chuck.Name, chuck.Shape.hashCode(), str(chuck.Shape.BoundBox),
-               round(chuck.Shape.Volume, 6))
+               round(chuck.Shape.Volume, 6), bool(getattr(chuck, "JawsAtKnownAngle", False)),
+               str(stock.BoundBox) if stock is not None else None,
+               round(stock.Volume, 6) if stock is not None else None)
     except Exception:
         key = None
     if key is not None and key in _obs_cache:
@@ -93,6 +102,29 @@ def samples(path):
     out_p, out_i, out_r = [], [], []
     for idx, cmd in enumerate(path.Commands):
         name = cmd.Name.upper()
+        if name in CYCLES:
+            # rapid over the hole at the height it is at, down to R, feed to the bottom, back up
+            prm = cmd.Parameters
+            x, y = prm.get("X", pos[0]), prm.get("Y", pos[1])
+            if None in (x, y, pos[2]) or "Z" not in prm:
+                pos = [x, y, pos[2]]
+                continue
+            r_lvl = prm.get("R", pos[2])
+            top = max(pos[2], r_lvl)
+            legs = [((x, y, top), True), ((x, y, r_lvl), True), ((x, y, prm["Z"]), False),
+                    ((x, y, top), True)]
+            here = list(pos) if None not in pos else [x, y, top]
+            for to, rapid in legs:
+                L = math.dist(here, to)
+                n = max(int(L / STEP), 1)
+                t = numpy.linspace(0, 1, n + 1)[:, None]
+                pts = numpy.array(here)[None] + t * (numpy.array(to) - numpy.array(here))[None]
+                out_p.append(pts)
+                out_i.append(numpy.full(len(pts), idx))
+                out_r.append(numpy.full(len(pts), rapid))
+                here = list(to)
+            pos = here
+            continue
         if name not in RAPIDS + LINES + ARCS_CW + ARCS_CCW:
             continue
         prm = cmd.Parameters

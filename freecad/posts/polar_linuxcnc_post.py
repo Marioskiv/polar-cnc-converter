@@ -106,30 +106,41 @@ def _polar_program(job, objectslist, argstring, quiet=False):
         # the converter's own words; its line numbers are those of the milling program
         raise _Refused("the program was not converted.\n%s" % e)
 
-    left = program.y_move(polar)    # 2.22.0: the same Y check as the live one
+    polar = _with_setup_notes(polar, job, wrap, held)
+    _machine_check(polar, job, ops, opts, wrap, held)
+    return polar
+
+
+def _machine_check(polar, job, ops, opts, wrap, held):
+    """The polar text as the machine will run it: no Y left, and (with a chuck set up) every
+    block in joint space against the jaws / clamps, each cutter with its own radius. Raises
+    _Refused. Run on the converted program and again on what the editor gives back if it was
+    changed there (2.22.0: edits were written unchecked)."""
+    from polarcnc import collision
+    left = program.y_move(polar)
     if left:
         raise _Refused("the polar output still has a Y move (it must be X, C, Z only): %s" % left)
-
-    polar = _with_setup_notes(polar, job, wrap, held)
-
-    if held is not None:    # then the program as the machine really moves (joint space)
-        radius = max([collision.tool_radius(o) for o in ops] + [0.0])
+    if held is None:
+        return
+    radius = max([collision.tool_radius(o) for o in ops] + [0.0])
+    try:
         data = bridge.parse(polar, opts)
-        by_number = {}                        # each cutter checked with its own radius
-        for o in ops:
-            tc = getattr(o, "ToolController", None)
-            if tc is not None and collision.tool_radius(o) > 0:
-                # two tool controllers with one number: the bigger cutter (the safe side)
-                n = int(tc.ToolNumber)
-                by_number[n] = max(by_number.get(n, 0.0), collision.tool_radius(o))
-        radii = collision.tool_radii(polar, data, by_number, radius)
-        if wrap:
-            msg = collision.wrap_hits(held, data, radius, radii=radii)
-        else:
-            msg = collision.polar_hits(collision.obstacles(held), data, radius, radii=radii)
-        if msg:
-            raise _Refused("the program runs into the chuck.\n" + msg)
-    return polar
+    except Exception as e:
+        raise _Refused("the program could not be read back for the chuck check: %s" % e)
+    by_number = {}                        # each cutter checked with its own radius
+    for o in ops:
+        tc = getattr(o, "ToolController", None)
+        if tc is not None and collision.tool_radius(o) > 0:
+            # two tool controllers with one number: the bigger cutter (the safe side)
+            n = int(tc.ToolNumber)
+            by_number[n] = max(by_number.get(n, 0.0), collision.tool_radius(o))
+    radii = collision.tool_radii(polar, data, by_number, radius)
+    if wrap:
+        msg = collision.wrap_hits(held, data, radius, radii=radii)
+    else:
+        msg = collision.polar_hits(collision.obstacles(held), data, radius, radii=radii)
+    if msg:
+        raise _Refused("the program runs into the chuck.\n" + msg)
 
 
 def _with_setup_notes(polar, job, wrap, held):
@@ -226,7 +237,18 @@ def export(objectslist, filename, argstring):
             dia = PostUtils.GCodeEditorDialog()
             dia.editor.setPlainText(polar)
             if dia.exec_():
-                polar = dia.editor.toPlainText()
+                edited = dia.editor.toPlainText()
+                if edited != polar:
+                    # 2.22.0: what is written must pass the same checks as what was converted
+                    try:
+                        _machine_check(edited, job, [getattr(i, "source", i) for i in objectslist],
+                                       machine.options(job), machine.is_wrap(job),
+                                       getattr(job, "PolarChuck", None))
+                    except _Refused as e:
+                        return _refuse("the program as edited is refused: %s" % e)
+                    FreeCAD.Console.PrintWarning("Polar CNC: the program was edited by hand before "
+                                                 "it was written; it passed the checks again.\n")
+                polar = edited
 
     if filename != "-":
         with open(filename, "w") as f:

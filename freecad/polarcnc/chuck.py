@@ -417,9 +417,16 @@ def lowest_cut(path):
     """The lowest Z of the feed moves of a Path, or None."""
     z, low = None, None
     for cmd in path.Commands:
-        if "Z" in cmd.Parameters:
-            z = cmd.Parameters["Z"]
-        if cmd.Name in ("G1", "G01", "G2", "G02", "G3", "G03") and z is not None:
+        code = cmd.Name.upper().lstrip("G").lstrip("0")
+        prm = cmd.Parameters
+        if code in ("73", "81", "82", "83", "85", "86", "89") and "Z" in prm:
+            # 2.22.0: drilling cycles too: down to their Z, then back up (to R or where it was)
+            low = prm["Z"] if low is None else min(low, prm["Z"])
+            z = max(z if z is not None else prm.get("R", prm["Z"]), prm.get("R", prm["Z"]))
+            continue
+        if "Z" in prm:
+            z = prm["Z"]
+        if code in ("1", "2", "3") and z is not None:
             low = z if low is None else min(low, z)
     return low
 
