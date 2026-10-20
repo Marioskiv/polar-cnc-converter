@@ -69,6 +69,17 @@ tested in 26.3). It has not yet cut a real part on the author's machine.
   end reaches every hollow. Its depth map is cross-checked against OpenCAMLib.
 - **Simulator** in the 3D view, and help in Greek and English with short GIFs (the "?" button switches language).
 
+## Knurling & Wrap (Part Design)
+
+[`cad/`](cad/README.md): a separate part of the same FreeCAD addon, on its own **Part Design** toolbar. It does
+not need Polar CNC or WikiTips.
+
+- **Knurl**: knurling on a cylinder in one click (diamond or straight, real teeth or lines on screen only).
+- **Wrap on a cylinder**: click the cylinder, draw in the sketch that opens there; text, shapes and holes are
+  wrapped round it, engraved, raised or cut down to the axis. (Not the *Polar Wrap* machining operation.)
+
+Until 2026-10-20 these two were part of WikiTips; files made with them still open.
+
 ## More
 
 - [FreeCAD addon notes](docs/FREECAD.md): how the addon works inside, what is tested and what is open.
