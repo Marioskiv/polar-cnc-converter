@@ -170,16 +170,20 @@ def _with_setup_notes(polar, job, wrap, held):
     return "\n".join(lines[:at] + notes + lines[at:])
 
 
-_shown = {"msg": None, "time": 0.0}
+_shown = {"job": None, "time": 0.0}
 
 
-def _refuse_once(msg):
-    """The same refusal for every file of one Post Process run: the card is shown once."""
+def _refuse_once(msg, job):
+    """One card per Post Process run: FreeCAD calls this post once per file when the Job splits
+    its output, and every file is refused then - the first card says why, the others only go to
+    the Report view. (A run takes seconds; a card more than 10 s after the last one is a new run.)"""
     import time
-    if _shown["msg"] == msg and time.time() - _shown["time"] < 120:
+    now = time.time()
+    if _shown["job"] == job.Name and now - _shown["time"] < 10:
+        _shown["time"] = now
         FreeCAD.Console.PrintError("Polar CNC: %s\n" % msg)
         return None
-    _shown["msg"], _shown["time"] = msg, time.time()
+    _shown["job"], _shown["time"] = job.Name, now
     return _refuse(msg)
 
 
@@ -219,9 +223,9 @@ def export(objectslist, filename, argstring):
         polar = _polar_program(job, objectslist, argstring)
         other = _other_sections_refused(job, objectslist, argstring)
         if other:
-            return _refuse_once(other)
+            return _refuse_once(other, job)
     except _Refused as e:
-        return _refuse_once(str(e))
+        return _refuse_once(str(e), job)
     except Exception as e:          # never a raw traceback: say what happened, plainly
         import traceback
         FreeCAD.Console.PrintError(traceback.format_exc())
@@ -229,6 +233,7 @@ def export(objectslist, filename, argstring):
                        "written. The details are in the Report view." % (type(e).__name__, e))
     if polar is None:
         return None
+    _shown["job"] = None            # a file that passed: the next refusal is a new run's
 
     if FreeCAD.GuiUp and "--no-show-editor" not in argstring:
         if len(polar) > 100000:

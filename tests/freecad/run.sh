@@ -88,6 +88,14 @@ hr=$(cat "$OUT/help/result.txt" 2>/dev/null || echo "RESULT: no result (see $OUT
 echo "help: $hr"
 [ "$hr" = "RESULT: PASS" ] || result="$result; help $hr"
 
+# 2.22.0: the fixes of the 2026-10-20 review (no-diameter cutter, split output, editor, drilling, ...)
+HOME="$OUT/home" PC_OUT="$OUT/fixes" PC_REPO="$REPO" xvfb-run -a -s "-screen 0 1600x1000x24" \
+    "$FREECAD" "$REPO/tests/freecad/fixes_test.py" > "$OUT/freecad-fixes.log" 2>&1
+cat "$OUT/fixes/log.txt" 2>/dev/null
+fx=$(cat "$OUT/fixes/result.txt" 2>/dev/null || echo "RESULT: no result (see $OUT/freecad-fixes.log)")
+echo "fixes: $fx"
+[ "$fx" = "RESULT: PASS" ] || result="$result; fixes $fx"
+
 same="no"
 if [ -f "$OUT/run/cartesian.ngc" ] && [ -f "$OUT/run/polar.ngc" ]; then
     node "$REPO/tests/freecad/compare.js" "$OUT/run" && same="yes"
