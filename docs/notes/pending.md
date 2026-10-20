@@ -3,6 +3,17 @@
 Newest first. Move an item to `memory.md` (Decisions) when it is decided, delete it when it is done.
 
 ## Waiting for Marios
+- **His answers 2026-10-20:** changes cutters by hand; all tool lengths are in the LinuxCNC tool table; no
+  tool setter mentioned; unsure whether to clamp each cutter at the same height or push it to the collet stop.
+  Wants Wrap to go to a safe X AND a safe Z before every tool change. Proposed (waiting for his yes and the Z
+  value): before each M6 in a Wrap program `G0 X<Wrap X max>` then `G0 Z<tool-change Z>`.
+- **Tool-change point (2026-10-20, his answer):** "check the .ini for the safe point; polar = machine X0 Z0 I
+  think; Wrap the same Z, its X runs the other way (Wrap .ini)". From `polarlathe-sim.ini` (synced with the real
+  .ini 2026-10-04): Z homes at the tailstock end, HOME 0, limits -590..+7, work Z0 = machine Z -490 in the sim →
+  machine Z0 is the PARK at the tailstock end (README agrees). BUT the .ini comment says "Machine Z0 is at the
+  CHUCK end — G53 G0 Z0 must never reach this machine": contradicts; ask him to confirm on the machine before
+  any G53 Z0 is written. Wrap .ini not in this repo: its safe X unknown. He did not understand M3 (explained).
+  Ask: does LinuxCNC switch the spindle (router) on/off, or is it switched by hand?
 - **Tool change position (found 2026-10-20).** Wrap: before M6 the router is only 5 mm above the bar (no
   retract to X max). Face: at the CAM's clearance height. LinuxCNC moves nothing on M6 unless his .ini says so.
   Options to put to him: retract to X max (Wrap) / a safe Z (Face) before every M6 in the post; or
