@@ -15,6 +15,13 @@ Update this file when a decision changes. Open work lives in `pending.md`.
 - `examples/linuxcnc-vismach-xzc-lathe/polarlathe-sim.ini` is a simulation copy of its motion settings.
 
 ## Decisions (newest first)
+- 2026-10-20: **C wind-up → Marios raises the C soft limit** in his LinuxCNC .ini to a very large number, the
+  same in `[AXIS_C]` and `[JOINT_2]` (e.g. ±9999999; per the LinuxCNC 2.9 ini docs, leaving MIN/MAX_LIMIT out
+  of a rotary axis gives ±1e99). **No code change for it** (a draft that turned Wrap helices back was discarded
+  at his request). Checked: positions are doubles; Mesa hm2 stepgen keeps 64-bit subcounts (only the
+  `stepgen.N.counts` pin is s32). Advice given: Home C (homes in place) before the next program, or it unwinds
+  all the turns; never use WRAPPED_ROTARY (our C is cumulative). Lesson: "kane to" on a conditional idea is
+  NOT permission to start; wait for an explicit yes.
 - 2026-10-20: this folder (`docs/notes/`) is the memory of the repo; `CLAUDE.md` at the root points here.
 - 2026-10-20 (2.21.0): Polar Wrap can follow another Wrap operation (After operation) and reports which
   ball end reaches every hollow. Cross-checked against OpenCAMLib (FreeCAD's own rotary drop-cutter).
