@@ -106,10 +106,16 @@ def _polar_program(job, objectslist, argstring):
     if held is not None:    # then the program as the machine really moves (joint space)
         radius = max([collision.tool_radius(o) for o in ops] + [0.0])
         data = bridge.parse(polar, opts)
+        by_number = {}                        # each cutter checked with its own radius
+        for o in ops:
+            tc = getattr(o, "ToolController", None)
+            if tc is not None and collision.tool_radius(o) > 0:
+                by_number[int(tc.ToolNumber)] = collision.tool_radius(o)
+        radii = collision.tool_radii(polar, data, by_number, radius)
         if wrap:
-            msg = collision.wrap_hits(held, data, radius)
+            msg = collision.wrap_hits(held, data, radius, radii=radii)
         else:
-            msg = collision.polar_hits(collision.obstacles(held), data, radius)
+            msg = collision.polar_hits(collision.obstacles(held), data, radius, radii=radii)
         if msg:
             raise _Refused("the program runs into the chuck.\n" + msg)
     return polar

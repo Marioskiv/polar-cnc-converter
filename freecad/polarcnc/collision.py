@@ -162,24 +162,41 @@ def check_points(obs, P, I, R, radius):
     return best
 
 
-def _radii(data, fallback):
-    """The cutter radius at every point of a program read back: the diameter its tool comment
-    gives (a program with several cutters checks each with its own), else `fallback`."""
+def tool_radii(polar_text, data, by_number, fallback):
+    """The cutter radius at every point of a program read back (a program with several cutters
+    checks each with its own): the tool active on the point's line (M6 T.. in the program), its
+    radius from by_number {tool number: radius}; else the diameter of the tool comment the
+    converter read; else `fallback` (the biggest: the safe side)."""
+    import re
+    active, tools = None, []
+    for line in polar_text.splitlines():
+        code = line.split("(")[0].split(";")[0].upper()
+        if re.search(r"\bM0*6\b", code):
+            m = re.search(r"\bT\s*(\d+)", code)
+            if m:
+                active = int(m.group(1))
+        tools.append(active)
     out = []
-    for d in data.get("toolD") or []:
-        try:
-            out.append(float(d) / 2.0 if d else fallback)
-        except (TypeError, ValueError):
-            out.append(fallback)
-    return out if len(out) == len(data["r"]) else [fallback] * len(data["r"])
+    for i in range(len(data["r"])):
+        ln = (data["line"][i] or 0) - 1
+        t = tools[ln] if 0 <= ln < len(tools) else None
+        r = by_number.get(t) if t is not None else None
+        if r is None:
+            d = (data.get("toolD") or [None] * len(data["r"]))[i]
+            try:
+                r = float(d) / 2.0 if d else None
+            except (TypeError, ValueError):
+                r = None
+        out.append(r if r else fallback)
+    return out
 
 
-def polar_hits(obs, data, radius, step=0.5):
+def polar_hits(obs, data, radius, step=0.5, radii=None):
     """Face mode, on the polar program as the machine runs it (data: bridge.parse): every block
     followed in joint space (X, C, Z linear, as LinuxCNC moves them), so a rapid that curves
     between two points is checked where it really goes. A sentence for a hit, else None."""
     r, c, z = data["r"], data["c"], data["z"]
-    radii = _radii(data, radius)
+    radii = radii or [radius] * len(r)
     pts, lines, rapid, rads = [], [], [], []
     for i in range(1, len(r)):
         a0, a1 = math.radians(c[i - 1]), math.radians(c[i])
@@ -210,7 +227,7 @@ def polar_hits(obs, data, radius, step=0.5):
                math.degrees(math.atan2(y, x)) % 360, zz, res["command"], -res["clearance"]))
 
 
-def wrap_hits(chuck, data, radius, step=0.5):
+def wrap_hits(chuck, data, radius, step=0.5, radii=None):
     """Wrap (router radial): the cutter is a cylinder from its tip OUTWARD along the radius. Its
     moves come from the polar program read back as the machine runs it (data: bridge.parse);
     everything is in the part's frame, where the chuck stands still. Returns a sentence for the
@@ -223,8 +240,8 @@ def wrap_hits(chuck, data, radius, step=0.5):
         return None
     obs = Part.makeCompound(parts)
     bb = obs.BoundBox
-    radii = _radii(data, radius)
-    big = max(radii + [radius])
+    radii = radii or [radius] * len(data["r"])
+    big = max(list(radii) + [radius])
     zlo, zhi = bb.ZMin - big, bb.ZMax + big
     outer = max(abs(bb.XMin), abs(bb.XMax), abs(bb.YMin), abs(bb.YMax)) + big + 5
     r, c, z, rapid, line = data["r"], data["c"], data["z"], data["rapid"], data["line"]

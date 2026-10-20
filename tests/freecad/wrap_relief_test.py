@@ -152,6 +152,15 @@ def go():
         fin1 = op("Finish1", t1, "Roughing + finishing", after=fin2, StepOver=15, FinishAllowance=0.1)
         check(len(fin1.Path.Commands) > 100, "Ø1 roughing + finishing after the Ø2: a path (%d)" % len(fin1.Path.Commands))
 
+        # every operation stops clear of the jaws along the bar: its tip never below the jaw tops +
+        # chuck clearance + its own radius
+        jaw_top = held.Shape.BoundBox.ZMax
+        for o in (rough, fin2, fin1):
+            zs_ = [c.Parameters["Z"] for c in o.Path.Commands if c.Name == "G1" and "Z" in c.Parameters]
+            need = jaw_top + o.ChuckClearance.Value + polarwrap.tool_of(o)[0]
+            check(zs_ and min(zs_) >= need - 1e-6, "%s stops clear of the jaws: Z down to %.3f (jaws %.2f + %.1f + radius = %.3f)"
+                  % (o.Label, min(zs_ or [0]), jaw_top, o.ChuckClearance.Value, need))
+
         # every operation alone, the way Post Process writes it, followed against the solid
         made = [rough, fin2, fin1]
         for o in made:
