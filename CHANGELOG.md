@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.23.0 — Knurling & Wrap moved here from WikiTips
+
+### Added
+- **Knurling & Wrap** (`cad/`): the Knurl and "Σκαρίφημα σε κύλινδρο" (Wrap) tools, moved from WikiTips 0.4.1
+  with their tests and notes, MIT like the rest of the repository. A separate part of the addon (second
+  `<workbench>` in `package.xml`), on its own toolbar in **Part Design only**, with nothing of WikiTips inside:
+  its Greek messages (wrong selection, knurl too big, no closed shapes) are its own. Commands
+  `KnurlWrap_Knurl`, `KnurlWrap_Wrap` (were `WikiTips_Knurl`, `WikiTips_Wrap`).
+- Files made with WikiTips' Knurl or Wrap still open (the old module names are kept; FreeCAD 26.3 only lets a
+  document import modules already loaded, so they are loaded at start-up) and are saved under the new names.
+- Tests in a real FreeCAD: `knurl_test.py`, `cyl_wrap_test.py`, `knurlwrap_old_file_test.py` (fixture made
+  with WikiTips 0.4.1).
+
 ## 2.22.0 — Tool change by hand: park position, spindle always started
 
 ### Added

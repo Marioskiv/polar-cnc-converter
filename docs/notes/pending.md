@@ -3,6 +3,17 @@
 Newest first. Move an item to `memory.md` (Decisions) when it is decided, delete it when it is done.
 
 ## Waiting for Marios
+- **Rename this repo** (his request 2026-10-20: "XCZ converter polar, warp"). A GitHub name cannot have spaces
+  or commas: confirm the exact name (and XZC, the machine's axes, or XCZ as he wrote). Only he can rename it
+  (GitHub → Settings → Repository name). After it: the web page address changes
+  (`marioskiv.github.io/<new name>`, the old link stops working), and every file header, README, package.xml
+  URL and his Addon Manager custom repository must be updated (GitHub redirects the old git URL).
+- **Tool-library repo** (his request 2026-10-20): the cutter libraries were only sent as zips (YG-1 26 bits,
+  IZAR 85, Stepcraft 3, Amana 34; see WikiTips memory.md of 2026-10-17); they are not in any repo and not on
+  this machine (only his Amana .tools and IZAR PDF uploads remain). Ask: repo name, private or public, and
+  whether he uploads his zips or they are rebuilt from his catalogs.
+- **Knurling & Wrap**: not yet tried on his PC after the move (2.23.0). The texts are Greek only (as in
+  WikiTips); English not asked for.
 - **Wrap .ini / .hal:** the router's side on the Wrap setup is not decided yet. Advice given (2026-10-20): work X0 =
   the chuck axis, X+ = away from it (flip the X scale sign in the Wrap .ini if needed); the same .hal if it reads
   scales/limits from the .ini; its own .ini and its own tool table (lengths in the X column). To write it: his
