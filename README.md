@@ -52,15 +52,32 @@ Post for a 3-axis mill with a LinuxCNC (or grbl) post, in mm or inch:
    slightly curved toward the centre.
 3. **Test shape:** cut a letter "F" off-centre in scrap. It must read normally, not mirrored.
 
+## FreeCAD addon (in testing)
+
+[`freecad/`](freecad/README.md) brings the same conversion into the FreeCAD CAM workbench (FreeCAD 1.1 or newer,
+tested in 26.3). It has not yet cut a real part on the author's machine.
+
+- **Polar Job:** make the Job with FreeCAD's own operations (Face, Pocket, Profile, Drilling…) and choose
+  *Polar* in the PolarCNC machine settings. Post Process (`polar_linuxcnc`) writes the polar X / C / Z program.
+- **Checked when made:** every operation of a polar Job is converted as soon as it is made. Warnings only (a
+  pattern not recommended for polar, slower by a percentage, material left), and if the cutter would hit the
+  chuck, or the operation cannot be written as polar, a card says so and Post Process refuses the program.
+  Ordinary XYZ Jobs get no warnings.
+- **Chuck:** 3- and 4-jaw chucks and a faceplate as solids, checked against every cutter with its own radius.
+- **Polar Wrap:** the outside of a part with the router radial, straight from the 3D part (roughing and
+  finishing helices). Several cutters one after another (*After operation*); the tool report says which ball
+  end reaches every hollow. Its depth map is cross-checked against OpenCAMLib.
+- **Simulator** in the 3D view, and help in Greek and English with short GIFs (the "?" button switches language).
+
 ## More
 
-- [FreeCAD addon](freecad/README.md) (new, in testing): the same conversion as a post-processor in the
-  FreeCAD CAM workbench — make a normal Job, Post Process writes polar G-code.
+- [FreeCAD addon notes](docs/FREECAD.md): how the addon works inside, what is tested and what is open.
 - [Technical notes](docs/TECHNICAL.md): how it works, centre handling, accepted G-codes, tests.
 - [CHANGELOG](CHANGELOG.md): what changed in each version.
 - [`examples/linuxcnc-vismach-xzc-lathe`](examples/linuxcnc-vismach-xzc-lathe/): a LinuxCNC simulation of a lathe
   conversion, to try programs before they reach a machine.
-- Tests: run `npm install` once, then `npm test`.
+- Tests: run `npm install` once, then `npm test`. The addon's tests run in a real FreeCAD:
+  `FREECAD=/path/to/freecad sh tests/freecad/run.sh`.
 
 ## Credits
 
