@@ -7,7 +7,7 @@
  */
 'use strict';
 // Every written block is replayed the way LinuxCNC runs it (X, Z and C linear in joint space)
-// and mapped back onto the unrolled surface (u = Z, v = C * R0, w = X - R0). The replayed tool
+// and mapped back onto the unrolled surface (u = Z, v = -C * R0, w = X - R0; 2.22.0: C = -Y / R0). The replayed tool
 // tip must stay on the CAM path (lines exactly, arcs within the chord tolerance), and the time
 // of every cutting block (1 / F under G93) must be the true tip path length over the CAM feed.
 const assert = require('assert');
@@ -50,7 +50,7 @@ function camPath(prog) {
 // replay the wrapped output in joint space; return [{u,v,w}] samples of the G1 blocks and the
 // worst feed error (true tip length / F_g93 time against the CAM feed)
 function replay(out, R0, feeds, opts) {
-  const sx = opts.xDiameter ? 2 : 1, sc = opts.invertC ? -1 : 1;
+  const sx = opts.xDiameter ? 2 : 1, sc = opts.invertC ? 1 : -1;   // v = -C R0 (2.22.0)
   let X = null, Z = null, C = null, k = 0, worstFeed = 0;
   const samples = [];
   for (const line of out.split('\n')) {
@@ -141,14 +141,14 @@ for (const R0 of [10, 30]) {
   const out = convert(CASES['helix (diagonal line)'], { layout: 'wrap', wrapRadius: 30, xMax: 200 });
   ok(out.split('\n').filter(l => /^G1\s/.test(l)).length === 2, 'a long helix line is one block (plus the plunge)');
   const cs = out.split('\n').filter(l => /^G1\s/.test(l)).map(l => +l.match(/C(-?[\d.]+)/)[1]);
-  ok(Math.abs(cs[cs.length - 1] - 360) < 0.001, 'Y = 2 pi R0 is one full turn (C ' + cs[cs.length - 1] + ')');
+  ok(Math.abs(cs[cs.length - 1] + 360) < 0.001, 'Y = 2 pi R0 is one full turn, C -360 (C ' + cs[cs.length - 1] + ')');
 }
 // a groove round the part: C goes 0 -> 240 deg at R0 30 (125.66 mm of arc), X = R0 - 1
 {
   const out = convert(CASES['groove round the part'], { layout: 'wrap', wrapRadius: 30, xMax: 200 });
-  ok(/G1 X29\.0000 Z10\.0000 C240\.0000 F/.test(out), 'groove: X 29, Z 10, C 240');
+  ok(/G1 X29\.0000 Z10\.0000 C-240\.0000 F/.test(out), 'groove: X 29, Z 10, C -240');
   ok(/G0 X32\.0000/.test(out) && /G0 X35\.0000/.test(out), 'rapids above the surface: X = R0 + Z');
-  const f = +out.match(/C240\.0000 F([\d.]+)/)[1];
+  const f = +out.match(/C-240\.0000 F([\d.]+)/)[1];
   const L = 29 * (240 * Math.PI / 180);
   ok(Math.abs(1 / f - L / 600) < 1e-6, 'groove: block time = true arc length at r 29 / feed');
 }
@@ -157,10 +157,46 @@ for (const R0 of [10, 30]) {
   const out = convert('G21 G90\nG0 X0 Y0 Z5\nG1 Z-1 F300\nG1 X10 F500\nG0 X40 Y20 Z5\nG0 X50 Y30 Z-0.5\nM30',
                       { layout: 'wrap', wrapRadius: 20, xMax: 200 });
   const g0 = out.split('\n').filter(l => /^G0\s/.test(l));
-  const iOut = g0.findIndex(l => /^G0 X25\.0000$/.test(l));
+  const iOut = g0.findIndex((l, i) => /^G0 X25\.0000$/.test(l) && /^G0 Z40/.test(g0[i + 1] || ''));   // 2.22.0: the first rapid splits too
   ok(iOut >= 0 && /^G0 Z40\.0000 C/.test(g0[iOut + 1]), 'going out: X first, then Z/C: ' + g0.join(' | '));
   const iIn = g0.findIndex(l => /^G0 Z50\.0000 C/.test(l));
   ok(iIn >= 0 && /^G0 X19\.5000$/.test(g0[iIn + 1]), 'going in: Z/C first, then X');
+}
+// 2.22.0: the unrolled drawing is NOT mirrored on the part. Seen from outside the bar, CAM X
+// (along) x CAM Y (round) must point out of the part, as X x Y points up in the CAM. Positions
+// from the written blocks, mapped with the converter's own convention x = r cos C, y = r sin C
+// (the one the F test proved on the machine), along the part = +Z.
+{
+  const at = (prog) => {
+    const out = convert('G21 G90\nG0 X0 Y0 Z5\n' + prog + '\nM30', { layout: 'wrap', wrapRadius: 20, xMax: 200 });
+    let X = null, Z = null, C = null;
+    for (const l of out.split('\n')) {
+      if (!/^G[01]\s/.test(l)) continue;
+      const w = {}; l.replace(/([XZC])(-?[\d.]+)/g, (m, a, v) => { w[a] = +v; });
+      if ('X' in w) X = w.X; if ('Z' in w) Z = w.Z; if ('C' in w) C = w.C;
+    }
+    const c = C * Math.PI / 180;
+    return [X * Math.cos(c), X * Math.sin(c), Z];
+  };
+  const p0 = at('G1 Z0 F100'), pX = at('G1 Z0 F100\nG1 X10'), pY = at('G1 Z0 F100\nG1 Y10');
+  const a = pX.map((v, i) => v - p0[i]), b = pY.map((v, i) => v - p0[i]);
+  const n = [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+  const outward = [p0[0], p0[1], 0];
+  ok(n[0] * outward[0] + n[1] * outward[1] > 0, 'unrolled drawing reads the right way round (not mirrored): ' + n.map(v => v.toFixed(2)));
+}
+// 2.22.0: the first rapid of a program (radius unknown) is split too: out first, then along/round
+{
+  const out = convert('G21 G90\nG0 X10 Y30 Z5\nG1 Z-1 F100\nM30', { layout: 'wrap', wrapRadius: 20, xMax: 200 });
+  const g0 = out.split('\n').filter(l => /^G0\s/.test(l));
+  ok(/^G0 X25\.0000$/.test(g0[0]) && /^G0 Z10\.0000 C-85\.9437$/.test(g0[1]), 'first rapid: X first, then Z/C: ' + g0.join(' | '));
+}
+// 2.22.0: after a tool change the position is unknown again: the next rapid is split as well
+{
+  const out = convert('G21 G90\nG0 X0 Y0 Z5\nG1 Z-1 F100\nG1 X10\nG0 Z5\nM6 T2\nG0 X50 Y50 Z5\nG1 Z-1 F100\nM30',
+                      { layout: 'wrap', wrapRadius: 20, xMax: 200 });
+  const g0 = out.split('\n').filter(l => /^G0\s/.test(l));
+  const i = g0.findIndex(l => /^G0 Z50\.0000 C/.test(l));
+  ok(i > 0 && /^G0 X25\.0000$/.test(g0[i - 1]), 'after M6: X first, then Z/C: ' + g0.join(' | '));
 }
 // refusals: no wrap radius; Z below the chuck axis
 assert.throws(() => convert(CASES['slot along the part'], { layout: 'wrap', xMax: 200 }), /Wrap radius is not set/);

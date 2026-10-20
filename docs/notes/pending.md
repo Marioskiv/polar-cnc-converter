@@ -3,6 +3,8 @@
 Newest first. Move an item to `memory.md` (Decisions) when it is decided, delete it when it is done.
 
 ## Waiting for Marios
+- **2.24.0 (2026-10-20):** tell Marios: Wrap from the web page is no longer mirrored; prove it with an
+  asymmetric test cut (like the F test) before a real Wrap part. Polar Wrap (FreeCAD) programs are unchanged.
 - **Rename this repo** (his request 2026-10-20: "XCZ converter polar, warp"). A GitHub name cannot have spaces
   or commas: confirm the exact name (and XZC, the machine's axes, or XCZ as he wrote). Only he can rename it
   (GitHub → Settings → Repository name). After it: the web page address changes

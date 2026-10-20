@@ -27,6 +27,18 @@ def cartesian(objectslist, argstring=""):
     return linuxcnc_post().export(objectslist, "-", (argstring or "") + " --no-show-editor")
 
 
+def sections(job):
+    """Post Process's own split of the Job: [(name, objects)], one per output file (one only
+    unless the Job splits its output, e.g. by tool). FreeCAD 26.3 calls the post once per
+    section; each file is converted on its own."""
+    try:
+        from Path.Post.Processor import PostProcessorFactory
+        proc = PostProcessorFactory.get_post_processor(job, "polar_linuxcnc")
+        return [(name, list(sublist)) for name, sublist in proc._buildPostList()]
+    except AttributeError:
+        return [("allitems", job_objects(job))]
+
+
 def job_objects(job):
     """Everything Post Process would send for the whole Job, in order."""
     try:
@@ -50,6 +62,32 @@ def job_objects(job):
                 last_tc = tc
             objs.append(op)
         return objs
+
+
+NO_DIAMETER = ("the cutter of %s has no diameter (its tool bit's Diameter is empty or 0): the "
+               "chuck check needs it. Set the Diameter in the tool bit.")
+
+
+def missing_diameters(objs):
+    """Labels of the operations (with a path and a tool controller) whose cutter has no
+    diameter. With a chuck set up, such a cutter would be checked as a point (radius 0)."""
+    from . import collision
+    out = []
+    for o in (getattr(i, "source", i) for i in objs):
+        if hasattr(o, "Path") and getattr(o, "ToolController", None) is not None and \
+                getattr(o, "Active", True) and collision.tool_radius(o) <= 0:
+            out.append(o.Label)
+    return out
+
+
+def y_move(polar_text):
+    """The first motion line that still has a Y word (a polar program moves X, C, Z only)."""
+    import re
+    for line in polar_text.splitlines():
+        code = line.split("(")[0].split(";")[0].upper()
+        if re.search(r"\bY\s*[-+]?\d", code) and re.search(r"\bG\s*0*[0123]\b", code):
+            return line.strip()
+    return None
 
 
 def wrap_operations_only(objs):
@@ -80,7 +118,9 @@ def wrap_tool_length_check(job, text):
 
 def unroll(text, r0):
     """Polar Wrap paths are written round the real part (tip at x, y, z); the converter's wrap
-    layout takes them unrolled: X = z along the part, Y = angle (unwound) x r0, Z = radius - r0.
+    layout takes them unrolled: X = z along the part, Y = -angle (unwound) x r0, Z = radius - r0.
+    (2.22.0: minus, because the wrap layout now writes C = -Y / r0 so that hand-drawn unrolled
+    programs are not mirrored; C = angle stays exactly as before for Polar Wrap.)
     Every motion line (also with an N number, or with no G word under --modal) gets all three;
     other lines are kept. Refused: arcs (Polar Wrap writes none) and inches (G20)."""
     import math
@@ -116,22 +156,26 @@ def unroll(text, r0):
             raw = math.atan2(y, x)
             theta = raw if theta is None else theta + ((raw - theta + math.pi) % (2 * math.pi) - math.pi)
         rest = gword.sub("", word.sub("", code)).strip()
-        out.append("%s X%.4f Y%.4f Z%.4f%s" % (motion, z, theta * r0, r - r0,
+        out.append("%s X%.4f Y%.4f Z%.4f%s" % (motion, z, -theta * r0, r - r0,
                                                (" " + rest) if rest else ""))
     return "\n".join(out)
 
 
 def polar(job):
-    """(polar G-code, converter options) for the whole Job.
+    """(polar G-code, converter options) for the whole Job, as Post Process writes it: when the
+    Job splits its output into several files, each one is converted on its own (its own header,
+    C starting afresh) and they follow each other here, in the order they would be run.
     Raises ValueError (settings) or bridge.ConverterError (refused program)."""
     opts = machine.options(job)
-    objs = job_objects(job)
-    text = cartesian(objs, job.PostProcessorArgs)
-    if machine.is_wrap(job):
-        wrap_operations_only(objs)
-        wrap_tool_length_check(job, text)
-        text = unroll(text, opts["wrapRadius"])
-    return bridge.convert(text, opts), opts
+    parts = []
+    for _name, objs in sections(job):
+        text = cartesian(objs, job.PostProcessorArgs)
+        if machine.is_wrap(job):
+            wrap_operations_only(objs)
+            wrap_tool_length_check(job, text)
+            text = unroll(text, opts["wrapRadius"])
+        parts.append(bridge.convert(text, opts))
+    return "\n".join(parts), opts
 
 
 def spindle_problems(ops):
@@ -202,7 +246,6 @@ def check_operation(job, op):
     runs it and checked against the chuck. Returns (stops, notes): stops are what Post Process
     will refuse (it does not convert, it runs into the chuck, a Y is left in the polar output);
     notes are for information (e.g. the time the C axis adds). Raises nothing."""
-    import re
     from . import collision
     stops, notes = [], []
     tc = getattr(op, "ToolController", None)
@@ -215,18 +258,18 @@ def check_operation(job, op):
         stops.append(("not converted", str(e)))
         return stops, notes
     # XYZ and XZC are never mixed: a polar program moves X, C and Z only
-    for line in polar.splitlines():
-        code = line.split("(")[0].split(";")[0].upper()
-        if re.search(r"\bY\s*[-+]?\d", code) and re.search(r"\bG\s*0*[0123]\b", code):
-            stops.append(("Y in output", line.strip()))
-            break
+    left = y_move(polar)
+    if left:
+        stops.append(("Y in output", left))
     try:
         data = bridge.parse(polar, opts)
     except Exception as e:
         stops.append(("not converted", str(e)))
         return stops, notes
     held = getattr(job, "PolarChuck", None)
-    if held is not None and not held.Shape.isNull():
+    if held is not None and not held.Shape.isNull() and missing_diameters([op]):
+        stops.append(("no diameter", NO_DIAMETER % op.Label))
+    elif held is not None and not held.Shape.isNull():
         msg = collision.polar_hits(collision.obstacles(held), data, collision.tool_radius(op))
         if msg:
             stops.append(("chuck", msg))

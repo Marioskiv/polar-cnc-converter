@@ -6,8 +6,8 @@
  *
  * Input: an ordinary 3-axis program of the cylinder's surface UNROLLED flat (any CAM):
  *   CAM X = along the part            -> machine Z
- *   CAM Y = round the part, in mm of  -> C = Y / R0 (degrees), R0 = the wrap radius
- *           arc length at radius R0
+ *   CAM Y = round the part, in mm of  -> C = -Y / R0 (degrees), R0 = the wrap radius
+ *           arc length at radius R0          (2.22.0: minus - see wc() below)
  *   CAM Z = height above the surface  -> X = R0 + Z (Z0 on the surface at R0, negative = into it)
  * This is what Fanuc's cylindrical interpolation (G07.1) does inside the control; LinuxCNC has
  * no such mode, so the converter writes the joint moves.
@@ -45,7 +45,6 @@
     var DEG = 180 / Math.PI;
     var cLo = Infinity, cHi = -Infinity;
     var xLo = Infinity, xHi = -Infinity;
-    var overTravel = 0;
     var srcLine = null;
     var camFeed = null;
     // the last position written, in CAM terms (u along, v round, w height); null = unknown
@@ -68,8 +67,16 @@
       var v = (O.invertX ? -r : r) * X_SCALE;
       return 'X' + (Math.abs(v) < 5e-5 ? 0 : v).toFixed(4);
     }
+    // FIX 2.22.0: C = -Y / R0 (was +Y / R0). Seen from outside the bar, the unrolled drawing must
+    // read the right way round: CAM X (along) x CAM Y (round) must point OUT of the part, as CAM
+    // X x Y points up (+Z, towards the viewer) in the CAM. Along the part is +Z of the machine; at
+    // C 0 the surface faces +X; with the converter's convention (x = r cos C, y = r sin C, proven
+    // by the F test on the real machine) +C moves the point towards +Y, and Z x Y = -X points INTO
+    // the part: +Y / R0 wrote every drawing mirrored. -Y / R0 gives Z x (-Y) = +X, out. The FreeCAD
+    // Polar Wrap operation (program.unroll) writes Y = -angle x R0 to match, so its parts do not
+    // change. Only an asymmetric test cut on the machine proves it, as with the F test.
     function wc(v) {
-      var c = v / R0 * DEG;
+      var c = -v / R0 * DEG;
       if (O.invertC) c = -c;
       if (c < cLo) cLo = c;
       if (c > cHi) cHi = c;
@@ -101,7 +108,7 @@
       return [
         '( Wrap G-code - G93 inverse time | router radial, X = radius, Z along the part, '
           + ROT + ' round it )',
-        '( Unrolled program: CAM X -> Z, CAM Y -> ' + ROT + ' = Y / ' + R0 + ' mm, CAM Z -> X = '
+        '( Unrolled program: CAM X -> Z, CAM Y -> ' + ROT + ' = -Y / ' + R0 + ' mm, CAM Z -> X = '
           + R0 + ' + Z )',
         '( Output profile: rotary ' + ROT + (O.invertC ? ' inverted' : '') + ', X '
           + (O.xDiameter ? 'diameter' : 'radius') + (O.invertX ? ' inverted' : '')
@@ -120,10 +127,14 @@
         // A rapid that changes the radius AND moves along or round the part is split, so the
         // tool never sweeps across the part: going out, X first; going in, X last. (A radius not
         // known yet counts as "going out" when the target is outside the wrap radius.)
+        // FIX 2.22.0: that last sentence was dead code - with the radius unknown the test below
+        // compared with NaN and was always false, so the FIRST rapid of a program (and the first
+        // after a tool change) moved X, Z and C in one block, dragging the tip across the part
+        // if it started at or near the surface. An unknown radius now always splits.
         var along = [];
         if ('X' in w) along.push(wz(to.u));
         if ('Y' in w) along.push(wc(to.v));
-        if ('Z' in w && along.length && Math.abs(to.w - (last.w === null ? NaN : last.w)) > 1e-9) {
+        if ('Z' in w && along.length && (last.w === null || Math.abs(to.w - last.w) > 1e-9)) {
           var outward = last.w === null ? to.w >= 0 : to.w > last.w;
           if (outward) { out.push('G0 ' + wx(to.w)); out.push('G0 ' + along.join(' ')); }
           else { out.push('G0 ' + along.join(' ')); out.push('G0 ' + wx(to.w)); }
@@ -143,17 +154,15 @@
       if (ev.kind === 'G1') {
         feedMove(to);
       } else {
+        // 2.22.0: chords at half the tolerance, as the XZC layout (DECISIONS: "chord at tol/2")
         var pts = linearizeArc(ev.from.x, ev.from.y, ev.from.z, ev.to.x, ev.to.y, ev.to.z,
-                               ev.arc.I, ev.arc.J, ev.arc.R, ev.kind === 'G2', O.chordTol);
+                               ev.arc.I, ev.arc.J, ev.arc.R, ev.kind === 'G2', O.chordTol * 0.5);
         for (var i = 0; i < pts.length; i++) feedMove({ u: pts[i].x, v: pts[i].y, w: pts[i].z });
       }
       return null;
     }
 
     function finish() {
-      if (overTravel > 0)
-        out.push('( WARNING: ' + overTravel + ' moves go past X max ' + O.xMax.toFixed(1)
-                 + ' mm - check the wrap radius and the machine limits! )');
       var rep = [];
       if (xHi >= xLo)
         rep.push('( X from ' + (xLo * X_SCALE).toFixed(3) + ' to ' + (xHi * X_SCALE).toFixed(3)
@@ -175,7 +184,9 @@
       header: header,
       move: move,
       flush: function (feed) { camFeed = feed; },
-      setTool: function () {},
+      // FIX 2.22.0: a tool change may move the machine (TOOL_CHANGE_POSITION), as the input stage
+      // already says: forget the position, so the next rapid is split like the first one.
+      setTool: function () { last = { u: null, v: null, w: null }; },
       finish: finish
     };
   }

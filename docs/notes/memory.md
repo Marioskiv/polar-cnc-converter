@@ -22,6 +22,22 @@ Update this file when a decision changes. Open work lives in `pending.md`.
 - Cutters changed by hand; all tool lengths in the LinuxCNC tool table; router switched by hand (LinuxCNC later).
 
 ## Decisions (newest first)
+- 2026-10-20 (2.24.0, Marios: "fix them all, serious work, keep notes, find more check tools"): full review
+  (two independent read-throughs, every test, sweeps, LinuxCNC 2.9.10 `rs274` with his machine .ini, ruff,
+  eslint). Fixed: no-diameter cutter refused with a chuck; Split Output refuses all files if one is refused (one
+  card), simulator plays the files one after another; setup note "touch off Z on the stock TOP with the value
+  Z …"; editor edits re-checked (park lines G53 left out of the check, as on first write); Y check in the post;
+  drill cycles in Cartesian checks; obstacle cache key; Wrap layout C = -Y/R0 (was mirrored; `program.unroll`
+  writes Y = -angle·R0 so Polar Wrap output is unchanged); first rapid and after M6 split in Wrap; Polar Wrap
+  points ≤ 1 map cell apart (flat cutter gouged 0.78 mm at a key edge); own `polarwrap_gui.create` (was close
+  to FreeCAD's LGPL Create). XZC output unchanged (golden 144/144). Made in parallel with 2.22.0/2.23.0 of
+  another chat, merged on top of them.
+- 2026-10-20 workflow: Marios said (2026-10-16, in another chat) "no more PRs, the chat's PR button is stuck".
+  This repo's CLAUDE.md says branch → PR → merge after tests. Both kept: Claude opens the PR AND merges it
+  itself once every test (npm + FreeCAD) passes, so Marios has no button to press.
+- 2026-10-16: his machine's X centre was MEASURED (router tip on the chuck axis at X 4.039 with the old
+  HOME_OFFSET -20): real .ini HOME_OFFSET -24.039, X limits -22.039 / 108.961 (same physical places), X Axis
+  Max on the page 108.9.
 - 2026-10-20 (2.23.0) **repositories reorganised** (Marios: "everything polar in one repo, WikiTips separate"):
   this repo = web converter + simulator + Polar CNC (polar, Polar Wrap) + **Knurling & Wrap** (`cad/`, Part
   Design only, separate part, no WikiTips inside, MIT — his yes). WikiTips = only help + error explanations.
@@ -68,6 +84,11 @@ Update this file when a decision changes. Open work lives in `pending.md`.
 
 ## How to test
 - Converter: `npm install` once, then `npm test`.
+- Also used 2026-10-20: `node tools/sweeps.js` (about a minute); `tools/linuxcnc-compare.js --rs274 <rs274>` with
+  LinuxCNC 2.9.10's interpreter built from source (`git clone -b v2.9.10 --depth 1` LinuxCNC; configure needs
+  python3.12 first in PATH for tkinter); `ruff check --select F,E9,B` on `freecad/`; `eslint` (no-undef,
+  no-redeclare, no-unreachable…) on `src/core`. A FreeCAD 26.3 build was found at `/tmp/claude-0/fcbin/env/bin/freecad`
+  in this container (GitHub release downloads are blocked here).
 - Addon in a real FreeCAD 26.3 (AppImage extracted, run under xvfb):
   `FREECAD=<path>/bin/freecad OUT=<dir> sh tests/freecad/run.sh` — every test must say PASS; look at the PNGs.
 - Pitfalls: with several tool controllers FreeCAD opens a dialog (tests monkeypatch

@@ -176,23 +176,34 @@ class Command:
 
 
 def create(res):
-    """CAM's own Create(res), with this operation's view provider."""
+    """Make a Polar Wrap operation in res.job and open its task panel.
+    2.22.0: written anew for this addon. Everything happens in one undo step: if no operation
+    comes out of it - the Job has no tool controller, or the tool controller chooser was
+    cancelled - the step is undone, so no half-made operation is left in the Job."""
     import FreeCAD as App
+    import Path.Op.Base as PathOp
     doc = App.ActiveDocument
-    doc.openTransaction("Create %s" % res.name)
+    if doc is None or getattr(res, "job", None) is None:
+        return None
+    doc.openTransaction("Polar Wrap")
+    made = None
     try:
-        obj = res.objFactory(res.name, obj=None, parentJob=res.job)
-        if obj.Proxy:
-            obj.ViewObject.Proxy = ViewProvider(obj.ViewObject, res)
-            obj.ViewObject.Visibility = True
-            doc.commitTransaction()
-            obj.ViewObject.Document.setEdit(obj.ViewObject, 0)
-            return obj
+        made = res.objFactory(res.name, obj=None, parentJob=res.job)
     except PathUtils.PathNoTCExistsException:
-        help.error_card("No suitable tool controller found. Add one to the Job first.", "Polar Wrap")
-    doc.abortTransaction()
-    doc.recompute()
-    return None
+        help.error_card("This Job has no tool controller. Add one (a cutter with its diameter and "
+                        "feeds), then make the Polar Wrap.", "Polar Wrap")
+    except PathOp.PathNoTCException:
+        App.Console.PrintMessage("Polar Wrap: no tool controller chosen, nothing made.\n")
+    if made is None or not getattr(made, "Proxy", None):
+        doc.abortTransaction()           # also removes an object the factory had begun
+        doc.recompute()
+        return None
+    view = made.ViewObject
+    view.Proxy = ViewProvider(view, res)
+    view.Visibility = True
+    doc.commitTransaction()
+    view.Document.setEdit(view, 0)       # its task panel
+    return made
 
 
 def register():

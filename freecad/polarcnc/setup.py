@@ -7,7 +7,6 @@
 # https://github.com/Marioskiv/polar-cnc-converter
 # SPDX-License-Identifier: MIT
 
-import math
 
 import FreeCAD as App
 import Part

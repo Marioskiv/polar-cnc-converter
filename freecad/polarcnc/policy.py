@@ -347,6 +347,8 @@ STOP_TEXT = {
                       "Αυτή η κατεργασία δεν γράφεται σε πολικό (X C Z) G-code: %s"),
     "Y in output": ("The polar output still has a Y move (it must be X, C, Z only): %s",
                     "Το πολικό G-code έχει ακόμα κίνηση Y (πρέπει να είναι μόνο X, C, Z): %s"),
+    "no diameter": ("%s Post Process will not write the program until it is set.",
+                    "%s Το Post Process δεν θα γράψει το πρόγραμμα μέχρι να οριστεί."),
 }
 SLOWER = ("About %.0f %% slower than its programmed feed (%.1f -> %.1f min): near the centre the "
           "C axis reaches its top speed.",

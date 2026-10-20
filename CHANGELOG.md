@@ -1,5 +1,52 @@
 # Changelog
 
+## 2.24.0 — fixes from a full review (polar checks, Split Output, Wrap orientation)
+
+A full review of the repository (two independent read-throughs of the converter and of the FreeCAD addon, every
+test, the sweeps, LinuxCNC 2.9.10's own interpreter on the author's machine `.ini`, `ruff` and `eslint`). The XZC
+layout (the face milling machine) is **unchanged**: golden 144/144 identical, sweeps the same, the author's three
+real programs give the same output.
+
+### Fixed — polar (face) Jobs in FreeCAD
+- **A cutter with no diameter was checked against the chuck as a point.** With a chuck set up, Post Process now
+  refuses an operation whose tool bit has no Diameter (and the live check shows it as a stop).
+- **Split Output** (one file per tool / fixture / operation): FreeCAD calls the post once per file and writes every
+  file that is not refused, so a file running into a jaw was missing while the others were written. Every file of the
+  Job is now checked: if one is refused, none is written, and the card is shown once. The simulator and the cut
+  check play the files one after the other, each converted on its own, as they will run.
+- The setup note at the top said "stock bottom at Z … – touch off Z there": it reads as "touch off at the bottom",
+  wrong by the stock height. It now says: touch off Z on the stock TOP with the value Z ….
+- A program edited by hand in the post's editor was written without a new check. It is now checked again (Y left,
+  the chuck; the 2.22.0 tool-change park lines, in machine coordinates, are left out as on the first write)
+  and refused if it fails.
+- "Y in the output" is checked by Post Process too (it was only in the live check).
+- Two tool controllers with one tool number: the chuck check uses the bigger cutter.
+- Drilling cycles (G73, G81–G89) are followed in the Cartesian chuck check and in the jaw-height reminder
+  (they were skipped; the polar check after conversion already saw them).
+- The chuck's keep-out shapes are rebuilt when the stock or *Jaws at known angle* changes (they could be stale until
+  a recompute).
+
+### Fixed — Wrap
+- **An unrolled drawing came out mirrored on the part** (web page, layout Wrap): C was +Y/R0, which with the
+  converter's own convention (proven by the F test) is left-handed. It is now **C = −Y/R0**, so the drawing reads the
+  right way round seen from outside the part. The FreeCAD Polar Wrap operation unrolls with the matching sign, so its
+  programs are unchanged. New test: the unrolled X × Y points out of the part. As with the F test, only an asymmetric
+  test cut on the machine proves it.
+- **The first rapid of a Wrap program** (and the first after a tool change) moved X, Z and C in one block, dragging
+  the tool across the part if it started on it: the "radius not known yet" case was dead code. It is now split like
+  every other rapid (out first, then along/round). After M6 the position is forgotten, as the input stage says.
+- **Polar Wrap with a flat end mill could cut up to 0.78 mm too deep** at a sharp edge (a key along the bar): written
+  points were two map cells apart, and the check takes the highest of the four grid points round each point only.
+  They are now at most one cell apart (0.000 mm on the same case; a ball end was already fine).
+- Wrap arcs are chorded at half the tolerance, as in XZC. A warning that could never appear was removed.
+- Polar Wrap's create command is written anew (it was close to FreeCAD's LGPL `Create`); Cancel in the tool
+  controller chooser no longer leaves a half-made operation.
+
+### Checked
+- `npm test` (wrap 145), sweeps unchanged (worst 0.0225 mm), LinuxCNC 2.9.10 `rs274` with the machine `.ini`: the
+  author's three programs OK (time equal to the CAM), Wrap outputs accepted. FreeCAD 26.3: every addon test PASS,
+  plus the new `tests/freecad/fixes_test.py`. `ruff` (Python) and `eslint` (JS): no real error.
+
 ## 2.23.0 — Knurling & Wrap moved here from WikiTips
 
 ### Added

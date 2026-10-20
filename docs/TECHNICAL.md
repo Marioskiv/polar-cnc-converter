@@ -324,7 +324,7 @@ are: X = radius of the tool tip, Z = along the part, C = the chuck. Choose **Mac
 and enter the **wrap radius** (no default).
 
 - **The CAM program is the surface unrolled flat**, made with any 3-axis CAM: CAM X along the part (→ machine Z),
-  CAM Y round it in mm of arc at the wrap radius R0 (→ C = Y / R0, in degrees), CAM Z the height above the surface
+  CAM Y round it in mm of arc at the wrap radius R0 (→ C = −Y / R0, in degrees; 2.22.0: the minus makes the drawing read the right way round seen from outside the part, it was mirrored before), CAM Z the height above the surface
   (→ X = R0 + Z; Z 0 on the surface, negative into it). A stock 2πR0 wide in Y is one full turn. This is what
   Fanuc's cylindrical interpolation (G07.1) does inside the control; LinuxCNC has none, so the converter writes the
   joint moves.
