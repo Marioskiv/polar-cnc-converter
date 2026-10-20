@@ -185,7 +185,6 @@ def check_operation(job, op):
     runs it and checked against the chuck. Returns (stops, notes): stops are what Post Process
     will refuse (it does not convert, it runs into the chuck, a Y is left in the polar output);
     notes are for information (e.g. the time the C axis adds). Raises nothing."""
-    import re
     from . import collision
     stops, notes = [], []
     tc = getattr(op, "ToolController", None)

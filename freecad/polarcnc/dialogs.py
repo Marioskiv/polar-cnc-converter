@@ -7,7 +7,7 @@
 # SPDX-License-Identifier: MIT
 
 import FreeCAD as App
-from PySide import QtCore, QtGui
+from PySide import QtGui
 
 from . import help, machine
 
