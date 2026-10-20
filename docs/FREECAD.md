@@ -125,4 +125,9 @@ Lessons carried over from other FreeCAD addon work (FreeCAD 26.3):
   stays for the XZC lathe layout (radial router, C, G93 through the converter) and is checked against that
   drop-cutter. Not yet covered by a test: a grid point exactly on a mesh vertex or edge, a mesh with holes (refused
   only if a whole slice is empty), the feed between points when C turns fast near the axis.
+- C winds up over a long Wrap program: the relief test (three cutters, finishing helices at 15 % step over) ends at
+  C ≈ 167 000° (465 turns one way; roughing layers alternate, finishing helices all turn the same way). LinuxCNC
+  follows it if the C joint's limits allow it; the Wrap profile's C MIN/MAX_LIMIT must be wide enough. Possible
+  next step (not done): turn finishing passes the other way on alternate operations, or reset C between
+  operations (Kiri:Moto resets its A axis with G92.4 at the end).
 

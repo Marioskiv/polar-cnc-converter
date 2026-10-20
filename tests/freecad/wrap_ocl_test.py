@@ -38,7 +38,7 @@ import Part  # noqa: E402
 from polarcnc import wrapcut  # noqa: E402
 
 V = App.Vector
-log = open(os.path.join(OUT, "log.txt"), "w")
+log = open(os.path.join(OUT, "log.txt"), "w", encoding="utf-8")
 fails = []
 
 
@@ -183,6 +183,6 @@ try:
 except Exception:
     fails.append("exception")
     log.write(traceback.format_exc())
-with open(os.path.join(OUT, "result.txt"), "w") as f:
+with open(os.path.join(OUT, "result.txt"), "w", encoding="utf-8") as f:
     f.write("RESULT: %s\n" % ("PASS" if not fails else "FAIL " + "; ".join(fails)))
 log.close()
