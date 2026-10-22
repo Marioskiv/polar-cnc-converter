@@ -3,20 +3,13 @@
 Newest first. Move an item to `memory.md` (Decisions) when it is decided, delete it when it is done.
 
 ## Waiting for Marios
-- **Hole on any surface (Knurling & Wrap, proposed 2026-10-22).** His Pocket on a TimingGear HTD 5M pulley (radial
-  hole through a tooth) failed "result is empty". Proposal: a `cad/` tool — click a point on any face, direction
-  (to the part axis / face normal / X Y Z), plain or M3-M5 (tap or print size, counterbore, hex nut pocket), the
-  drill starts outside the solid, plain cut then fuzzy boolean, result checked (one valid solid, less volume),
-  Greek message if it fails; a `PartDesign::FeaturePython` in the Body like Knurl (26.3 segfaults with the
-  Subtractive Python features). Tests: his pulley file, gear, hexagon, STL solid, reopen. Waiting for his yes
-  and the hole types he wants. **Found in his file (2026-10-22):** not the sketch, not the Pocket: the PartDesign
-  Hole with a MODELLED thread (depth 25 on a 20 mm part) leaves a solid reaching outside the part (Z -3.11..19.11
-  for a part -2..18); after it EVERY boolean fails (Part cut too: volume 0). A radial pocket on Pad001 (before
-  the Hole), with the Hole re-based on it, works (valid, -300 mm³); fixed file sent to him. The tool must therefore
-  also warn when the base already fails a boolean, and suggest putting the hole before a modelled thread.
+- **Hole on any surface: BUILT 2.25.0 (2026-10-22, Marios: "only a plain hole for now").** See knurlwrap.md.
+  Open: his try on the real pulley (he must update the addon); later screw holes M3-M5, counterbore, nut pocket.
+  Correction told to him: "Through all" on his threaded Hole does NOT fix the pulley; unticking Model Thread does.
 - **Separate repo for the Part Design tools** (his wish 2026-10-22: "why weren't these addons separated? open a
   new repo for them when you finish"). Note: on 2026-10-20 (another chat) he decided to keep Knurling & Wrap in
-  this repo (see memory.md, 2.23.0). Ask him to confirm the change and the new repo's name; then move `cad/`,
+  this repo (see memory.md, 2.23.0). 2026-10-22 he gave the name: **`freecad-addons`** ("freecad addons to
+  reppo"); not yet created. Confirm with him before creating it; then move `cad/`,
   its tests and `knurlwrap.md` there (Addon Manager: a separate entry), and the new hole tool goes there too.
 - **Chuck jaws: stepped, inside / outside grip** (his request 2026-10-21, kept for later at his word). Research
   and proposal in `chuck-jaws.md` (SAN OU catalogue numbers, what the addon does today, the plan). Waiting for his

@@ -1,5 +1,21 @@
 # Changelog
 
+## 2.25.0 — Knurling & Wrap: Hole on any surface
+
+### Added
+- **Hole on any surface** (Part Design toolbar *Knurling & Wrap*): click the part where the hole goes — a flat
+  face, a cylinder, the teeth of a pulley, any curved face — and press the button. A round hole is drilled there,
+  square to the surface at that point, from outside the part: through the wall up to the first empty space (the
+  default, e.g. into a pulley's bore), to a depth, or right through. The panel changes the diameter and the depth
+  with a live preview; Cancel puts the old values back.
+- Some features leave a solid on which every later cut fails ("result is empty"), e.g. a Part Design Hole with
+  *Model Thread* on the author's HTD 5M pulley. The command tests the cut first and, when the last solid is broken,
+  puts the hole just before the feature that breaks it and says so (in Greek); a hole that still cannot be cut
+  explains why instead of failing silently.
+- Test `tests/freecad/surface_hole_test.py` (real FreeCAD, in `tests/freecad/run.sh`).
+
+The converter and the Polar CNC addon are unchanged.
+
 ## 2.24.0 — fixes from a full review (polar checks, Split Output, Wrap orientation)
 
 A full review of the repository (two independent read-throughs of the converter and of the FreeCAD addon, every

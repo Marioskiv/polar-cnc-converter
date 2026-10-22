@@ -77,8 +77,10 @@ not need Polar CNC or WikiTips.
 - **Knurl**: knurling on a cylinder in one click (diamond or straight, real teeth or lines on screen only).
 - **Wrap on a cylinder**: click the cylinder, draw in the sketch that opens there; text, shapes and holes are
   wrapped round it, engraved, raised or cut down to the axis. (Not the *Polar Wrap* machining operation.)
+- **Hole on any surface**: click the part where the hole goes (flat, cylinder, pulley teeth, any curved face),
+  press the button: a round hole square to the surface there, through the wall, to a depth or right through.
 
-Until 2026-10-20 these two were part of WikiTips; files made with them still open.
+Until 2026-10-20 the first two were part of WikiTips; files made with them still open.
 
 ## More
 

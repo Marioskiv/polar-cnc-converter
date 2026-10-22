@@ -1,4 +1,4 @@
-# Knurling & Wrap — the two commands and their toolbar in the Part Design workbench.
+# Knurling & Wrap — the commands and their toolbar in the Part Design workbench.
 #
 # Copyright (c) 2026 Marioskiv
 # https://github.com/Marioskiv/polar-cnc-converter
@@ -6,7 +6,7 @@
 
 import FreeCAD as App
 
-COMMANDS = ("KnurlWrap_Knurl", "KnurlWrap_Wrap")
+COMMANDS = ("KnurlWrap_Knurl", "KnurlWrap_Wrap", "KnurlWrap_Hole")
 # a toolbar of the Part Design workbench only, the way Tools -> Customize stores one
 TOOLBAR = "User parameter:BaseApp/Workbench/PartDesignWorkbench/Toolbar/KnurlWrap"
 
@@ -23,9 +23,10 @@ def ensure_toolbar():
 
 
 def install():
-    from . import knurl, wrap
+    from . import hole, knurl, wrap
     knurl.install()
     wrap.install()
+    hole.install()
     ensure_toolbar()
     # the old names of files made while Knurl and Wrap were part of WikiTips: loaded now, because
     # FreeCAD 26.3 lets a document import, while it opens, only modules already loaded (or found

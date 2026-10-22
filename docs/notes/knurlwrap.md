@@ -54,3 +54,26 @@ Licence MIT (his own code, he agreed). WikiTips stays only help + error explanat
 - cyl_wrap_test: 16 checks (sketch where clicked, not mirrored, three modes, lands where drawn, reopen,
   upstream edit).
 - knurlwrap_old_file_test: the WikiTips 0.4.1 file opens, same volumes to 0.001 mm³, saved under the new names.
+
+## Hole on any surface (2026-10-22, Marios: "only a hole for now")
+- Why: Marios could not open a radial hole in the grooves of his HTD 5M pulley (Pocket: "result is empty").
+  Cause (checked in FreeCAD 26.3 on his file): his Part Design Hole M14x2.0 with **Model Thread** leaves a solid
+  that looks valid but on which any cut THROUGH the thread fails (a Ø3 cut removes the whole part). Through all
+  does not help; unticking Model Thread does. A plain M14 modelled thread on a plain cylinder does NOT reproduce
+  it (tried several settings): it comes from his pulley geometry + the thread.
+- `cad/knurlwrap/hole.py`, command `KnurlWrap_Hole`, feature `HoleOnSurface` (`PartDesign::FeaturePython` in a
+  Body, `Part::FeaturePython` with `Base` otherwise). Stores Point + Direction (numbers), Diameter, Mode, Depth.
+- Direction = minus the face normal at the picked point, checked against the solid with `isInside` (the normal
+  of a face of a broken solid can point into the material). The drill starts outside the part (whatever lies
+  on the hole's line above the point is cut too) and ends: `Ως το πρώτο κενό` (default: where the line first
+  leaves the material, + 0.01 mm), `Βάθος`, `Διαμπερής`. Mode values are Greek and SAVED: never rename.
+- Broken-solid test (`cut_ok`): result valid, has solids, volume > 0, removed between 0 and the drill's volume.
+  At creation the command walks back from the Tip (`healthy_place`) and puts the hole (Body.insertObject) after
+  the last feature where the cut is right, i.e. before the one that breaks it, with a Greek message naming it.
+  On recompute a failing cut raises with the Greek explanation (untick Model Thread / move the hole up).
+- On his pulley file: "first empty" from a tooth or a groove cuts fine even AFTER the thread (it never reaches
+  it); "right through" goes before the thread Hole and the thread still builds on it.
+- Test `tests/freecad/surface_hole_test.py` (in run.sh): the broken solid is stood in for by a feature that
+  turns its base inside out (a real one could not be reproduced without his file).
+- Not done (Marios: only a plain hole for now): screw holes M3/M4/M5, counterbore, nut pocket; moving the point
+  with the mouse after creation (Point is editable in the property view).

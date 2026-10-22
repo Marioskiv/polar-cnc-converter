@@ -88,9 +88,9 @@ hr=$(cat "$OUT/help/result.txt" 2>/dev/null || echo "RESULT: no result (see $OUT
 echo "help: $hr"
 [ "$hr" = "RESULT: PASS" ] || result="$result; help $hr"
 
-# Knurling & Wrap (the Part Design tools in cad/): Knurl, Wrap on a cylinder, and a file made while
+# Knurling & Wrap (the Part Design tools in cad/): Knurl, Wrap on a cylinder, Hole on any surface, and a file made while
 # they were part of WikiTips (opened with no WikiTips installed)
-for t in knurl cyl_wrap knurlwrap_old_file; do
+for t in knurl cyl_wrap surface_hole knurlwrap_old_file; do
     HOME="$OUT/home" PC_OUT="$OUT/$t" PC_REPO="$REPO" xvfb-run -a -s "-screen 0 1600x1000x24" \
         "$FREECAD" "$REPO/tests/freecad/${t}_test.py" > "$OUT/freecad-$t.log" 2>&1
     r=$(grep -h "^RESULT" "$OUT/$t/result.txt" 2>/dev/null || echo "RESULT: no result (see $OUT/freecad-$t.log)")
