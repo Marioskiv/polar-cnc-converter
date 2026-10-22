@@ -72,7 +72,7 @@ tested in 26.3). It has not yet cut a real part on the author's machine.
 ## Knurling & Wrap (Part Design)
 
 Knurl, Wrap on a cylinder and Hole on any surface now live in their own addon:
-[Marioskiv/freecad-addons](https://github.com/Marioskiv/freecad-addons) (moved in 2.26.0).
+[Marioskiv/Knurling-Wrap](https://github.com/Marioskiv/Knurling-Wrap) (moved in 2.26.0).
 
 ## More
 

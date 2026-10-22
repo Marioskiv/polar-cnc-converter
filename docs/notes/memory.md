@@ -45,7 +45,7 @@ Update this file when a decision changes. Open work lives in `pending.md`.
   he can rename it in GitHub Settings), a SEPARATE repo for the cutter libraries, and from now on the chat in
   which this was decided is for WikiTips only.
 - 2026-10-22 (2.26.0, Marios: separate repo, name `freecad-addons`): Knurling & Wrap (with the new Hole on any
-  surface, 2.25.0) moved to `Marioskiv/freecad-addons` 1.0.0 (folder `KnurlWrap/`, its tests and notes
+  surface, 2.25.0) moved to `Marioskiv/Knurling-Wrap` 1.0.0 (created as `freecad-addons`, renamed by Marios the same day) (folder `KnurlWrap/`, its tests and notes
   `docs/notes/knurlwrap.md` there). Removed from here: `cad/`, its 4 tests, the WikiTips fixture, the second
   `<workbench>` in `package.xml`.
 - 2026-10-20 (2.22.0, his yes to A/B/C/D): park before every M6 (polar `G53 G0 Z0` then `G53 G0 X0`; Wrap

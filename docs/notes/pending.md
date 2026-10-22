@@ -3,8 +3,8 @@
 Newest first. Move an item to `memory.md` (Decisions) when it is decided, delete it when it is done.
 
 ## Waiting for Marios
-- **Knurling & Wrap moved to `freecad-addons` (2.26.0, 2026-10-22).** Tell Marios: update Polar CNC, then add
-  `https://github.com/Marioskiv/freecad-addons` as a custom repository in the Addon Manager and install it.
+- **Knurling & Wrap moved to `Knurling-Wrap` (2.26.0, 2026-10-22).** Tell Marios: update Polar CNC, then add
+  `https://github.com/Marioskiv/Knurling-Wrap` as a custom repository in the Addon Manager and install it.
   Open items of those tools are now in that repo's `docs/notes/pending.md`.
 - **Chuck jaws: stepped, inside / outside grip** (his request 2026-10-21, kept for later at his word). Research
   and proposal in `chuck-jaws.md` (SAN OU catalogue numbers, what the addon does today, the plan). Waiting for his
