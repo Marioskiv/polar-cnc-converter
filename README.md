@@ -71,16 +71,8 @@ tested in 26.3). It has not yet cut a real part on the author's machine.
 
 ## Knurling & Wrap (Part Design)
 
-[`cad/`](cad/README.md): a separate part of the same FreeCAD addon, on its own **Part Design** toolbar. It does
-not need Polar CNC or WikiTips.
-
-- **Knurl**: knurling on a cylinder in one click (diamond or straight, real teeth or lines on screen only).
-- **Wrap on a cylinder**: click the cylinder, draw in the sketch that opens there; text, shapes and holes are
-  wrapped round it, engraved, raised or cut down to the axis. (Not the *Polar Wrap* machining operation.)
-- **Hole on any surface**: click the part where the hole goes (flat, cylinder, pulley teeth, any curved face),
-  press the button: a round hole square to the surface there, through the wall, to a depth or right through.
-
-Until 2026-10-20 the first two were part of WikiTips; files made with them still open.
+Knurl, Wrap on a cylinder and Hole on any surface now live in their own addon:
+[Marioskiv/freecad-addons](https://github.com/Marioskiv/freecad-addons) (moved in 2.26.0).
 
 ## More
 

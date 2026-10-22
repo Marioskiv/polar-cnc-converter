@@ -43,7 +43,11 @@ Update this file when a decision changes. Open work lives in `pending.md`.
   Design only, separate part, no WikiTips inside, MIT — his yes). WikiTips = only help + error explanations.
   He also wants: this repo renamed (his words "XCZ converter polar, warp"; exact GitHub name to confirm; only
   he can rename it in GitHub Settings), a SEPARATE repo for the cutter libraries, and from now on the chat in
-  which this was decided is for WikiTips only. Details of the move: `knurlwrap.md`.
+  which this was decided is for WikiTips only.
+- 2026-10-22 (2.26.0, Marios: separate repo, name `freecad-addons`): Knurling & Wrap (with the new Hole on any
+  surface, 2.25.0) moved to `Marioskiv/freecad-addons` 1.0.0 (folder `KnurlWrap/`, its tests and notes
+  `docs/notes/knurlwrap.md` there). Removed from here: `cad/`, its 4 tests, the WikiTips fixture, the second
+  `<workbench>` in `package.xml`.
 - 2026-10-20 (2.22.0, his yes to A/B/C/D): park before every M6 (polar `G53 G0 Z0` then `G53 G0 X0`; Wrap
   `G0 X<X max>` then `G53 G0 Z0`; C stays; Job property *Polar Tool Change Park*, on by default); Post Process
   refuses a Tool Controller without spindle speed; M5 added before the end when left on; outdated comments fixed

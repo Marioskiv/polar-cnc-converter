@@ -7,13 +7,13 @@ honest and direct. Never claim something you have not checked (he has caught wro
 ## Before doing anything
 1. Read `docs/notes/memory.md` — rules, decisions, workflow, how to test.
 2. Read `docs/notes/pending.md` — open items and questions waiting for Marios.
-3. For the FreeCAD addon read `docs/FREECAD.md`; for the converter `docs/TECHNICAL.md`; for Knurling & Wrap
-   `docs/notes/knurlwrap.md`.
+3. For the FreeCAD addon read `docs/FREECAD.md`; for the converter `docs/TECHNICAL.md`.
 
 ## What lives where (decided by Marios, 2026-10-20)
 | Repository | What it holds |
 |---|---|
-| **this repo** (`polar-cnc-converter`, to be renamed) | everything for the XZC machine: the web converter + simulator (`src/`, `lib/`, `css/`, `index.html`), the FreeCAD addon Polar CNC (`freecad/`: polar, Polar Wrap, chuck, simulator, post) and the separate Part Design part **Knurling & Wrap** (`cad/`: Knurl, Wrap on a cylinder) |
+| **this repo** (`polar-cnc-converter`, to be renamed) | everything for the XZC machine: the web converter + simulator (`src/`, `lib/`, `css/`, `index.html`), the FreeCAD addon Polar CNC (`freecad/`: polar, Polar Wrap, chuck, simulator, post) |
+| `freecad-addons` (since 2026-10-22) | the Part Design tools **Knurling & Wrap** (Knurl, Wrap on a cylinder, Hole on any surface); were `cad/` here until 2.25.0 |
 | `freecad-wikitips` | ONLY WikiTips: hover help for FreeCAD's commands and the Greek error explanations. No tools. |
 | `linuxcnc-calibrations` (private) | calibration tools and notes of the machine |
 | `cnc-manuals` (private) | the machine's real `.ini` / `.hal` and manuals |

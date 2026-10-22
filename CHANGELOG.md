@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.26.0 — Knurling & Wrap moved to its own repository
+
+- The Part Design tools **Knurling & Wrap** (Knurl, Wrap on a cylinder, Hole on any surface) are now a separate
+  addon: [Marioskiv/freecad-addons](https://github.com/Marioskiv/freecad-addons). Removed from here: `cad/`, their
+  tests and notes, and their entry in `package.xml`. Install the new addon from the Addon Manager (custom
+  repository); files made with these tools open as before.
+- The converter and Polar CNC are unchanged.
+
 ## 2.25.0 — Knurling & Wrap: Hole on any surface
 
 ### Added
