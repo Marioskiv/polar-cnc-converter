@@ -3,14 +3,9 @@
 Newest first. Move an item to `memory.md` (Decisions) when it is decided, delete it when it is done.
 
 ## Waiting for Marios
-- **Hole on any surface: BUILT 2.25.0 (2026-10-22, Marios: "only a plain hole for now").** See knurlwrap.md.
-  Open: his try on the real pulley (he must update the addon); later screw holes M3-M5, counterbore, nut pocket.
-  Correction told to him: "Through all" on his threaded Hole does NOT fix the pulley; unticking Model Thread does.
-- **Separate repo for the Part Design tools** (his wish 2026-10-22: "why weren't these addons separated? open a
-  new repo for them when you finish"). Note: on 2026-10-20 (another chat) he decided to keep Knurling & Wrap in
-  this repo (see memory.md, 2.23.0). 2026-10-22 he gave the name: **`freecad-addons`** ("freecad addons to
-  reppo"); not yet created. Confirm with him before creating it; then move `cad/`,
-  its tests and `knurlwrap.md` there (Addon Manager: a separate entry), and the new hole tool goes there too.
+- **Knurling & Wrap moved to `freecad-addons` (2.26.0, 2026-10-22).** Tell Marios: update Polar CNC, then add
+  `https://github.com/Marioskiv/freecad-addons` as a custom repository in the Addon Manager and install it.
+  Open items of those tools are now in that repo's `docs/notes/pending.md`.
 - **Chuck jaws: stepped, inside / outside grip** (his request 2026-10-21, kept for later at his word). Research
   and proposal in `chuck-jaws.md` (SAN OU catalogue numbers, what the addon does today, the plan). Waiting for his
   yes and the measured step sizes of one K11-125 jaw.
@@ -25,8 +20,6 @@ Newest first. Move an item to `memory.md` (Decisions) when it is decided, delete
   IZAR 85, Stepcraft 3, Amana 34; see WikiTips memory.md of 2026-10-17); they are not in any repo and not on
   this machine (only his Amana .tools and IZAR PDF uploads remain). Ask: repo name, private or public, and
   whether he uploads his zips or they are rebuilt from his catalogs.
-- **Knurling & Wrap**: not yet tried on his PC after the move (2.23.0). The texts are Greek only (as in
-  WikiTips); English not asked for.
 - **Wrap .ini / .hal:** the router's side on the Wrap setup is not decided yet. Advice given (2026-10-20): work X0 =
   the chuck axis, X+ = away from it (flip the X scale sign in the Wrap .ini if needed); the same .hal if it reads
   scales/limits from the .ini; its own .ini and its own tool table (lengths in the X column). To write it: his
