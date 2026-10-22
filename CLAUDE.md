@@ -13,7 +13,7 @@ honest and direct. Never claim something you have not checked (he has caught wro
 | Repository | What it holds |
 |---|---|
 | **this repo** (`polar-cnc-converter`, to be renamed) | everything for the XZC machine: the web converter + simulator (`src/`, `lib/`, `css/`, `index.html`), the FreeCAD addon Polar CNC (`freecad/`: polar, Polar Wrap, chuck, simulator, post) |
-| `freecad-addons` (since 2026-10-22) | the Part Design tools **Knurling & Wrap** (Knurl, Wrap on a cylinder, Hole on any surface); were `cad/` here until 2.25.0 |
+| `Knurling-Wrap` (since 2026-10-22, first named `freecad-addons`) | the Part Design tools **Knurling & Wrap** (Knurl, Wrap on a cylinder, Hole on any surface); were `cad/` here until 2.25.0 |
 | `freecad-wikitips` | ONLY WikiTips: hover help for FreeCAD's commands and the Greek error explanations. No tools. |
 | `linuxcnc-calibrations` (private) | calibration tools and notes of the machine |
 | `cnc-manuals` (private) | the machine's real `.ini` / `.hal` and manuals |
