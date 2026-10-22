@@ -3,6 +3,9 @@
 Newest first. Move an item to `memory.md` (Decisions) when it is decided, delete it when it is done.
 
 ## Waiting for Marios
+- **Chuck jaws: stepped, inside / outside grip** (his request 2026-10-21, kept for later at his word). Research
+  and proposal in `chuck-jaws.md` (SAN OU catalogue numbers, what the addon does today, the plan). Waiting for his
+  yes and the measured step sizes of one K11-125 jaw.
 - **2.24.0 (2026-10-20):** tell Marios: Wrap from the web page is no longer mirrored; prove it with an
   asymmetric test cut (like the F test) before a real Wrap part. Polar Wrap (FreeCAD) programs are unchanged.
 - **Rename this repo** (his request 2026-10-20: "XCZ converter polar, warp"). A GitHub name cannot have spaces
