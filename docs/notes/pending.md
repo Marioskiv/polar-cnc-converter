@@ -3,6 +3,13 @@
 Newest first. Move an item to `memory.md` (Decisions) when it is decided, delete it when it is done.
 
 ## Waiting for Marios
+- **Hole on any surface (Knurling & Wrap, proposed 2026-10-22).** His Pocket on a TimingGear HTD 5M pulley (radial
+  hole through a tooth) failed "result is empty". Proposal: a `cad/` tool — click a point on any face, direction
+  (to the part axis / face normal / X Y Z), plain or M3-M5 (tap or print size, counterbore, hex nut pocket), the
+  drill starts outside the solid, plain cut then fuzzy boolean, result checked (one valid solid, less volume),
+  Greek message if it fails; a `PartDesign::FeaturePython` in the Body like Knurl (26.3 segfaults with the
+  Subtractive Python features). Tests: his pulley file, gear, hexagon, STL solid, reopen. Waiting for his yes,
+  the hole types he wants and his .FCStd.
 - **Chuck jaws: stepped, inside / outside grip** (his request 2026-10-21, kept for later at his word). Research
   and proposal in `chuck-jaws.md` (SAN OU catalogue numbers, what the addon does today, the plan). Waiting for his
   yes and the measured step sizes of one K11-125 jaw.
