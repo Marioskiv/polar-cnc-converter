@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no" ?>
 <package format="1" xmlns="https://wiki.freecad.org/Package_Metadata">
   <name>PolarCNC</name>
-  <description>Polar (XZC) face machining and Wrap from the FreeCAD CAM workbench: a post-processor that turns a normal Job into polar G-code with G93 inverse-time feed, using the same converter as the web page. Also Knurling &amp; Wrap: knurling and drawing wrapped round a cylinder, on a Part Design toolbar.</description>
-  <version>2.24.0</version>
-  <date>2026-10-20</date>
+  <description>Polar (XZC) face machining and Wrap from the FreeCAD CAM workbench: a post-processor that turns a normal Job into polar G-code with G93 inverse-time feed, using the same converter as the web page. Also Knurling &amp; Wrap: knurling, drawing wrapped round a cylinder and a hole on any surface, on a Part Design toolbar.</description>
+  <version>2.25.0</version>
+  <date>2026-10-22</date>
   <maintainer email="">Marioskiv</maintainer>
   <license file="LICENSE">MIT</license>
   <url type="repository" branch="main">https://github.com/Marioskiv/polar-cnc-converter</url>
@@ -16,7 +16,7 @@
     </workbench>
     <workbench>
       <name>KnurlWrap</name>
-      <description>Knurling &amp; Wrap: knurling on a cylinder and drawing wrapped round a cylinder, on a Part Design toolbar.</description>
+      <description>Knurling &amp; Wrap: knurling on a cylinder, drawing wrapped round a cylinder and a hole on any surface, on a Part Design toolbar.</description>
       <subdirectory>cad</subdirectory>
       <freecadmin>1.1</freecadmin>
     </workbench>
