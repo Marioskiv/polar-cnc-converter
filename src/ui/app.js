@@ -49,8 +49,9 @@ btnConvert.addEventListener('click', function() {
         for (var li = 0; li < rawLines.length; li++) {
           var ln = rawLines[li].replace(/\(.*?\)/g,'').replace(/;.*$/,'');
           // Track G0/G1 modal state so we can separate cutting Z from rapid Z
-          if (/\bG\s*0\b/i.test(ln)) isG1 = false;
-          if (/\bG\s*1\b/i.test(ln)) isG1 = true;
+          // 2.26.1: no \b - "G0X30" (words without spaces) is valid G-code too
+          if (/G\s*0*0(?![.\d])/i.test(ln)) isG1 = false;
+          if (/G\s*0*1(?![.\d])/i.test(ln)) isG1 = true;
           var m;
           wRe.lastIndex = 0;
           while ((m = wRe.exec(ln)) !== null) {

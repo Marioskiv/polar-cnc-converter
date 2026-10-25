@@ -347,5 +347,30 @@ assert.throws(() => convert('G21 G90 G17\nG0 X10 Y0 Z1\nG1 Z-1 F100\nG3 X0 Y10 I
   ok(/above 360 deg\/s: [\d.]+ mm of cut/.test(p) && /fastest: \d+ deg\/s at 0\.\d+ mm from the centre, source line 4/.test(p), 'C speed report with the source line');
   ok(!/goes past/.test(p), 'no limit warning for a short program');
 }
+// 34. (2.26.1) words without spaces are valid G-code (LinuxCNC ignores spaces). They were passed
+// through unconverted ("G0X30Y10"), cut as a rapid ("G1X50" after a G0) or not seen ("T2M6").
+{
+  const spaced = '(T1 D=5)\n(T2 D=3)\nG21 G90\nT1 M6\nG0 Z5\nG0 X30 Y10\nG1 Z-1 F300\nG1 X50 Y10 F900\n'
+    + 'G2 X40 Y20 I-10 J0\nG0 Z5\nT2 M6\nG0 X20 Y-5 Z5\nG1 Z-1 F300\nG1 X25 Y-15 F900\nG0 Z5\nM30';
+  const motionOnly = g => motion(g).join('\n');
+  const want = motionOnly(spaced);
+  const forms = {
+    compact: '(T1 D=5)\n(T2 D=3)\nG21G90\nT1M6\nG0Z5\nG0X30Y10\nG1Z-1F300\nG1X50Y10F900\n'
+      + 'G2X40Y20I-10J0\nG0Z5\nT2M6\nG0X20Y-5Z5\nG1Z-1F300\nG1X25Y-15F900\nG0Z5\nM30',
+    lowercase: spaced.replace(/^(?!\().*$/gm, l => l.toLowerCase()),
+    'line numbers': spaced.split('\n').map((l, i) => l.startsWith('(') ? l : 'N' + (i + 1) * 10 + l.replace(/ /g, '')).join('\n'),
+    'spaces inside words': spaced.replace(/^(?!\()(.*)$/gm, l => l.replace(/([A-Z])/g, '$1 ')),
+    'leading zeros, M06T2': spaced.replace(/G0 /g, 'G00 ').replace(/G1 /g, 'G01 ').replace(/T2 M6/, 'M06T2'),
+  };
+  for (const [name, g] of Object.entries(forms)) ok(motionOnly(g) === want, 'same moves when written ' + name);
+  const c = lines(forms.compact);
+  ok(!c.some(l => /^G[01]X|Y\d/.test(l)), 'no Cartesian line passed through');
+  ok(c.filter(l => /polar-cnc tool: T2 D=3/.test(l)).length === 1, 'T2M6 is a tool change');
+  ok(/cutting move before the tool position is known/.test((() => {
+    try { convert('G21 G90\nG0 X30 Y0 Z5\nG1 Z-1 F300\nG0 Z5\nT2M6\nG1 X40 Y0 Z-1 F300\nM30', O); return ''; } catch (e) { return e.message; }
+  })()), 'after T2M6 the position is unknown');
+  ok(/exponent/.test((() => { try { convert('G21 G90\nG0X30Y0Z5\nG1Z-1F1E3\nM30', O); return ''; } catch (e) { return e.message; } })()),
+    'exponent still refused in a compact line');
+}
 
 console.log(`input: ${n} checks passed`);

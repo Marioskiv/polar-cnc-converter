@@ -192,6 +192,8 @@ function main(argv) {
     const r = compare(fs.readFileSync(f, 'utf8'), opts, env);
     if (r.skip || r.refused) { console.log(f + ': ' + (r.skip || 'converter refused: ' + r.refused)); continue; }
     if (r.issues.length) bad++;
+    // 2.26.1: an output LinuxCNC rejects has no measurements; print the reason (it crashed here)
+    if (r.camToOut === undefined) { console.log(f + ':\n  ' + r.issues.join('\n  ')); continue; }
     console.log(f + ': CAM->out ' + r.camToOut.toFixed(4) + ' mm, out->CAM ' + r.outToCam.toFixed(4) + ' mm, rapids ' + r.rapid.toFixed(3)
       + ' mm, time ' + r.time.map(t => t.toFixed(1)).join(' / ') + ' s, speed ' + (r.speed * 100).toFixed(2) + ' %, X ' + r.x.map(v => v.toFixed(2)).join(' .. ')
       + (r.issues.length ? '\n  ' + r.issues.join('\n  ') : '  OK'));

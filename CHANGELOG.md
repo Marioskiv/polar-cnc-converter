@@ -1,5 +1,29 @@
 # Changelog
 
+## 2.26.1 — G-code written without spaces
+
+### Fixed
+- **Words written without spaces were not converted.** LinuxCNC ignores spaces, so `G0X30Y10`, `G21G90`,
+  `N10G1X5`, `T2M6` and `G 1 X5` are valid G-code, but the converter looked for G and M codes only where a space
+  or the line start came before them. Such a line was copied to the output **unconverted** (Cartesian X/Y sent to
+  the polar machine, the CAM feed read as G93 inverse time: a plunge at 6× and a cut at 20× the CAM feed in a test
+  with LinuxCNC's own interpreter), `G1X50Y10F900` after a `G0` was cut as a rapid, and `T2M6` was not seen as a
+  tool change (wrong cutter diameter, position not reset). Every line is now read with one space between words.
+  Programs written with spaces (FreeCAD, Fusion, Kiri:Moto…) give exactly the same output as before
+  (golden 144/144 identical).
+- The web page's stock sizing reads `G0`/`G1` written without spaces too.
+- `tools/linuxcnc-compare.js` no longer crashes when LinuxCNC rejects an output file; it prints the reason.
+
+### Tests
+- `tests/input.test.js`: the same program written with spaces, without spaces, in lowercase, with line numbers,
+  with spaces inside words and with leading zeros gives identical moves; `T2M6` is a tool change; an exponent is
+  still refused in a compact line.
+
+### Repository
+- The working notes (`docs/notes/`) and the full assistant rules file are no longer kept in this public
+  repository; `CLAUDE.md` is now short. README: the Knurling-Wrap link moved under *More*, the test commands are
+  in the [Technical notes](docs/TECHNICAL.md).
+
 ## 2.26.0 — Knurling & Wrap moved to its own repository
 
 - The Part Design tools **Knurling & Wrap** (Knurl, Wrap on a cylinder, Hole on any surface) are now a separate

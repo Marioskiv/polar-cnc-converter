@@ -69,11 +69,6 @@ tested in 26.3). It has not yet cut a real part on the author's machine.
   end reaches every hollow. Its depth map is cross-checked against OpenCAMLib.
 - **Simulator** in the 3D view, and help in Greek and English with short GIFs (the "?" button switches language).
 
-## Knurling & Wrap (Part Design)
-
-Knurl, Wrap on a cylinder and Hole on any surface now live in their own addon:
-[Marioskiv/Knurling-Wrap](https://github.com/Marioskiv/Knurling-Wrap) (moved in 2.26.0).
-
 ## More
 
 - [FreeCAD addon notes](docs/FREECAD.md): how the addon works inside, what is tested and what is open.
@@ -81,8 +76,8 @@ Knurl, Wrap on a cylinder and Hole on any surface now live in their own addon:
 - [CHANGELOG](CHANGELOG.md): what changed in each version.
 - [`examples/linuxcnc-vismach-xzc-lathe`](examples/linuxcnc-vismach-xzc-lathe/): a LinuxCNC simulation of a lathe
   conversion, to try programs before they reach a machine.
-- Tests: run `npm install` once, then `npm test`. The addon's tests run in a real FreeCAD:
-  `FREECAD=/path/to/freecad sh tests/freecad/run.sh`.
+- Knurl, Wrap on a cylinder and Hole on any surface (Part Design) are a separate addon:
+  [Marioskiv/Knurling-Wrap](https://github.com/Marioskiv/Knurling-Wrap).
 
 ## Credits
 
