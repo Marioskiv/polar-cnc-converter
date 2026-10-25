@@ -141,12 +141,40 @@
     return { tools: tools, conflicts: conflicts };
   }
 
+  // FIX 2.26.1: words written without spaces. LinuxCNC ignores spaces, so "G0X30Y10", "G21G90",
+  // "N10G1X5", "T2M6" and "G 1 X5" are valid G-code, but the readers below find G and M codes with
+  // \b (a word boundary), which never matches between a digit and the next letter. Such a line was
+  // copied through UNCONVERTED (Cartesian X/Y to the polar machine, and the CAM's F read as G93
+  // inverse time), a "G1X50" after a G0 was cut as a rapid, and "T2M6" was not seen as a tool change.
+  // Each line is now rewritten as one space between words, comments kept after the code. Only lines
+  // that are plain words are touched; anything else (o-words, #, [ ], @ ^, / ,C, exponents) is left
+  // as it is, so the readers below refuse it with its own reason as before.
+  function spaceWords(line) {
+    var parens = [], code = '', semi = null, depth = 0, start = 0;
+    for (var i = 0; i < line.length; i++) {
+      var ch = line[i];
+      if (ch === '(') { if (depth === 0) start = i; depth++; }
+      else if (ch === ')' && depth > 0) { depth--; if (depth === 0) parens.push(line.slice(start, i + 1)); }
+      else if (depth === 0 && ch === ';') { semi = line.slice(i); break; }
+      else if (depth === 0) code += ch;
+    }
+    if (depth > 0) return line;                              // unclosed comment: leave it
+    if (!/\S/.test(code) || /[^A-Za-z0-9.+\-\s]/.test(code)) return line;
+    var flat = code.replace(/\s+/g, '');
+    if (/\d\.?E[+-]?\d/i.test(flat)) return line;            // exponent: refused further down
+    var WORD = /[A-Za-z][+-]?(?:\d+\.?\d*|\.\d+)/g;
+    if (flat.replace(WORD, '') !== '') return line;          // a letter without a number (o-word keywords...)
+    var spaced = flat.match(WORD).join(' ');
+    if (spaced === code.trim().replace(/\s+/g, ' ')) return line;   // already one word per space
+    return [spaced].concat(parens).join(' ') + (semi !== null ? ' ' + semi : '');
+  }
+
   function read(text, O, sink) {
     function emit(line) { sink.text(line); }
     var passThroughWarnings = 0;   // illegal-in-polar G-codes copied through verbatim
     var dwellWarnings = 0;         // G4 dwells of a minute or more (seconds vs milliseconds)
     var TOOL_DIA = O.toolDia;   // diameter of the ACTIVE tool (mm) - reported to the layout
-    var lines        = text.split(/\r?\n/);
+    var lines        = text.split(/\r?\n/).map(spaceWords);
     var curX = 0, curY = 0, curZ = 0;
     // FIX (2026-09-12): the converter starts by ASSUMING the tool is at (0,0,0).
     // The machine is really parked somewhere else (at the edge, Z up). Until the
