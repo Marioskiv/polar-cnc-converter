@@ -179,6 +179,12 @@
     // rotary axis named C (lathe-style XZC); A/B profiles are mill-style controls (e.g. Mach3 Mill)
     // that may not know G7/G8.
     if (O.rotaryAxis === 'C') out.push(O.xDiameter ? 'G7' : 'G8');
+    // ADDED 2.27.0: exact path (G61). LinuxCNC 2.9 rounds corners within the G64 P tolerance measured in X/Y/Z only,
+    // so where C turns a corner of the part was cut up to 0.44 mm off with G64 P0.025 (real LinuxCNC 2.9.10 trajectory,
+    // nanoels-cnc lcnc_traj.py), and the G64 P of the .ini startup code never reaches its motion controller. With G61
+    // it goes through every point (0.009 mm), about 14 % slower. A G64 in the CAM program becomes G61 too
+    // (gcode-input.js). Not for A/B profiles: mill-style controls such as Mach3 stop at every block in G61.
+    if (O.rotaryAxis === 'C') out.push('G61');
 
     var res = gcodeInput.read(text, O, {
       // A layout may need to act before a passed-through line (the tilting

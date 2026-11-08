@@ -262,9 +262,9 @@ assert.throws(() => convert('G21 G90 G17\nG0 X10 Y0 Z1\nG1 Z-1 F100\nG3 X0 Y10 I
 {
   const g = 'G21 G90\nG0 X10 Y0 Z5\nG1 Z-1 F100\nM30';
   const hdr = o => o.split('\n').filter(l => /^G\d+$/.test(l)).join(' ');
-  ok(hdr(convert(g, { xMin: 0, xMax: 113 })) === 'G21 G90 G93 G8', 'radius X: header has G8');
-  ok(hdr(convert(g, { xMin: 0, xMax: 113, xDiameter: true })) === 'G21 G90 G93 G7', 'diameter X: header has G7');
-  ok(hdr(convert(g, { xMin: 0, xMax: 113, rotaryAxis: 'A' })) === 'G21 G90 G93', 'rotary A (mill-style control): no G7/G8');
+  ok(hdr(convert(g, { xMin: 0, xMax: 113 })) === 'G21 G90 G93 G8 G61', 'radius X: header has G8 (and G61, 2.27.0)');
+  ok(hdr(convert(g, { xMin: 0, xMax: 113, xDiameter: true })) === 'G21 G90 G93 G7 G61', 'diameter X: header has G7 (and G61, 2.27.0)');
+  ok(hdr(convert(g, { xMin: 0, xMax: 113, rotaryAxis: 'A' })) === 'G21 G90 G93', 'rotary A (mill-style control): no G7/G8, no G61');
   assert.throws(() => convert('G7\n' + g, { xMin: 0, xMax: 113 }), /lathe diameter mode \(G7\)/); n++;
   ok(!convert('G18 G8 G21\n' + g, { xMin: 0, xMax: 113 }).split('\n').some(l => /\bG8\b/.test(l.replace(/\([^)]*\)/g, '')) && !/^G8$/.test(l)),
      'an input G8 is removed (only the header G8 remains)');
@@ -371,6 +371,25 @@ assert.throws(() => convert('G21 G90 G17\nG0 X10 Y0 Z1\nG1 Z-1 F100\nG3 X0 Y10 I
   })()), 'after T2M6 the position is unknown');
   ok(/exponent/.test((() => { try { convert('G21 G90\nG0X30Y0Z5\nG1Z-1F1E3\nM30', O); return ''; } catch (e) { return e.message; } })()),
     'exponent still refused in a compact line');
+}
+
+// 35. (2.27.0) Exact path on a C machine: LinuxCNC 2.9 rounds corners with G64 P measured in X/Y/Z only (where C
+// turns, up to 0.44 mm off on the part), so the header writes G61 and a G64 from the CAM becomes G61.
+{
+  const O = { xMin: 0, xMax: 113 };
+  const code = l => l.replace(/\([^)]*\)/g, '').trim();
+  const g = 'G21 G90 G64 P0.02 (G64 in a comment stays)\nG0 X10 Y0 Z5\nG64 Q0.01 G1 Z-1 F100\nG64\nG1 X20 Y10 F300\nG61\nG1 X0 Y20\nG61.1\nG1 X0 Y30\nM30';
+  const out = convert(g, O).split('\n');
+  ok(out.indexOf('G61') > out.indexOf('G8') && out.indexOf('G8') > out.indexOf('G93'), 'header: G93, G8, then G61');
+  ok(!out.some(l => /\bG0*64\b/.test(code(l))), 'no G64 reaches the output (P, Q or none)');
+  ok(out.filter(l => /^G61 \( G64( P0\.02| Q0\.01)? from the program/.test(l)).length === 3, 'each G64 becomes G61 with a note');
+  ok(out.some(l => /G64 in a comment stays/.test(l)), 'a G64 inside a comment is left alone');
+  ok(out.some(l => code(l) === 'G61.1'), 'G61.1 (exact stop) passes as written');
+  ok(out.filter(l => /^G1 /.test(l)).every(l => !/G6/.test(l)), 'the moves themselves carry no path-mode word');
+  const a = convert(g, Object.assign({ rotaryAxis: 'A' }, O)).split('\n');
+  const firstMove = a.findIndex(l => /^G[01] /.test(l));
+  ok(!a.slice(0, firstMove).some(l => code(l) === 'G61') && a.some(l => /\bG64\b/.test(code(l))),
+     'rotary A (mill-style control): no header G61, the CAM G64 is kept');
 }
 
 console.log(`input: ${n} checks passed`);

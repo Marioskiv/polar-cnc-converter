@@ -295,7 +295,20 @@
     // spindle start — a tool could plunge with the spindle stopped.
     var MOTION_G  = /\bG0*(?:0|1|2|3)(?![.\d])/gi;
     var HANDLED_G = /\bG0*(?:17|18|19|20|21|73|80|81|82|83|85|89|90|91|94|98|99)(?![.\d])/gi;
+    // ADDED 2.27.0: G64 (blending) from the CAM becomes G61 (exact path) on a C machine. LinuxCNC 2.9 rounds a corner
+    // within the G64 P tolerance measured in X/Y/Z only: where C turns the corner on the part was cut up to 0.44 mm
+    // off (measured in the real LinuxCNC 2.9.10 trajectory planner, nanoels-cnc lcnc_traj.py), and a G64 without P
+    // has no limit at all. The polar output is exact only when the control goes through every point. The header
+    // writes G61 for the same reason (converter.js). Controls that never round corners (the H4) do the same either way.
+    function exactPath(text) {
+      if (O.rotaryAxis !== 'C' || !/G0*64/i.test(text)) return text;
+      return text.replace(/(\([^)]*\))|\bG0*64(?![.\d])(?:\s*[PQ]\s*[-+]?(?:\d+\.?\d*|\.\d+))*/gi, function (m, comment) {
+        if (comment) return comment;
+        return 'G61 ( ' + m.replace(/\s+/g, ' ').trim().toUpperCase() + ' from the program: G61, LinuxCNC G64 leaves C out )';
+      });
+    }
     function splitNonMotion(raw, keepPQ) {
+      raw = exactPath(raw);
       var comments = raw.match(/\([^)]*\)/g) || [];
       var t = raw.replace(/\([^)]*\)/g, ' ').replace(/;.*$/, ' ')
                  .replace(MOTION_G, ' ').replace(HANDLED_G, ' ')
@@ -310,6 +323,7 @@
     // Writes a pass-through line; the program end (M2/M30) gets the G94 restore first.
     function emitPassThrough(text) {
       if (!text) return;
+      text = exactPath(text);
       if (/\bM0*(?:2|30)(?![.\d])/i.test(text) && !programEnded) {
         sink.programEnd(camFeed);   // flush + 'G94 restore' (written by the converter)
         programEnded = true;
