@@ -176,9 +176,14 @@ With an X travel of −10 … +125 mm, in Auto, Index and Signed modes:
 Targets are `CHORD_TOL` (0.025 mm) for cutting and `RAPID_TOL` (0.5 mm) for rapids. A realistic 100 mm zigzag
 facing program at two depths converts to ~3,500 blocks in ~20 ms with no invalid values.
 
-**What this does NOT prove:** the harness models joint-space interpolation only. It does not model LinuxCNC's
-`G64` blending (which rounds corners by up to its `P` value), acceleration, or anything about the physical
-machine. Air-cut every new program first.
+**What this does NOT prove:** the harness models joint-space interpolation only. It does not model the control's
+trajectory planner, acceleration, or anything about the physical machine. Air-cut every new program first.
+
+**Path mode (2.27.0):** the output writes `G61` (exact path) and turns a CAM `G64` into `G61`. LinuxCNC 2.9 blends
+corners in `G64` with a tolerance measured in X/Y/Z only, so where C turns it rounded a corner by up to 0.44 mm on
+the part with `G64 P0.025`; and the `G64 P` of `RS274NGC_STARTUP_CODE` never reaches its motion controller (no limit
+at all until a program says `G64 P`). Both were measured with LinuxCNC 2.9.10's own trajectory planner sampled every
+millisecond (`h4/test/lcnc_traj.py` in Marioskiv/nanoels-cnc); with `G61` it kept to 0.009 mm, about 14 % slower.
 
 ## Project structure
 

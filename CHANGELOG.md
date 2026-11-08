@@ -1,5 +1,31 @@
 # Changelog
 
+## 2.27.0 — exact path on LinuxCNC (G61)
+
+### Fixed
+- **On LinuxCNC, corners where C turns were cut up to 0.44 mm off on the part.** The output is exact only when
+  the control goes through every point, but LinuxCNC 2.9 blends corners in G64 with a tolerance measured in X/Y/Z
+  only: C is left out, so at a corner of a hexagon at X55 the part was cut 0.44 mm inside the programmed corner
+  even with `G64 P0.025`. And the `G64 P0.025` written in the machine's `RS274NGC_STARTUP_CODE` never reaches
+  LinuxCNC's motion controller (its message is queued when the interpreter starts and not sent): until a program
+  says `G64 P`, corners were blended with no limit at all (1.2 mm seen). Measured with LinuxCNC 2.9.10's own
+  trajectory planner, sampled every millisecond (`h4/test/lcnc_traj.py` in Marioskiv/nanoels-cnc). In a blend of
+  rapids X was also driven at 17.8 mm/s with a limit of 12.
+- The output now writes **`G61`** (exact path) after `G8`/`G7`, and a `G64`, `G64 P…` or `G64 Q…` in the CAM program
+  becomes `G61` (with a comment saying so). With G61 the same program kept to 0.009 mm and 12 mm/s; it takes about
+  14 % longer on LinuxCNC (77.5 → 88.6 s in the sample). `G61.1` (exact stop) is kept as written.
+- Only for a rotary axis named C (lathe-style XZC). A/B profiles are mill-style controls such as Mach3, where G61
+  stops at every block. The NanoEls H4 (Marioskiv/nanoels-cnc) goes through every point in G61 and G64 alike, so
+  its runs do not change.
+- The FreeCAD addon runs the same converter code, so its output changes the same way.
+
+### Tests
+- Golden 144/144 changed by exactly one line each: `G61` after `G8`/`G7` (checked line by line before the update).
+- `tests/input.test.js` (35): header order G93, G8, G61; no `G64` reaches the output; each CAM `G64` becomes `G61`
+  with a note; a `G64` inside a comment is kept; `G61.1` passes; rotary A writes no `G61` and keeps the CAM's `G64`.
+- `tools/sweeps.js` unchanged (worst 0.0225 mm); `tools/linuxcnc-compare.js` with LinuxCNC 2.9.10's `rs274`: all
+  programs OK.
+
 ## 2.26.1 — G-code written without spaces
 
 ### Fixed
